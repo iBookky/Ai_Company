@@ -1,0 +1,67 @@
+app:
+  name: "One-Person AI Enterprise"
+  version: "1.0.0"
+  description: "ระบบบริหารทีม AI สำหรับเจ้าของธุรกิจ"
+
+llm:
+  default_model: "gemini-1.5-flash"
+  available_models:
+    - id: "gemini-1.5-pro"
+      name: "Gemini 1.5 Pro"
+      provider: "google"
+      context_window: 1000000
+      cost_per_1k_tokens: 0.0035
+    - id: "gemini-1.5-flash"
+      name: "Gemini 1.5 Flash"
+      provider: "google"
+      context_window: 1000000
+      cost_per_1k_tokens: 0.00035
+    - id: "claude-3-5-sonnet-20241022"
+      name: "Claude 3.5 Sonnet"
+      provider: "anthropic"
+      context_window: 200000
+      cost_per_1k_tokens: 0.003
+    - id: "claude-3-haiku-20240307"
+      name: "Claude 3 Haiku"
+      provider: "anthropic"
+      context_window: 200000
+      cost_per_1k_tokens: 0.00025
+
+departments:
+  base_path: "departments"
+  default_departments:
+    - id: "01_secretary"
+      name: "เลขานุการ AI"
+      role: "secretary"
+    - id: "02_marketing"
+      name: "การตลาด AI"
+      role: "marketing"
+
+skype:
+  verification_timeout_seconds: 300
+  max_retry: 3
+  rooms:
+    admin:
+      name: "ห้องบริหารรวม"
+      participants: ["owner", "secretary", "pm"]
+    ops:
+      name: "ห้องปฏิบัติการ"
+      participants: ["pm", "workers"]
+
+logging:
+  level: "INFO"
+  log_file: "logs/system.jsonl"
+  max_entries: 10000
+
+drafts:
+  base_path: "drafts"
+  categories:
+    - id: "proposals"
+      name: "ใบเสนอราคา"
+      icon: "📄"
+    - id: "accounting"
+      name: "เอกสารบัญชี"
+      icon: "📊"
+    - id: "contracts"
+      name: "สัญญา"
+      icon: "📋"

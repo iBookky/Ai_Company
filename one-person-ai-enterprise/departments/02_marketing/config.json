@@ -1,0 +1,9 @@
+{
+  "name": "การตลาด AI",
+  "role": "marketing_manager",
+  "model": "gemini-1.5-flash",
+  "temperature": 0.7,
+  "department": "02_marketing",
+  "created_at": "2026-08-02T22:58:34.923871",
+  "ops_chat_id": "-5105267686"
+}

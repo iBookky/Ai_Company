@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>One-Person AI Enterprise — Dashboard</title>
+  <meta name="description" content="ระบบบริหารทีม AI สำหรับเจ้าของธุรกิจ — ควบคุมและสร้าง AI ได้ด้วยตัวเองผ่านหน้าเว็บ" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <!-- ─── Sidebar ─────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <span class="logo-icon">🏢</span>
+        <div class="logo-text">
+          <span class="logo-title">AI Enterprise</span>
+          <span class="logo-sub">One-Person Control</span>
+        </div>
+      </div>
+      <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar">
+        <span>◀</span>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="#/dashboard" class="nav-item active" data-page="dashboard" id="nav-dashboard">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">ภาพรวมระบบ</span>
+      </a>
+      <a href="#/agents" class="nav-item" data-page="agents" id="nav-agents">
+        <span class="nav-icon">🤖</span>
+        <span class="nav-label">จัดการ Agents</span>
+        <span class="nav-badge" id="agents-count">0</span>
+      </a>
+      <a href="#/skype" class="nav-item" data-page="skype" id="nav-skype">
+        <span class="nav-icon">✈️</span>
+        <span class="nav-label">Telegram Rooms</span>
+        <span class="nav-badge pulse-badge" id="skype-badge" style="display:none">!</span>
+      </a>
+
+      <a href="#/logs" class="nav-item" data-page="logs" id="nav-logs">
+        <span class="nav-icon">📋</span>
+        <span class="nav-label">Logs & Monitoring</span>
+        <span class="nav-badge error-badge" id="error-count" style="display:none">0</span>
+      </a>
+      <a href="#/drafts" class="nav-item" data-page="drafts" id="nav-drafts">
+        <span class="nav-icon">📁</span>
+        <span class="nav-label">Draft Repository</span>
+      </a>
+      <a href="#/settings" class="nav-item" data-page="settings" id="nav-settings">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">ตั้งค่าระบบ</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="system-status" id="system-status">
+        <span class="status-dot online" id="status-dot"></span>
+        <span id="status-text">ระบบออนไลน์</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─── Main Content ────────────────────────────────── -->
+  <main class="main-content" id="mainContent" tabindex="-1">
+
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="page-title" id="page-title">ภาพรวมระบบ</h1>
+        <span class="page-subtitle" id="page-subtitle">One-Person AI Enterprise</span>
+      </div>
+      <div class="topbar-right">
+        <div class="ws-indicator" id="ws-indicator" title="WebSocket Status">
+          <span class="ws-dot"></span>
+          <span class="ws-label">Live</span>
+        </div>
+        <div class="time-display" id="time-display"></div>
+      </div>
+    </header>
+
+    <!-- ─── Pages ──────────────────────────────────────── -->
+
+    <!-- DASHBOARD PAGE -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card" id="stat-agents">
+          <div class="stat-icon">🤖</div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-agent-count">0</div>
+            <div class="stat-label">AI Agents ทั้งหมด</div>
+          </div>
+          <div class="stat-trend">Active</div>
+        </div>
+        <div class="stat-card" id="stat-errors">
+          <div class="stat-icon">⚠️</div>
+          <div class="stat-info">
+            <div class="stat-value error-value" id="stat-error-count">0</div>
+            <div class="stat-label">Errors วันนี้</div>
+          </div>
+        </div>
+        <div class="stat-card" id="stat-tasks">
+          <div class="stat-icon">📋</div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-task-count">0</div>
+            <div class="stat-label">Log Entries</div>
+          </div>
+        </div>
+        <div class="stat-card" id="stat-drafts">
+          <div class="stat-icon">📄</div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-draft-count">0</div>
+            <div class="stat-label">เอกสารร่าง</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-header">
+            <h2>🤖 Agents ล่าสุด</h2>
+            <button class="btn btn-sm btn-primary" onclick="navigateTo('agents')">ดูทั้งหมด</button>
+          </div>
+          <div id="dashboard-agents-list" class="agent-mini-list">
+            <div class="loading-skeleton"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>📋 กิจกรรมล่าสุด</h2>
+            <button class="btn btn-sm" onclick="navigateTo('logs')">ดูทั้งหมด</button>
+          </div>
+          <div id="dashboard-log-feed" class="log-feed-mini">
+            <div class="loading-skeleton"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- AGENTS PAGE -->
+    <div class="page" id="page-agents">
+      <div class="page-actions">
+        <button class="btn btn-primary btn-lg" id="btn-create-agent" onclick="openAgentModal()">
+          <span>＋</span> สร้าง Agent ใหม่
+        </button>
+      </div>
+
+      <div id="agents-grid" class="agents-grid">
+        <div class="loading-skeleton card"></div>
+        <div class="loading-skeleton card"></div>
+      </div>
+    </div>
+
+    <!-- TELEGRAM ROOMS PAGE -->
+    <div class="page" id="page-skype">
+      <div class="skype-layout">
+        <div class="rooms-panel" style="display:flex; flex-direction:column; gap:1.25rem;">
+          
+          <!-- 1. Direct Chat (1-on-1) -->
+          <div class="card">
+            <div class="card-header">
+              <h2>💬 คุยส่วนตัว 1-on-1</h2>
+              <span class="room-badge">Direct Chat</span>
+            </div>
+            <div class="room-participants">
+              <div class="participant"><span>👑</span> Owner (คุณ)</div>
+              <div class="participant"><span>🗂️</span> เลขา AI</div>
+            </div>
+            <div id="direct-room-status" class="room-status"></div>
+          </div>
+
+          <!-- 2. Executive Boardroom -->
+          <div class="card">
+            <div class="card-header">
+              <h2>🏛️ ห้องประชุมผู้บริหาร</h2>
+              <span class="room-badge">Executive Boardroom</span>
+            </div>
+            <div class="room-participants">
+              <div class="participant"><span>👑</span> Owner (คุณ)</div>
+              <div class="participant"><span>🗂️</span> เลขา AI</div>
+              <div class="participant"><span>📊</span> PM AI หัวหน้าทุกแผนก</div>
+            </div>
+            <div id="admin-room-status" class="room-status"></div>
+          </div>
+
+          <!-- 3. Department Working Rooms Header & List -->
+          <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <h2 style="margin:0;">🏢 ห้องทำงานแต่ละแผนก</h2>
+                <div style="font-size:11px; color:var(--color-text-muted); margin-top:2px;">(Owner + PM แต่ละทีม + ทีม AI ลูกน้อง)</div>
+              </div>
+              <button class="btn btn-sm btn-primary" onclick="openCreateRoomModal()">
+                ＋ สร้างห้องแผนกใหม่
+              </button>
+            </div>
+
+            <!-- Dynamic Department Working Rooms Container -->
+            <div id="department-rooms-list" style="padding: 1rem; display:flex; flex-direction:column; gap:0.75rem;">
+              <div class="loading-skeleton"></div>
+            </div>
+          </div>
+
+        </div>
+
+
+        <div class="verification-panel">
+          <div class="card">
+            <div class="card-header">
+              <h2>✅ รายการรอยืนยัน</h2>
+              <button class="btn btn-sm" onclick="loadVerifications()">🔄 รีเฟรช</button>
+            </div>
+            <div id="verifications-list" class="verifications-list">
+              <div class="empty-state">
+                <span>✅</span>
+                <p>ไม่มีรายการรอยืนยัน</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>🧪 ทดสอบ (Simulator)</h2>
+            </div>
+            <div class="simulate-form">
+              <textarea id="simulate-text" class="form-textarea" rows="3"
+                placeholder="พิมพ์คำสั่งเพื่อจำลองการส่งจาก Owner..."></textarea>
+              <button class="btn btn-primary" onclick="simulateMessage()" id="btn-simulate">
+                📨 ส่งคำสั่งจำลอง
+              </button>
+              <div id="simulate-result" class="simulate-result"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGS PAGE -->
+    <div class="page" id="page-logs">
+      <div class="logs-toolbar">
+        <div class="filter-group">
+          <select class="form-select" id="log-filter-agent">
+            <option value="">ทุก Agent</option>
+          </select>
+          <select class="form-select" id="log-filter-level">
+            <option value="">ทุกระดับ</option>
+            <option value="ERROR">🔴 Error</option>
+            <option value="WARNING">🟡 Warning</option>
+            <option value="SUCCESS">🟢 Success</option>
+            <option value="INFO">🔵 Info</option>
+          </select>
+          <input type="text" class="form-input" id="log-search" placeholder="🔍 ค้นหา..." />
+          <button class="btn btn-sm" onclick="loadLogs()">🔄</button>
+        </div>
+        <div class="log-stats" id="log-stats"></div>
+      </div>
+
+      <div id="logs-table-container" class="logs-table-container">
+        <table class="logs-table" id="logs-table">
+          <thead>
+            <tr>
+              <th>เวลา</th>
+              <th>Agent</th>
+              <th>ระดับ</th>
+              <th>ข้อความ</th>
+            </tr>
+          </thead>
+          <tbody id="logs-tbody">
+            <tr><td colspan="4" class="loading-text">กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- DRAFTS PAGE -->
+    <div class="page" id="page-drafts">
+      <div class="drafts-toolbar">
+        <div class="category-tabs" id="category-tabs">
+          <button class="tab-btn active" data-cat="" onclick="selectCategory(this, '')">📁 ทั้งหมด</button>
+          <button class="tab-btn" data-cat="proposals" onclick="selectCategory(this, 'proposals')">📄 ใบเสนอราคา</button>
+          <button class="tab-btn" data-cat="accounting" onclick="selectCategory(this, 'accounting')">📊 บัญชี</button>
+          <button class="tab-btn" data-cat="contracts" onclick="selectCategory(this, 'contracts')">📋 สัญญา</button>
+        </div>
+        <label class="btn btn-primary" for="file-upload-input">
+          ⬆️ อัปโหลดเอกสาร
+          <input type="file" id="file-upload-input" style="display:none"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg"
+            onchange="uploadDraft(this)" />
+        </label>
+      </div>
+
+      <div id="drafts-category-label" class="drafts-category-label"></div>
+
+      <div id="drafts-grid" class="drafts-grid">
+        <div class="loading-skeleton card"></div>
+      </div>
+
+      <!-- Upload Category Modal -->
+      <div class="modal" id="upload-category-modal" style="display:none">
+        <div class="modal-overlay" onclick="closeUploadModal()"></div>
+        <div class="modal-box" style="max-width:400px">
+          <h3>เลือกหมวดหมู่</h3>
+          <select class="form-select" id="upload-category-select">
+            <option value="proposals">📄 ใบเสนอราคา</option>
+            <option value="accounting">📊 บัญชี</option>
+            <option value="contracts">📋 สัญญา</option>
+          </select>
+          <div class="modal-actions">
+            <button class="btn" onclick="closeUploadModal()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="confirmUpload()">อัปโหลด</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div class="page" id="page-settings">
+      <div class="settings-layout">
+
+        <!-- LLM Keys -->
+        <div class="settings-section card">
+          <div class="card-header">
+            <h2>🔑 LLM API Keys</h2>
+          </div>
+          <div class="settings-form">
+            <div class="form-group">
+              <label class="form-label">Google Gemini API Key</label>
+              <div class="input-with-badge">
+                <input type="password" class="form-input" id="gemini-key" placeholder="AIzaSy..." />
+                <span class="config-badge" id="gemini-status">❌ ยังไม่ตั้งค่า</span>
+              </div>
+              <div class="form-hint">🔗 รับ key ได้ที่ <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Anthropic Claude API Key</label>
+              <div class="input-with-badge">
+                <input type="password" class="form-input" id="claude-key" placeholder="sk-ant-..." />
+                <span class="config-badge" id="claude-status">❌ ยังไม่ตั้งค่า</span>
+              </div>
+              <div class="form-hint">🔗 รับ key ได้ที่ <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Telegram Bot -->
+        <div class="settings-section card">
+          <div class="card-header">
+            <h2>✈️ Telegram Bot Credentials</h2>
+            <span class="config-badge" id="telegram-overall-status">❌ ยังไม่ตั้งค่า</span>
+          </div>
+
+          <!-- Info box -->
+          <div class="settings-info-box">
+            <div class="info-box-icon">💡</div>
+            <div>
+              <strong>วิธีสมัคร Telegram Bot ใน 1 นาที (ฟรี 100%):</strong><br/>
+              1. เปิดแอป Telegram แล้วค้นหาหาบอท <strong>@BotFather</strong><br/>
+              2. พิมพ์คำสั่ง <code>/newbot</code> แล้วตั้งชื่อบอท → จะได้รับ <strong>HTTP API Token</strong> ทันที<br/>
+              3. นำ Token มาวางที่ช่องด้านล่าง แล้วกดบันทึกใช้งานได้เลย!
+            </div>
+          </div>
+
+          <div class="settings-form">
+
+            <!-- Step 1 -->
+            <div class="settings-step">
+              <div class="step-label">Step 1 — Bot Token</div>
+              <div class="form-group">
+                <label class="form-label">
+                  Telegram Bot Token
+                  <span class="label-hint">ได้จาก @BotFather (เช่น 123456789:ABCdefGHIjklMNO...)</span>
+                </label>
+                <input type="password" class="form-input font-mono" id="telegram-bot-token"
+                  placeholder="123456789:ABCdefGHIjklMNO..." />
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="settings-step">
+              <div class="step-label">Step 2 — กำหนดห้อง Telegram Chat IDs (3 ระดับ)</div>
+              
+              <!-- 1. Direct Chat ID -->
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label">
+                  💬 Direct Chat ID (แชทส่วนตัว 1-on-1 กับเลขา AI)
+                  <span class="label-hint">User Chat ID ส่วนตัวของคุณ (หาได้โดยทักแชทไปที่บอท @userinfobot หรือ @getidsbot ใน Telegram)</span>
+                </label>
+                <div style="display:flex; gap:0.5rem;">
+                  <input type="text" class="form-input font-mono" id="telegram-direct-chat"
+                    placeholder="เช่น 123456789 หรือ -100123456789" style="flex:1;" />
+                  <button type="button" class="btn btn-sm btn-secondary" onclick="testSendTelegramMessage('telegram-direct-chat', 'Direct Chat 1-on-1')">
+                    📨 ทดสอบส่ง
+                  </button>
+                </div>
+              </div>
+
+              <!-- 2. Executive Boardroom Chat ID -->
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label">
+                  🏛️ Executive Boardroom Chat ID (ห้องประชุมผู้บริหาร)
+                  <span class="label-hint">Chat ID ของกลุ่มประชุมบริหาร ( Owner + เลขา AI + PM หัวหน้าทุกแผนก )</span>
+                </label>
+                <div style="display:flex; gap:0.5rem;">
+                  <input type="text" class="form-input font-mono" id="telegram-admin-chat"
+                    placeholder="-100123456789" style="flex:1;" />
+                  <button type="button" class="btn btn-sm btn-secondary" onclick="testSendTelegramMessage('telegram-admin-chat', 'ห้องประชุมผู้บริหาร')">
+                    📨 ทดสอบส่ง
+                  </button>
+                </div>
+              </div>
+
+              <!-- 3. Default Fallback Ops Chat -->
+              <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label class="form-label">
+                  ⚙️ Default Ops Chat ID (ห้องปฏิบัติการสำรอง)
+                  <span class="label-hint">ห้องปฏิบัติการสำรองเมื่อไม่ได้ระบุ Ops Chat ID เฉพาะของแผนก</span>
+                </label>
+                <div style="display:flex; gap:0.5rem;">
+                  <input type="text" class="form-input font-mono" id="telegram-ops-chat"
+                    placeholder="-100987654321" style="flex:1;" />
+                  <button type="button" class="btn btn-sm btn-secondary" onclick="testSendTelegramMessage('telegram-ops-chat', 'ห้องปฏิบัติการสำรอง')">
+                    📨 ทดสอบส่ง
+                  </button>
+                </div>
+              </div>
+
+
+              <!-- Department-Specific Ops Rooms (Dynamic List) -->
+              <div class="dept-ops-header" style="margin-top: 1.5rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                <label class="form-label" style="margin: 0;">
+                  🏢 Ops Chat IDs แยกตามแผนกปฏิบัติการ
+                  <span class="label-hint">ระบุ Chat ID สำหรับแต่ละแผนก เพื่อผูกให้ AI แผนกนั้นคุยงานเฉพาะในห้องตัวเอง (ห้ามส่งข้ามห้อง)</span>
+                </label>
+                <button type="button" class="btn btn-sm btn-primary" onclick="addDepartmentOpsRow()">
+                  ＋ เพิ่มแผนก
+                </button>
+              </div>
+
+              <!-- Dynamic Rows Container -->
+              <div id="dept-ops-container" class="dept-ops-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <!-- Dynamically loaded by settings.js -->
+              </div>
+            </div>
+
+
+            <!-- Step 3 -->
+            <div class="settings-step">
+              <div class="step-label">Step 3 — ตัวตนของคุณ (Owner)</div>
+              <div class="form-group">
+                <label class="form-label">
+                  Owner Telegram ID / Username
+                  <span class="label-hint">User ID หรือ Telegram Username ของคุณ (เช่น @myusername หรือ 987654321)</span>
+                </label>
+                <input type="text" class="form-input font-mono" id="telegram-owner-id"
+                  placeholder="@myusername" />
+              </div>
+            </div>
+
+            <!-- Webhook URL -->
+            <div class="settings-step">
+              <div class="step-label">Step 4 — Telegram Webhook URL</div>
+              <div class="form-group">
+                <label class="form-label">Webhook URL <span class="label-hint">URL สำหรับตั้งค่า Webhook กับ Telegram (หรือใช้ Simulator ได้ทันที)</span></label>
+                <div class="webhook-url-box" id="webhook-url-box">
+                  <code id="webhook-url-display">http://YOUR_SERVER_IP:8000/api/telegram/webhook</code>
+                  <button class="btn btn-sm" onclick="copyTelegramWebhookUrl()">📋 คัดลอก</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+
+        <!-- Default Model -->
+        <div class="settings-section card">
+          <div class="card-header">
+            <h2>🤖 โมเดลเริ่มต้น</h2>
+          </div>
+          <div class="settings-form">
+            <div class="form-group">
+              <label class="form-label">Default LLM Model</label>
+              <select class="form-select" id="default-model">
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash (เร็ว)</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro (ฉลาดกว่า)</option>
+                <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (ล่าสุด)</option>
+                <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Premium)</option>
+                <option value="claude-3-haiku-20240307">Claude 3 Haiku (เร็ว)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-actions" style="display:flex; flex-direction:column; gap:1rem; align-items:flex-start;">
+          <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+            <button class="btn btn-primary btn-lg" onclick="saveSettings()" id="btn-save-settings">
+              💾 บันทึกการตั้งค่า
+            </button>
+            <button class="btn btn-secondary btn-lg" onclick="testSettingsConnection()" id="btn-test-settings" style="background:rgba(255,255,255,0.08); border:1px solid var(--color-border);">
+              🧪 ทดสอบการเชื่อมต่อ Token &amp; Keys
+            </button>
+            <span class="save-status" id="save-status"></span>
+          </div>
+
+          <!-- Connection Test Results Box -->
+          <div id="test-results-box" style="display:none; width:100%; padding:1rem; border-radius:8px; background:rgba(0,0,0,0.3); border:1px solid var(--color-border); font-size:13px;">
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ─── Agent Modal ─────────────────────────────────── -->
+  <div class="modal" id="agent-modal">
+    <div class="modal-overlay" onclick="closeAgentModal()"></div>
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h2 id="modal-title">🤖 สร้าง Agent ใหม่</h2>
+        <button class="modal-close" onclick="closeAgentModal()">✕</button>
+      </div>
+      <form id="agent-form" onsubmit="submitAgentForm(event)">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label required">ชื่อตำแหน่ง</label>
+              <input type="text" class="form-input" id="agent-name" placeholder="เช่น นักเขียน Content" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">สังกัดหัวหน้าทีม</label>
+              <select class="form-select" id="agent-parent">
+                <option value="">— ไม่มี (ระดับสูงสุด) —</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label required">โมเดลสมอง (LLM)</label>
+              <select class="form-select" id="agent-model">
+                <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash (เร็ว / ประหยัด)</option>
+                <option value="gemini-1.5-pro">🧠 Gemini 1.5 Pro (ฉลาดกว่า)</option>
+                <option value="claude-3-5-sonnet-20241022">🎭 Claude 3.5 Sonnet (Premium)</option>
+                <option value="claude-3-haiku-20240307">⚡ Claude 3 Haiku (เร็ว)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Temperature: <span id="temp-display">0.5</span></label>
+              <input type="range" class="form-range" id="agent-temperature"
+                min="0" max="1" step="0.1" value="0.5"
+                oninput="document.getElementById('temp-display').textContent=this.value" />
+              <div class="range-labels">
+                <span>🎯 แม่นยำ (0.0)</span>
+                <span>🎨 สร้างสรรค์ (1.0)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              ✈️ Ops Chat ID ประจำแผนก (Telegram)
+              <span class="label-hint">ผูกให้ AI ตัวนี้ส่งงานเฉพาะห้องของแผนกตัวเอง (เช่น -100123456789)</span>
+            </label>
+            <input type="text" class="form-input font-mono" id="agent-ops-chat" placeholder="-100xxxxxxxxx (หากไม่ระบุจะใช้ห้อง Default)" />
+          </div>
+
+
+          <div class="form-group">
+            <label class="form-label required">
+              Identity (บุคลิกภาพและบทบาท)
+              <span class="form-hint">บอก AI ว่าตัวเองเป็นใคร มีหน้าที่อะไร</span>
+            </label>
+            <textarea class="form-textarea" id="agent-identity" rows="6"
+              placeholder="คุณคือ [ชื่อตำแหน่ง] ของบริษัท มีหน้าที่:&#10;1. ...&#10;2. ...&#10;&#10;บุคลิกภาพ: ..." required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label required">
+              Skills (ทักษะและคำสั่งพิเศษ)
+              <span class="form-hint">บอก AI ว่าทำได้อะไร และทำอย่างไร</span>
+            </label>
+            <textarea class="form-textarea" id="agent-skill" rows="6"
+              placeholder="## ทักษะหลัก&#10;1. ...&#10;&#10;## ขั้นตอนการทำงาน&#10;..." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeAgentModal()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-agent">
+            💾 บันทึก Agent
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ─── Create Department Room Modal ─────────────────── -->
+  <div class="modal" id="create-room-modal">
+    <div class="modal-overlay" onclick="closeCreateRoomModal()"></div>
+    <div class="modal-box" style="max-width:480px">
+      <div class="modal-header">
+        <h2>🏢 สร้างห้องทำงานแผนกใหม่</h2>
+        <button class="modal-close" onclick="closeCreateRoomModal()">✕</button>
+      </div>
+      <form id="create-room-form" onsubmit="submitCreateRoomForm(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label required">ชื่อแผนก</label>
+            <input type="text" class="form-input" id="new-room-name" placeholder="เช่น ทีมทรัพยากรบุคคล (HR)" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">ชื่อ PM หัวหน้าแผนก</label>
+            <input type="text" class="form-input" id="new-room-pm" placeholder="เช่น PM HR (หากไม่ระบุจะตั้งให้อัตโนมัติ)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telegram Ops Chat ID ประจำห้อง</label>
+            <input type="text" class="form-input font-mono" id="new-room-chat-id" placeholder="-100xxxxxxxxx (ใส่ภายหลังได้)" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeCreateRoomModal()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-create-room">
+            💾 สร้างห้องแผนก
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ─── Toast Notification ──────────────────────────── -->
+  <div id="toast-container" class="toast-container"></div>
+
+
+  <!-- ─── Scripts ─────────────────────────────────────── -->
+  <script src="/static/js/app.js"></script>
+  <script src="/static/js/agents.js"></script>
+  <script src="/static/js/logs.js"></script>
+  <script src="/static/js/drafts.js"></script>
+  <script src="/static/js/telegram.js"></script>
+  <script src="/static/js/settings.js"></script>
+
+</body>
+</html>
