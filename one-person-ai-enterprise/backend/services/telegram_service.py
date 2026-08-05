@@ -531,6 +531,57 @@ def get_room_status() -> dict:
     }
 
 
+# ─── Telegram Background Polling Service ────────────────────────────────────
+
+_polling_task = None
+_polling_running = False
+
+
+async def start_telegram_polling():
+    """เริ่มระบบ Telegram Background Listener เพื่อคอยรับและตอบกลับข้อความจาก Owner บน Telegram เรียลไทม์ 24/7"""
+    global _polling_task, _polling_running
+    if _polling_running:
+        return
+
+    token = TELEGRAM_BOT_TOKEN or os.getenv("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        logger.warning("ไม่พบ TELEGRAM_BOT_TOKEN ไม่สามารถเริ่ม Telegram Polling ได้")
+        return
+
+    _polling_running = True
+    logger.info("🚀 เริ่มทำงาน Telegram Background Listener Worker...")
+
+    async def _polling_loop():
+        global _polling_running
+        last_offset = 0
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            while _polling_running:
+                try:
+                    url = f"https://api.telegram.org/bot{token}/getUpdates"
+                    params = {"offset": last_offset + 1, "timeout": 15}
+                    resp = await client.get(url, params=params)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        for update in data.get("result", []):
+                            last_offset = update["update_id"]
+                            await handle_webhook(update)
+                except Exception as e:
+                    logger.debug(f"Telegram Polling loop update: {e}")
+                    await asyncio.sleep(2)
+                await asyncio.sleep(0.5)
+
+    _polling_task = asyncio.create_task(_polling_loop())
+
+
+def stop_telegram_polling():
+    """หยุดทำงาน Telegram Background Listener Worker"""
+    global _polling_running, _polling_task
+    _polling_running = False
+    if _polling_task:
+        _polling_task.cancel()
+        _polling_task = None
+
+
 async def simulate_owner_message(text: str, is_private_dm: bool = True) -> dict:
     chat_id = TELEGRAM_OWNER_DIRECT_CHAT_ID or "simulated_owner_dm"
     chat_type = "private" if is_private_dm else "group"
@@ -545,4 +596,5 @@ async def simulate_owner_message(text: str, is_private_dm: bool = True) -> dict:
     }
     result = await handle_webhook(payload)
     return {"simulated": True, "input_text": text, "result": result}
+
 
