@@ -582,13 +582,14 @@ async def start_telegram_polling():
     async def _polling_loop():
         global _polling_running
         last_offset = 0
-        async with httpx.AsyncClient(timeout=25.0) as client:
-            while _polling_running:
-                try:
-                    curr_token = get_bot_token()
-                    if curr_token:
-                        url = f"https://api.telegram.org/bot{curr_token}/getUpdates"
-                        params = {"offset": last_offset + 1, "timeout": 10}
+        print("🚀 [Telegram Worker] Polling loop running and waiting for Telegram updates...")
+        while _polling_running:
+            try:
+                curr_token = get_bot_token()
+                if curr_token:
+                    url = f"https://api.telegram.org/bot{curr_token}/getUpdates"
+                    params = {"offset": last_offset + 1, "timeout": 10}
+                    async with httpx.AsyncClient(timeout=15.0) as client:
                         resp = await client.get(url, params=params)
                         if resp.status_code == 200:
                             data = resp.json()
@@ -602,18 +603,19 @@ async def start_telegram_polling():
                                     res = await handle_webhook(update)
                                     print(f"✅ [Telegram Worker] ประมวลผลสำเร็จ: {res}")
                         elif resp.status_code == 409:
-                            logger.info("Telegram Polling 409 Conflict: Waiting 3s for previous polling connection to release...")
+                            print("⚠️ [Telegram Worker] 409 Conflict: Waiting 3s for previous polling connection to release...")
                             await asyncio.sleep(3)
                             continue
                         else:
-                            logger.warning(f"Telegram Polling HTTP Error {resp.status_code}: {resp.text}")
+                            print(f"⚠️ [Telegram Worker] HTTP Error {resp.status_code}: {resp.text}")
                             await asyncio.sleep(2)
-                except Exception as e:
-                    logger.debug(f"Telegram Polling loop update error: {e}")
-                    await asyncio.sleep(2)
-                await asyncio.sleep(0.5)
+            except Exception as e:
+                print(f"⚠️ [Telegram Worker] Loop Exception: {e}")
+                await asyncio.sleep(2)
+            await asyncio.sleep(0.5)
 
     _polling_task = asyncio.create_task(_polling_loop())
+
 
 
 
