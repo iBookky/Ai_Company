@@ -332,13 +332,24 @@ def resolve_room_context(chat_id: str) -> dict:
             "agent_name": "คณะผู้บริหาร & PM Boardroom",
             "system_instruction": (
                 "คุณคือ 'คณะผู้บริหารและทีม PM หัวหน้าทุกแผนก' ในห้องประชุมผู้บริหารของ One-Person AI Enterprise\n"
-                "บทบาท: โต้ตอบทักทายกับ Owner ในฐานะทีมงานบริหารระดับสูง พร้อมรายงานสรุป วางแผน วางกลยุทธ์ และรับฟังนโยบายจาก Owner\n"
-                "ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงานผู้บริหาร / คณะ PM' ด้วยความเคารพ สุภาพ ตรงประเด็น และเน้นย้ำความพร้อมในการขับเคลื่อนนโยบายองค์กร"
+                "บทบาท: โต้ตอบทักทายกับ Owner ในฐานะทีมงานบริหารระดับสูง พร้อมเปิดประชุม สรุป วางแผน วางกลยุทธ์ และรับฟังนโยบายจาก Owner\n"
+                "ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงานผู้บริหาร / คณะ PM' ด้วยความเคารพ สุภาพ ตรงประเด็น และเน้นย้ำความพร้อมในการประชุมและดำเนินนโยบายองค์กร"
             )
         }
 
+    # 3. เช็คว่าเป็นห้องกลุ่มประชุม/ห้องปฏิบัติการอื่นๆ (Group Room)
+    if str(chat_id).startswith("-"):
+        return {
+            "type": "group_meeting",
+            "agent_name": "ทีมงาน & คณะ PM ประจำห้องประชุม",
+            "system_instruction": (
+                "คุณคือ 'ทีมงานและคณะ PM ประจำห้องประชุม' ของบริษัท One-Person AI Enterprise\n"
+                "บทบาท: โต้ตอบในนามทีมงานและหัวหน้าทีมประจำห้องประชุม รับฟังคำสั่ง เปิดวาระประชุม และเสนอความเห็นเชิงปฏิบัติการให้ Owner\n"
+                "ข้อแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ มืออาชีพ กระตือรือร้น พร้อมเปิดการประชุมและสรุปสั่งงานให้แก่แผนกที่เกี่ยวข้องทันที"
+            )
+        }
 
-    # 3. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI & ทีมงานกลาง)
+    # 4. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI & ทีมงานกลาง)
     return {
         "type": "direct",
         "agent_name": "เลขา AI & ทีมงาน enterprise",
@@ -348,6 +359,7 @@ def resolve_room_context(chat_id: str) -> dict:
             "ข้อแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ ในนามเลขาและทีมงาน AI ยืนยันความพร้อมในการคอยช่วยเหลือ ปรึกษา และกระจายงานให้ทุกแผนกเสมอ"
         )
     }
+
 
 
 async def _handle_personal_chat(chat_id: str, sender_name: str, text: str) -> dict:
@@ -417,23 +429,31 @@ async def _initiate_verification(chat_id: str, sender_name: str, text: str) -> d
     }
     _pending_verifications[verification_id] = verif_data
 
+    ctx = resolve_room_context(chat_id)
     confirm_msg = (
-        f"<b>[เลขา AI — ทวนสรุปคำสั่งงาน]</b>\n"
-        f"📌 <b>สรุปคำสั่ง:</b> {summary}\n\n"
-        f"พิมพ์ <b>'ใช่'</b> หรือ <b>'อนุมัติ'</b> เพื่อให้ PM แต่ละทีมเริ่มวางแผนงาน\n"
+        f"<b>[{ctx['agent_name']} — รับทราบและทวนสรุปคำสั่งงาน]</b>\n"
+        f"📌 <b>สรุปคำสั่ง/วาระประชุม:</b> {summary}\n\n"
+        f"พิมพ์ <b>'ใช่'</b> หรือ <b>'อนุมัติ'</b> เพื่อเริ่มการประชุมและสั่งงานให้ PM และทีมงานแต่ละแผนกปฏิบัติการทันที\n"
         f"<i>(ID: {verification_id})</i>"
     )
     await send_telegram_message(chat_id, confirm_msg)
 
     write_log(LogCreate(
         agent_id="secretary_ai",
-        agent_name="เลขา AI",
+        agent_name=ctx["agent_name"],
         level=LogLevel.INFO,
-        message=f"ส่งสรุปทวนคำสั่งให้ Owner ยืนยัน (ID: {verification_id})",
+        message=f"ส่งสรุปทวนคำสั่งในห้อง {ctx['agent_name']} (ID: {verification_id})",
         thought_process=f"ต้นฉบับ: {text}\nสรุป: {summary}",
     ))
 
-    return {"status": "verification_initiated", "id": verification_id, "summary": summary}
+    return {
+        "status": "verification_initiated",
+        "id": verification_id,
+        "summary": summary,
+        "agent_name": ctx["agent_name"],
+        "reply": confirm_msg
+    }
+
 
 
 async def _process_confirmation(chat_id: str, sender_name: str) -> dict:
