@@ -11,11 +11,13 @@ let wsReconnectTimer = null;
 // Use lazy function references to avoid "not defined" errors at parse time
 const PAGES = {
   dashboard: { title: 'ภาพรวมระบบ',       subtitle: 'One-Person AI Enterprise',           onEnter: () => typeof loadDashboard !== 'undefined' && loadDashboard() },
-  agents:    { title: 'จัดการ Agents',     subtitle: 'สร้างและแก้ไข AI Employees',          onEnter: () => typeof loadAgents !== 'undefined' && loadAgents() },
+  director:  { title: '🏛️ ห้องประชุมผู้บริหาร (Executive Director Boardroom)', subtitle: 'วาระประชุมผู้บริหารและมติที่ประชุม', onEnter: () => typeof loadDirectorPage !== 'undefined' && loadDirectorPage() },
+  agents:    { title: '🏢 ติดตามงาน & สั่งงานแผนก', subtitle: 'รายชื่อทีมงาน และปุ่มสั่งงานตรงถึงหัวหน้าแผนก', onEnter: () => typeof loadAgents !== 'undefined' && loadAgents() },
   skype:     { title: 'Telegram Rooms',    subtitle: 'ห้องบริหาร + ห้องปฏิบัติการ (Telegram Bot)', onEnter: () => typeof loadTelegram !== 'undefined' && loadTelegram() },
   logs:      { title: 'Logs & Monitoring', subtitle: 'ติดตาม Thought Process ของ Agents',  onEnter: () => typeof loadLogs !== 'undefined' && loadLogs() },
   drafts:    { title: 'Draft Repository',  subtitle: 'เอกสารร่างและการพิมพ์',              onEnter: () => typeof loadDrafts !== 'undefined' && loadDrafts() },
   settings:  { title: 'ตั้งค่าระบบ',      subtitle: 'API Keys, Telegram Bot, Models',     onEnter: () => typeof loadSettings !== 'undefined' && loadSettings() },
+
 
 };
 

@@ -58,10 +58,12 @@ function renderAgentsGrid(agents) {
           <div class="agent-name">${esc(agent.name)}</div>
           <div class="agent-dept">${esc(agent.department)}</div>
         </div>
-        <div class="agent-card-actions">
+        <div class="agent-card-actions" style="display:flex; align-items:center; gap: 4px;">
+          <button class="btn btn-sm btn-primary" onclick="openDirectCommandModal('${esc(agent.id)}', '${esc(agent.name)}')" style="font-size: 11px; padding: 4px 8px;">💬 สั่งงานตรง</button>
           <button class="icon-btn" onclick="openAgentModal('${esc(agent.id)}')" title="แก้ไข">✏️</button>
           <button class="icon-btn danger" onclick="deleteAgent('${esc(agent.id)}', '${esc(agent.name)}')" title="ลบ">🗑️</button>
         </div>
+
       </div>
 
       <div class="model-badge ${modelClass}">

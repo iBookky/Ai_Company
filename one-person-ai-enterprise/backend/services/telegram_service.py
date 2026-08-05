@@ -645,3 +645,71 @@ async def simulate_owner_message(text: str, is_private_dm: bool = True) -> dict:
     return {"simulated": True, "input_text": text, "result": result}
 
 
+async def run_director_meeting(message: str) -> dict:
+    """ประมวลผลการประชุมในห้องประชุมผู้บริหาร (Executive Director Boardroom) บน Web UI"""
+    from backend.services.llm_service import LLMService
+    llm = LLMService(model="gemini-1.5-flash", temperature=0.6)
+
+    system_instruction = (
+        "คุณคือ 'คณะผู้บริหารและ PM หัวหน้าทุกแผนก' ในห้องประชุมผู้บริหาร (Director Boardroom) ของ One-Person AI Enterprise\n"
+        "บทบาท: ประชุมร่วมกับ Owner ให้ความคิดเห็น วิเคราะห์ความเสี่ยง เสนอแนวทางปฏิบัติ วาง Timeline และงบประมาณอย่างมืออาชีพ\n"
+        "คำแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ กระชับ สรุปวาระประชุมและวาง Action Plan ชัดเจนสำหรับส่งต่อให้แต่ละทีมปฏิบัติการทันที"
+    )
+
+    reply = await llm.generate(system_instruction=system_instruction, user_message=message)
+
+    write_log(LogCreate(
+        agent_id="pm_ai",
+        agent_name="คณะผู้บริหาร & PM Boardroom",
+        level=LogLevel.SUCCESS,
+        message=f"เปิดประชุมผู้บริหารบน Web UI: {message[:40]}...",
+        thought_process=reply,
+    ))
+
+    return {
+        "status": "success",
+        "agent_name": "คณะผู้บริหาร & PM Boardroom",
+        "message": message,
+        "reply": reply,
+        "created_at": datetime.now().isoformat()
+    }
+
+
+async def run_department_direct_command(dept_id: str, message: str) -> dict:
+    """สั่งงานตรงไปยังหัวหน้าแผนก (PM) ของแผนกนั้นๆ บน Web UI"""
+    dept_rooms = get_all_department_rooms()
+    dept_info = dept_rooms.get(dept_id, {})
+    dept_name = dept_info.get("name", dept_id)
+    pm_name = dept_info.get("pm_name", f"PM {dept_name}")
+
+    from backend.services.llm_service import LLMService
+    llm = LLMService(model="gemini-1.5-flash", temperature=0.5)
+
+    system_instruction = (
+        f"คุณคือ '{pm_name}' และทีมงานประจำแผนก {dept_name} ของบริษัท One-Person AI Enterprise\n"
+        f"บทบาท: รับคำสั่งตรงจาก Owner วิเคราะห์งานของแผนกตนเอง วาง Deliverables และเริ่มปฏิบัติงานทันที\n"
+        f"ข้อแนะนำ: ตอบในนาม '{pm_name}' อย่างกระตือรือร้น สุภาพ สรุปงานที่จะทำให้ Owner ทราบสั้นๆ พร้อมแจ้งว่าจะเริ่มดำเนินการทันที"
+    )
+
+    reply = await llm.generate(system_instruction=system_instruction, user_message=message)
+
+    write_log(LogCreate(
+        agent_id=dept_id,
+        agent_name=pm_name,
+        level=LogLevel.SUCCESS,
+        message=f"รับคำสั่งตรงถึงแผนก {dept_name}: {message[:40]}...",
+        thought_process=reply,
+    ))
+
+    return {
+        "status": "success",
+        "dept_id": dept_id,
+        "dept_name": dept_name,
+        "pm_name": pm_name,
+        "message": message,
+        "reply": reply,
+        "created_at": datetime.now().isoformat()
+    }
+
+
+

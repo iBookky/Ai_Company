@@ -31,11 +31,16 @@
         <span class="nav-icon">📊</span>
         <span class="nav-label">ภาพรวมระบบ</span>
       </a>
+      <a href="#/director" class="nav-item" data-page="director" id="nav-director">
+        <span class="nav-icon">🏛️</span>
+        <span class="nav-label">ประชุมผู้บริหาร (Director)</span>
+      </a>
       <a href="#/agents" class="nav-item" data-page="agents" id="nav-agents">
-        <span class="nav-icon">🤖</span>
-        <span class="nav-label">จัดการ Agents</span>
+        <span class="nav-icon">🏢</span>
+        <span class="nav-label">ติดตามงาน & สั่งงานแผนก</span>
         <span class="nav-badge" id="agents-count">0</span>
       </a>
+
       <a href="#/skype" class="nav-item" data-page="skype" id="nav-skype">
         <span class="nav-icon">✈️</span>
         <span class="nav-label">Telegram Rooms</span>
@@ -144,8 +149,82 @@
     </div>
 
 
+    <!-- EXECUTIVE DIRECTOR BOARDROOM PAGE -->
+    <div class="page" id="page-director">
+      <div class="director-container" style="display:grid; grid-template-columns: 1fr 360px; gap: 1.5rem;">
+        
+        <!-- Main Executive Meeting Console -->
+        <div class="card" style="display:flex; flex-direction:column; min-height: 580px;">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--color-border); padding-bottom: 1rem;">
+            <div>
+              <h2 style="margin:0; font-size: 1.2rem; display:flex; align-items:center; gap: 0.5rem;">
+                <span>🏛️</span> ห้องประชุมผู้บริหาร (Executive Director Boardroom)
+              </h2>
+              <span style="font-size:0.8rem; color:var(--color-text-muted);">
+                วาระประชุมระหว่าง Owner กับ คณะผู้บริหารและ PM หัวหน้าทุกฝ่าย
+              </span>
+            </div>
+            <span class="status-badge success">🔴 Live Boardroom</span>
+          </div>
+
+          <!-- Meeting Conversation Feed -->
+          <div id="director-chat-feed" style="flex:1; overflow-y:auto; padding: 1rem 0; display:flex; flex-direction:column; gap: 1rem; max-height: 420px;">
+            <div class="chat-message system-msg" style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border-left: 4px solid var(--color-primary);">
+              <div style="font-weight:600; color:var(--color-primary); margin-bottom: 0.25rem;">🏛️ คณะผู้บริหาร & PM Boardroom</div>
+              <div style="font-size: 0.9rem; line-height: 1.5; color: var(--color-text-primary);">
+                สวัสดีครับ/ค่ะ ท่าน Owner! ยินดีต้อนรับสู่ห้องประชุมผู้บริหารบน Web UI ขณะนี้หัวหน้าฝ่ายทุกแผนก (Strategy, Tech, Marketing, Operations, Finance) อยู่ครบในห้องประชุมแล้วครับ ท่าน Owner สามารถพิมพ์เปิดวาระประชุมหรือมอบหมายทิศทางใหม่เพื่อเริ่มวางแผนงานได้ทันทีครับ
+              </div>
+            </div>
+          </div>
+
+          <!-- Meeting Input Area -->
+          <div class="chat-input-area" style="border-top: 1px solid var(--color-border); padding-top: 1rem; display:flex; flex-direction:column; gap: 0.75rem;">
+            <textarea id="director-message-input" class="form-textarea" rows="3" placeholder="พิมพ์วาระการประชุม นโยบาย หรือสั่งเปิดประชุมผู้บริหาร..."></textarea>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size: 0.8rem; color:var(--color-text-muted);">💡 สามารถสั่งการและอภิปรายแผนงานร่วมกับ PM Boardroom ได้ตลอดเวลา</span>
+              <button class="btn btn-primary" id="btn-send-director-meeting" onclick="sendDirectorMeetingMessage()">
+                🗣️ พิมพ์เปิดประชุม / ส่งวาระ
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar: Executive Actions & Resolutions -->
+        <div style="display:flex; flex-direction:column; gap: 1.5rem;">
+          <div class="card">
+            <div class="card-header">
+              <h2>👑 ผู้เข้าร่วมประชุม Boardroom</h2>
+            </div>
+            <div style="display:flex; flex-direction:column; gap: 0.6rem; padding: 0.5rem 0; font-size:0.9rem;">
+              <div style="display:flex; align-items:center; gap:0.5rem;"><span>👑</span> <strong>Owner (คุณ)</strong></div>
+              <div style="display:flex; align-items:center; gap:0.5rem;"><span>🗂️</span> <strong>เลขา AI (อิงฟ้า)</strong></div>
+              <div style="display:flex; align-items:center; gap:0.5rem;"><span>📊</span> <strong>PM การตลาด AI (ลิซ่า)</strong></div>
+              <div style="display:flex; align-items:center; gap:0.5rem;"><span>💻</span> <strong>PM ไอที & นวัตกรรม AI (เดวิด)</strong></div>
+              <div style="display:flex; align-items:center; gap:0.5rem;"><span>📦</span> <strong>PM ปฏิบัติการ AI (สมชาย)</strong></div>
+              <div style="display:flex; align-items:center; gap:0.5rem;"><span>💰</span> <strong>PM การเงิน AI (สมหญิง)</strong></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>🚀 มติที่ประชุม & การกระจายงาน</h2>
+            </div>
+            <p style="font-size: 0.85rem; color:var(--color-text-muted); line-height: 1.4;">
+              เมื่อได้มติสรุปในห้องประชุมเรียบร้อยแล้ว แผนงานจะถูกกระจายลงไปยังพื้นที่ทำงานของแต่ละแผนกให้อัตโนมัติทันที
+            </p>
+            <button class="btn btn-success" style="width:100%; margin-top:0.5rem;" onclick="dispatchDirectorPlan()">
+              ⚡ สั่งกระจายงานลงทุกแผนก
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
     <!-- AGENTS PAGE -->
     <div class="page" id="page-agents">
+
       <div class="page-actions">
         <button class="btn btn-primary btn-lg" id="btn-create-agent" onclick="openAgentModal()">
           <span>＋</span> สร้าง Agent ใหม่
@@ -640,6 +719,7 @@
 
   <!-- ─── Scripts ─────────────────────────────────────── -->
   <script src="/static/js/app.js"></script>
+  <script src="/static/js/director.js"></script>
   <script src="/static/js/agents.js"></script>
   <script src="/static/js/logs.js"></script>
   <script src="/static/js/drafts.js"></script>
@@ -648,3 +728,4 @@
 
 </body>
 </html>
+

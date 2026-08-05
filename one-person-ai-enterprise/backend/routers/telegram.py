@@ -84,6 +84,11 @@ async def confirm_verification(verification_id: str, req: VerifyConfirmRequest):
         return {"status": "rejected", "id": verification_id}
 
 
+class DirectCommandRequest(BaseModel):
+    dept_id: str
+    text: str
+
+
 @router.post("/simulate")
 async def simulate_message(req: SimulateRequest):
     """ส่งคำสั่งจำลองจาก Owner"""
@@ -91,3 +96,20 @@ async def simulate_message(req: SimulateRequest):
         raise HTTPException(status_code=400, detail="กรุณาระบุข้อความ")
     result = await telegram_service.simulate_owner_message(req.text)
     return result
+
+
+@router.post("/director-meeting")
+async def director_meeting(req: SimulateRequest):
+    """เปิดประชุมผู้บริหาร (Executive Director Boardroom) บน Web UI"""
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="กรุณาระบุวาระประชุมหรือคำสั่งงาน")
+    return await telegram_service.run_director_meeting(req.text.strip())
+
+
+@router.post("/direct-command")
+async def direct_command(req: DirectCommandRequest):
+    """สั่งงานตรงไปยัง PM หัวหน้าแผนกบน Web UI"""
+    if not req.dept_id or not req.text.strip():
+        raise HTTPException(status_code=400, detail="กรุณาระบุแผนกและข้อความสั่งงาน")
+    return await telegram_service.run_department_direct_command(req.dept_id, req.text.strip())
+
