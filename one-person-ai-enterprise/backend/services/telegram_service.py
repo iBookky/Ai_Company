@@ -300,21 +300,65 @@ async def handle_webhook(payload: dict) -> dict:
         return await _initiate_verification(chat_id, sender_name, text)
 
 
+def resolve_room_context(chat_id: str) -> dict:
+    """ตรวจสอบประเภทของห้องเพื่อเลือกบุคลิกและบทบาทโต้ตอบในฐานะทีมงานให้ตรงกับบริบทห้อง"""
+    owner_direct = TELEGRAM_OWNER_DIRECT_CHAT_ID or os.getenv("TELEGRAM_OWNER_DIRECT_CHAT_ID", "")
+    exec_chat = TELEGRAM_EXEC_CHAT_ID or os.getenv("TELEGRAM_EXEC_CHAT_ID", "") or os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
+
+    dept_rooms = get_all_department_rooms()
+
+    # 1. เช็คว่าเป็นห้องทำงานแผนกใดหรือไม่
+    for dept_id, info in dept_rooms.items():
+        if info.get("ops_chat_id") and str(info["ops_chat_id"]) == str(chat_id):
+            return {
+                "type": "department",
+                "dept_id": dept_id,
+                "dept_name": info.get("name", dept_id),
+                "agent_name": f"ทีมงาน {info.get('name')}",
+                "system_instruction": (
+                    f"คุณคือ 'ทีมงานและ {info.get('pm_name', 'PMประจำแผนก')}' ประจำแผนก {info.get('name')} ของบริษัท One-Person AI Enterprise\n"
+                    f"บทบาท: โต้ตอบทักทายหรือสนทนากับ Owner ในฐานะทีมงานปฏิบัติการประจำแผนก {info.get('name')} ที่มีความพร้อม เชี่ยวชาญ สุภาพ กระตือรือร้น และพร้อมปฏิบัติงาน\n"
+                    f"ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงาน {info.get('name')}' หรือ '{info.get('pm_name')}' รายงานความพร้อม เสนอความช่วยเหลือในส่วนงานประจำแผนกอย่างสุภาพและมืออาชีพ"
+                )
+            }
+
+    # 2. เช็คว่าเป็นห้องประชุมผู้บริหาร (Executive Boardroom)
+    admin_chat = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
+    if str(chat_id) in [str(exec_chat), str(admin_chat)] and str(chat_id) != "":
+        return {
+            "type": "executive",
+            "agent_name": "คณะผู้บริหาร & PM Boardroom",
+            "system_instruction": (
+                "คุณคือ 'คณะผู้บริหารและทีม PM หัวหน้าทุกแผนก' ในห้องประชุมผู้บริหารของ One-Person AI Enterprise\n"
+                "บทบาท: โต้ตอบทักทายกับ Owner ในฐานะทีมงานบริหารระดับสูง พร้อมรายงานสรุป วางแผน วางกลยุทธ์ และรับฟังนโยบายจาก Owner\n"
+                "ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงานผู้บริหาร / คณะ PM' ด้วยความเคารพ สุภาพ ตรงประเด็น และเน้นย้ำความพร้อมในการขับเคลื่อนนโยบายองค์กร"
+            )
+        }
+
+
+    # 3. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI & ทีมงานกลาง)
+    return {
+        "type": "direct",
+        "agent_name": "เลขา AI & ทีมงาน enterprise",
+        "system_instruction": (
+            "คุณคือ 'เลขา AI' เลขานุการส่วนตัวและตัวแทนทีมงาน enterprise ของบริษัท One-Person AI Enterprise\n"
+            "บทบาท: โต้ตอบทักทายและสนทนากับ Owner ในฐานะเลขาและทีมงานส่วนตัว ให้คำปรึกษา แลกเปลี่ยนความคิด ทักทาย ดูแลความเรียบร้อยสัพเพเหระได้อย่างสนิทสนม สุภาพ มืออาชีพ\n"
+            "ข้อแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ ในนามเลขาและทีมงาน AI ยืนยันความพร้อมในการคอยช่วยเหลือ ปรึกษา และกระจายงานให้ทุกแผนกเสมอ"
+        )
+    }
+
+
 async def _handle_personal_chat(chat_id: str, sender_name: str, text: str) -> dict:
-    """ตอบสนองการพูดคุยส่วนตัว 1-on-1 กับ Owner ทุกเรื่องอย่างฉลาดและสุภาพ"""
+    """ตอบสนองการพูดคุย/ทักทายกับ Owner ในฐานะทีมงานประจำห้องนั้นๆ"""
     try:
         from backend.services.llm_service import LLMService
-        llm = LLMService(model="gemini-1.5-flash", temperature=0.7)
+        ctx = resolve_room_context(chat_id)
 
-        system_instruction = (
-            "คุณคือ 'เลขา AI' เลขานุการส่วนตัวประจำตัวของ Owner (ผู้สร้างบริษัท One-Person AI Enterprise)\n"
-            "บุคลิกภาพ: สุภาพ ฉลาด รอบคอบ เป็นกันเอง และพร้อมให้คำปรึกษา ช่วยระดมความคิด หรือพูดคุยแลกเปลี่ยนได้ทุกเรื่องอย่างเป็นธรรมชาติ\n"
-            "ข้อแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ หาก Owner ถามความคิดเห็นหรือปรึกษา ให้เสนอไอเดียที่เป็นประโยชน์ และย้ำอย่างนุ่มนวลว่าหากพร้อมสั่งงานเมื่อไหร่ สามารถแจ้งคำสั่งให้เลขาช่วยกระจายงานให้แผนกต่างๆ ได้ทันที"
-        )
+        llm = LLMService(model="gemini-1.5-flash", temperature=0.7)
 
         history = _chat_histories.get(chat_id, [])
         reply = await llm.generate(
-            system_instruction=system_instruction,
+            system_instruction=ctx["system_instruction"],
             user_message=text,
             history=history
         )
@@ -330,17 +374,19 @@ async def _handle_personal_chat(chat_id: str, sender_name: str, text: str) -> di
 
         write_log(LogCreate(
             agent_id="secretary_ai",
-            agent_name="เลขา AI",
+            agent_name=ctx["agent_name"],
             level=LogLevel.SUCCESS,
-            message=f"เลขา AI ตอบกลับแชทส่วนตัวกับ Owner: {reply[:50]}...",
-            thought_process=f"สนทนา 1-on-1\nถาม: {text}\nตอบ: {reply}",
+            message=f"{ctx['agent_name']} โต้ตอบแชทกับ Owner: {reply[:50]}...",
+            thought_process=f"บริบทห้อง: {ctx['type']}\nถาม: {text}\nตอบ: {reply}",
         ))
 
-        return {"status": "chat_replied", "reply": reply}
+        return {"status": "chat_replied", "reply": reply, "room_type": ctx["type"], "agent_name": ctx["agent_name"]}
     except Exception as e:
-        err_msg = f"สวัสดีครับท่าน Owner มีอะไรให้เลขาช่วยดูแลหรือปรึกษาไหมครับ?"
+        ctx = resolve_room_context(chat_id)
+        err_msg = f"สวัสดีครับท่าน Owner ทีมงาน {ctx['agent_name']} พร้อมปฏิบัติงานและดูแลท่านเสมอครับ มีอะไรให้ทีมงานช่วยดูแลไหมครับ?"
         await send_telegram_message(chat_id, err_msg)
         return {"status": "chat_replied_fallback", "reply": err_msg}
+
 
 
 async def _initiate_verification(chat_id: str, sender_name: str, text: str) -> dict:

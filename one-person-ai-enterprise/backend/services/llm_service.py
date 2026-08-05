@@ -53,13 +53,12 @@ class LLMService:
 
             raw_model = self.model
             model_candidates = [
-                raw_model,
-                f"models/{raw_model}" if not raw_model.startswith("models/") else raw_model,
                 "models/gemini-2.5-flash",
                 "models/gemini-2.0-flash",
                 "models/gemini-flash-latest",
-                "models/gemini-pro-latest",
+                raw_model,
             ]
+
 
             last_error = None
             for target_model in model_candidates:
