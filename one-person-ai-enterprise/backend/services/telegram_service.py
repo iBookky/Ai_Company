@@ -55,20 +55,30 @@ _chat_histories: Dict[str, List[dict]] = {}
 
 # ─── Telegram Messaging Helpers ───────────────────────────────────────────────
 
+def clean_telegram_html(text: str) -> str:
+    """ทำความสะอาด HTML Tags ที่ Telegram ไม่รองรับ เช่น <br>, <p>, <div>"""
+    if not text:
+        return ""
+    text = text.replace("<br>", "\n").replace("<br/>", "\n").replace("<br />", "\n")
+    import re
+    text = re.sub(r'<(?!b|/b|i|/i|code|/code|a|/a|pre|/pre|s|/s|u|/u)[^>]+>', '', text)
+    return text
+
+
 async def send_telegram_message(chat_id: str, text: str) -> bool:
     """ส่งข้อความไปยัง Telegram Chat"""
     token = get_bot_token()
     if not token or not chat_id:
-
         logger.warning(f"Telegram Bot Token หรือ Chat ID ({chat_id}) ไม่ถูกตั้งค่า")
         return False
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
         "chat_id": chat_id,
-        "text": text,
+        "text": clean_telegram_html(text),
         "parse_mode": "HTML",
     }
+
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
