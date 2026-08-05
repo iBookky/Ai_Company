@@ -2,8 +2,9 @@
    app.js — Core SPA Router + WebSocket + Utilities
    ═══════════════════════════════════════════════ */
 
-const API = 'http://localhost:8000';
+const API = window.location.origin;
 let ws = null;
+
 let wsReconnectTimer = null;
 
 // ─── Router ──────────────────────────────────────────────
@@ -83,7 +84,9 @@ function initClock() {
 // ─── WebSocket ────────────────────────────────────────────
 function initWebSocket() {
   clearTimeout(wsReconnectTimer);
-  const wsUrl = `ws://localhost:8000/api/logs/ws`;
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${wsProtocol}//${window.location.host}/api/logs/ws`;
+
 
   try {
     ws = new WebSocket(wsUrl);
