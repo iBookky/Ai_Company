@@ -236,89 +236,7 @@
       </div>
     </div>
 
-    <!-- TELEGRAM ROOMS PAGE -->
-    <div class="page" id="page-skype">
-      <div class="skype-layout">
-        <div class="rooms-panel" style="display:flex; flex-direction:column; gap:1.25rem;">
-          
-          <!-- 1. Direct Chat (1-on-1) -->
-          <div class="card">
-            <div class="card-header">
-              <h2>💬 คุยส่วนตัว 1-on-1</h2>
-              <span class="room-badge">Direct Chat</span>
-            </div>
-            <div class="room-participants">
-              <div class="participant"><span>👑</span> Owner (คุณ)</div>
-              <div class="participant"><span>🗂️</span> เลขา AI</div>
-            </div>
-            <div id="direct-room-status" class="room-status"></div>
-          </div>
 
-          <!-- 2. Executive Boardroom -->
-          <div class="card">
-            <div class="card-header">
-              <h2>🏛️ ห้องประชุมผู้บริหาร</h2>
-              <span class="room-badge">Executive Boardroom</span>
-            </div>
-            <div class="room-participants">
-              <div class="participant"><span>👑</span> Owner (คุณ)</div>
-              <div class="participant"><span>🗂️</span> เลขา AI</div>
-              <div class="participant"><span>📊</span> PM AI หัวหน้าทุกแผนก</div>
-            </div>
-            <div id="admin-room-status" class="room-status"></div>
-          </div>
-
-          <!-- 3. Department Working Rooms Header & List -->
-          <div class="card">
-            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <h2 style="margin:0;">🏢 ห้องทำงานแต่ละแผนก</h2>
-                <div style="font-size:11px; color:var(--color-text-muted); margin-top:2px;">(Owner + PM แต่ละทีม + ทีม AI ลูกน้อง)</div>
-              </div>
-              <button class="btn btn-sm btn-primary" onclick="openCreateRoomModal()">
-                ＋ สร้างห้องแผนกใหม่
-              </button>
-            </div>
-
-            <!-- Dynamic Department Working Rooms Container -->
-            <div id="department-rooms-list" style="padding: 1rem; display:flex; flex-direction:column; gap:0.75rem;">
-              <div class="loading-skeleton"></div>
-            </div>
-          </div>
-
-        </div>
-
-
-        <div class="verification-panel">
-          <div class="card">
-            <div class="card-header">
-              <h2>✅ รายการรอยืนยัน</h2>
-              <button class="btn btn-sm" onclick="loadVerifications()">🔄 รีเฟรช</button>
-            </div>
-            <div id="verifications-list" class="verifications-list">
-              <div class="empty-state">
-                <span>✅</span>
-                <p>ไม่มีรายการรอยืนยัน</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <h2>🧪 ทดสอบ (Simulator)</h2>
-            </div>
-            <div class="simulate-form">
-              <textarea id="simulate-text" class="form-textarea" rows="3"
-                placeholder="พิมพ์คำสั่งเพื่อจำลองการส่งจาก Owner..."></textarea>
-              <button class="btn btn-primary" onclick="simulateMessage()" id="btn-simulate">
-                📨 ส่งคำสั่งจำลอง
-              </button>
-              <div id="simulate-result" class="simulate-result"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- LOGS PAGE -->
     <div class="page" id="page-logs">
@@ -449,11 +367,11 @@
 
             <!-- Step 1 -->
             <div class="settings-step">
-              <div class="step-label">Step 1 — Bot Token</div>
+              <div class="step-label">Step 1 — เลขานุการ AI (Main Secretary Bot Token)</div>
               <div class="form-group">
                 <label class="form-label">
-                  Telegram Bot Token
-                  <span class="label-hint">ได้จาก @BotFather (เช่น 123456789:ABCdefGHIjklMNO...)</span>
+                  Telegram Bot Token ของเลขาอิงฟ้า (Main Bot Token)
+                  <span class="label-hint">รับ Token ได้จาก @BotFather ใน Telegram (เช่น 123456789:ABCdefGHIjklMNO...)</span>
                 </label>
                 <input type="password" class="form-input font-mono" id="telegram-bot-token"
                   placeholder="123456789:ABCdefGHIjklMNO..." />
@@ -462,99 +380,27 @@
 
             <!-- Step 2 -->
             <div class="settings-step">
-              <div class="step-label">Step 2 — กำหนดห้อง Telegram Chat IDs (3 ระดับ)</div>
+              <div class="step-label">Step 2 — Telegram 1-on-1 Direct Chat ID ของท่าน Owner</div>
               
-              <!-- 1. Direct Chat ID -->
-              <div class="form-group" style="margin-bottom: 1.25rem;">
+              <!-- Direct Chat ID -->
+              <div class="form-group">
                 <label class="form-label">
-                  💬 Direct Chat ID (แชทส่วนตัว 1-on-1 กับเลขา AI)
-                  <span class="label-hint">User Chat ID ส่วนตัวของคุณ (หาได้โดยทักแชทไปที่บอท @userinfobot หรือ @getidsbot ใน Telegram)</span>
+                  💬 Direct Chat ID (สำหรับรับรายงานแจ้งเตือนและทักสั่งงาน 1-on-1)
+                  <span class="label-hint">User Chat ID ส่วนตัวของคุณ (หาได้ง่ายๆ โดยทักแชทหาบอท @userinfobot ใน Telegram)</span>
                 </label>
                 <div style="display:flex; gap:0.5rem;">
                   <input type="text" class="form-input font-mono" id="telegram-direct-chat"
-                    placeholder="เช่น 123456789 หรือ -100123456789" style="flex:1;" />
+                    placeholder="เช่น 123456789" style="flex:1;" />
                   <button type="button" class="btn btn-sm btn-secondary" onclick="testSendTelegramMessage('telegram-direct-chat', 'Direct Chat 1-on-1')">
                     📨 ทดสอบส่ง
                   </button>
-                </div>
-              </div>
-
-              <!-- 2. Executive Boardroom Chat ID -->
-              <div class="form-group" style="margin-bottom: 1.25rem;">
-                <label class="form-label">
-                  🏛️ Executive Boardroom Chat ID (ห้องประชุมผู้บริหาร)
-                  <span class="label-hint">Chat ID ของกลุ่มประชุมบริหาร ( Owner + เลขา AI + PM หัวหน้าทุกแผนก )</span>
-                </label>
-                <div style="display:flex; gap:0.5rem;">
-                  <input type="text" class="form-input font-mono" id="telegram-admin-chat"
-                    placeholder="-100123456789" style="flex:1;" />
-                  <button type="button" class="btn btn-sm btn-secondary" onclick="testSendTelegramMessage('telegram-admin-chat', 'ห้องประชุมผู้บริหาร')">
-                    📨 ทดสอบส่ง
-                  </button>
-                </div>
-              </div>
-
-              <!-- 3. Default Fallback Ops Chat -->
-              <div class="form-group" style="margin-bottom: 1.5rem;">
-                <label class="form-label">
-                  ⚙️ Default Ops Chat ID (ห้องปฏิบัติการสำรอง)
-                  <span class="label-hint">ห้องปฏิบัติการสำรองเมื่อไม่ได้ระบุ Ops Chat ID เฉพาะของแผนก</span>
-                </label>
-                <div style="display:flex; gap:0.5rem;">
-                  <input type="text" class="form-input font-mono" id="telegram-ops-chat"
-                    placeholder="-100987654321" style="flex:1;" />
-                  <button type="button" class="btn btn-sm btn-secondary" onclick="testSendTelegramMessage('telegram-ops-chat', 'ห้องปฏิบัติการสำรอง')">
-                    📨 ทดสอบส่ง
-                  </button>
-                </div>
-              </div>
-
-
-              <!-- Department-Specific Ops Rooms (Dynamic List) -->
-              <div class="dept-ops-header" style="margin-top: 1.5rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
-                <label class="form-label" style="margin: 0;">
-                  🏢 Ops Chat IDs แยกตามแผนกปฏิบัติการ
-                  <span class="label-hint">ระบุ Chat ID สำหรับแต่ละแผนก เพื่อผูกให้ AI แผนกนั้นคุยงานเฉพาะในห้องตัวเอง (ห้ามส่งข้ามห้อง)</span>
-                </label>
-                <button type="button" class="btn btn-sm btn-primary" onclick="addDepartmentOpsRow()">
-                  ＋ เพิ่มแผนก
-                </button>
-              </div>
-
-              <!-- Dynamic Rows Container -->
-              <div id="dept-ops-container" class="dept-ops-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                <!-- Dynamically loaded by settings.js -->
-              </div>
-            </div>
-
-
-            <!-- Step 3 -->
-            <div class="settings-step">
-              <div class="step-label">Step 3 — ตัวตนของคุณ (Owner)</div>
-              <div class="form-group">
-                <label class="form-label">
-                  Owner Telegram ID / Username
-                  <span class="label-hint">User ID หรือ Telegram Username ของคุณ (เช่น @myusername หรือ 987654321)</span>
-                </label>
-                <input type="text" class="form-input font-mono" id="telegram-owner-id"
-                  placeholder="@myusername" />
-              </div>
-            </div>
-
-            <!-- Webhook URL -->
-            <div class="settings-step">
-              <div class="step-label">Step 4 — Telegram Webhook URL</div>
-              <div class="form-group">
-                <label class="form-label">Webhook URL <span class="label-hint">URL สำหรับตั้งค่า Webhook กับ Telegram (หรือใช้ Simulator ได้ทันที)</span></label>
-                <div class="webhook-url-box" id="webhook-url-box">
-                  <code id="webhook-url-display">http://YOUR_SERVER_IP:8000/api/telegram/webhook</code>
-                  <button class="btn btn-sm" onclick="copyTelegramWebhookUrl()">📋 คัดลอก</button>
                 </div>
               </div>
             </div>
 
           </div>
         </div>
+
 
 
         <!-- Default Model -->

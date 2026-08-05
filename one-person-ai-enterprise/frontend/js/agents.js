@@ -58,11 +58,14 @@ function renderAgentsGrid(agents) {
           <div class="agent-name">${esc(agent.name)}</div>
           <div class="agent-dept">${esc(agent.department)}</div>
         </div>
-        <div class="agent-card-actions" style="display:flex; align-items:center; gap: 4px;">
+        <div class="agent-card-actions" style="display:flex; align-items:center; gap: 4px; flex-wrap:wrap;">
           <button class="btn btn-sm btn-primary" onclick="openDirectCommandModal('${esc(agent.id)}', '${esc(agent.name)}')" style="font-size: 11px; padding: 4px 8px;">💬 สั่งงานตรง</button>
+          <button class="btn btn-sm" onclick="configurePmBotToken('${esc(agent.id)}', '${esc(agent.department || agent.name)}', '${esc(agent.name)}', '${esc(agent.bot_token || '')}')" style="font-size: 11px; padding: 4px 8px;">⚙️ PM Bot</button>
+          <button class="btn btn-sm btn-secondary" onclick="inspectDepartmentWorkspace('${esc(agent.id)}', '${esc(agent.name)}', '${esc(agent.name)}')" style="font-size: 11px; padding: 4px 8px;">🔍 ดู Log</button>
           <button class="icon-btn" onclick="openAgentModal('${esc(agent.id)}')" title="แก้ไข">✏️</button>
           <button class="icon-btn danger" onclick="deleteAgent('${esc(agent.id)}', '${esc(agent.name)}')" title="ลบ">🗑️</button>
         </div>
+
 
       </div>
 

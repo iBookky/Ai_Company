@@ -5,10 +5,7 @@
 // ─── Load Settings ────────────────────────────────────────
 async function loadSettings() {
   try {
-    const [settings, roomData] = await Promise.all([
-      apiFetch('/api/settings'),
-      apiFetch('/api/telegram/rooms').catch(() => ({ department_rooms: {} })),
-    ]);
+    const settings = await apiFetch('/api/settings');
 
     // LLM Keys
     const geminiInput = document.getElementById('gemini-key');
@@ -50,23 +47,16 @@ async function loadSettings() {
     const directInput = document.getElementById('telegram-direct-chat');
     if (directInput) directInput.value = settings.telegram_owner_direct_chat_id || '';
 
-    const adminInput = document.getElementById('telegram-admin-chat');
-    if (adminInput) adminInput.value = settings.telegram_exec_chat_id || settings.telegram_admin_chat_id || '';
-
-    const opsInput = document.getElementById('telegram-ops-chat');
-    if (opsInput) opsInput.value = settings.telegram_ops_chat_id || '';
-
-    const ownerInput = document.getElementById('telegram-owner-id');
-    if (ownerInput) ownerInput.value = settings.telegram_owner_id || '';
-
-    // Render ONLY actual existing departments from backend
-    renderDepartmentOpsRows(roomData.department_rooms || {}, settings.telegram_ops_chat_ids || {});
-
     // Default Model
     const modelSelect = document.getElementById('default-model');
     if (modelSelect && settings.default_model) {
       modelSelect.value = settings.default_model;
     }
+  } catch (e) {
+    console.error('loadSettings error:', e);
+  }
+}
+
 
     // Webhook URL
     const webhookBox = document.getElementById('webhook-url-display');
@@ -168,23 +158,23 @@ async function saveSettings() {
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spinning">⏳</span> กำลังบันทึก...';
-  statusEl.textContent = '';
+  if (statusEl) statusEl.textContent = '';
 
   const payload = {};
 
   // LLM Keys
-  const geminiKey = document.getElementById('gemini-key').value.trim();
+  const geminiKey = document.getElementById('gemini-key')?.value.trim();
   if (geminiKey && !geminiKey.startsWith('••••••••')) {
     payload.gemini_api_key = geminiKey;
   }
 
-  const claudeKey = document.getElementById('claude-key').value.trim();
+  const claudeKey = document.getElementById('claude-key')?.value.trim();
   if (claudeKey && !claudeKey.startsWith('••••••••')) {
     payload.anthropic_api_key = claudeKey;
   }
 
   // Telegram Bot Token
-  const tgToken = document.getElementById('telegram-bot-token').value.trim();
+  const tgToken = document.getElementById('telegram-bot-token')?.value.trim();
   if (tgToken && !tgToken.startsWith('••••••••')) {
     payload.telegram_bot_token = tgToken;
   }
@@ -192,54 +182,28 @@ async function saveSettings() {
   const directChat = document.getElementById('telegram-direct-chat')?.value.trim();
   if (directChat !== undefined) payload.telegram_owner_direct_chat_id = directChat;
 
-  const adminChat = document.getElementById('telegram-admin-chat')?.value.trim();
-  if (adminChat !== undefined) {
-    payload.telegram_admin_chat_id = adminChat;
-    payload.telegram_exec_chat_id = adminChat;
-  }
-
-  const opsChat = document.getElementById('telegram-ops-chat')?.value.trim();
-  if (opsChat !== undefined) payload.telegram_ops_chat_id = opsChat;
-
-  const ownerId = document.getElementById('telegram-owner-id')?.value.trim();
-  if (ownerId !== undefined) payload.telegram_owner_id = ownerId;
-
-  // Collect Department Ops Chat IDs
-  const opsChatInputs = document.querySelectorAll('.dept-ops-input');
-  const opsChatMap = {};
-  opsChatInputs.forEach(input => {
-    const deptId = input.getAttribute('data-dept-id');
-    const val = input.value.trim();
-    if (deptId) {
-      opsChatMap[deptId] = val;
-    }
-  });
-  payload.telegram_ops_chat_ids = opsChatMap;
-
-  // Model
-  const model = document.getElementById('default-model').value;
+  // Default Model
+  const model = document.getElementById('default-model')?.value;
   if (model) payload.default_model = model;
 
   try {
-    await apiFetch('/api/settings', {
+    const updated = await apiFetch('/api/settings', {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
 
-    showToast('✅ บันทึกการตั้งค่าลงระบบเรียบร้อย', 'success');
-    statusEl.innerHTML = `<span style="color:var(--color-success)">✅ บันทึกสำเร็จเมื่อ ${new Date().toLocaleTimeString('th-TH')}</span>`;
-
+    showToast('✅ บันทึกการตั้งค่าเรียบร้อย', 'success');
     await loadSettings();
-    await testSettingsConnection();
-
   } catch (e) {
-    showToast(`บันทึกไม่สำเร็จ: ${e.message}`, 'error');
-    statusEl.innerHTML = `<span style="color:var(--color-error)">❌ ${e.message}</span>`;
+    showToast('บันทึกการตั้งค่าไม่สำเร็จ: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '💾 บันทึกการตั้งค่า';
   }
 }
+
+
+
 
 // ─── Test Connection Credentials Live ──────────────────────
 async function testSettingsConnection() {

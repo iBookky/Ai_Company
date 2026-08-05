@@ -80,6 +80,15 @@ app.include_router(skype.router)
 app.include_router(telegram.router)
 app.include_router(settings.router)
 
+@app.get("/api/health")
+async def health():
+    return {
+        "status": "ok",
+        "version": "1.0.0",
+        "name": "One-Person AI Enterprise",
+    }
+
+
 # Serve frontend static files
 FRONTEND_DIR = BASE_DIR / "frontend"
 if FRONTEND_DIR.exists():
@@ -97,14 +106,6 @@ if FRONTEND_DIR.exists():
             return FileResponse(str(file_path))
         return FileResponse(str(FRONTEND_DIR / "index.html"))
 
-
-@app.get("/api/health")
-async def health():
-    return {
-        "status": "ok",
-        "version": "1.0.0",
-        "name": "One-Person AI Enterprise",
-    }
 
 
 if __name__ == "__main__":
