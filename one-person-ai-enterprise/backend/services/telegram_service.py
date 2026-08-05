@@ -582,27 +582,39 @@ async def start_telegram_polling():
     async def _polling_loop():
         global _polling_running
         last_offset = 0
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=25.0) as client:
             while _polling_running:
                 try:
                     curr_token = get_bot_token()
                     if curr_token:
                         url = f"https://api.telegram.org/bot{curr_token}/getUpdates"
-                        params = {"offset": last_offset + 1, "timeout": 15}
+                        params = {"offset": last_offset + 1, "timeout": 10}
                         resp = await client.get(url, params=params)
                         if resp.status_code == 200:
                             data = resp.json()
-                            for update in data.get("result", []):
-                                last_offset = update["update_id"]
-                                msg_text = update.get("message", {}).get("text", "")
-                                print(f"📥 [Telegram Worker] รับข้อความใหม่จาก Telegram: '{msg_text[:40]}...' (Update ID: {update['update_id']})")
-                                await handle_webhook(update)
+                            if data.get("ok"):
+                                for update in data.get("result", []):
+                                    last_offset = update["update_id"]
+                                    msg = update.get("message", {}) or update.get("channel_post", {})
+                                    msg_text = msg.get("text", "")
+                                    chat_id = msg.get("chat", {}).get("id", "")
+                                    print(f"📥 [Telegram Worker] ได้รับข้อความใหม่ ({chat_id}): '{msg_text[:40]}...' (Update ID: {update['update_id']})")
+                                    res = await handle_webhook(update)
+                                    print(f"✅ [Telegram Worker] ประมวลผลสำเร็จ: {res}")
+                        elif resp.status_code == 409:
+                            logger.info("Telegram Polling 409 Conflict: Waiting 3s for previous polling connection to release...")
+                            await asyncio.sleep(3)
+                            continue
+                        else:
+                            logger.warning(f"Telegram Polling HTTP Error {resp.status_code}: {resp.text}")
+                            await asyncio.sleep(2)
                 except Exception as e:
-                    logger.debug(f"Telegram Polling loop update: {e}")
+                    logger.debug(f"Telegram Polling loop update error: {e}")
                     await asyncio.sleep(2)
                 await asyncio.sleep(0.5)
 
     _polling_task = asyncio.create_task(_polling_loop())
+
 
 
 
