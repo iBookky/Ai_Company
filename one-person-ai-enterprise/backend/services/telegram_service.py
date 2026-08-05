@@ -510,15 +510,22 @@ async def _process_confirmation(chat_id: str, sender_name: str) -> dict:
         )
         await send_telegram_message(TELEGRAM_OPS_CHAT_ID, fallback_msg)
 
-    write_log(LogCreate(
-        agent_id="pm_ai",
-        agent_name="PM AI Board",
-        level=LogLevel.SUCCESS,
-        message=f"กระจายงานเข้าห้องทำงานแผนกสำเร็จ ({', '.join(forwarded_depts) if forwarded_depts else 'Exec Board'})",
-        thought_process=pm_plan,
-    ))
+    # 3. ส่งข้อความแจ้งเตือนกลับไปยัง Owner ทาง Telegram 1-on-1 ว่าลูกทีมได้รับงานและปฏิบัติงานเสร็จเรียบร้อยพร้อมดูผลงานทางเว็บ!
+    owner_target_chat = chat_id if chat_id and not chat_id.startswith("-") else (TELEGRAM_OWNER_DIRECT_CHAT_ID or chat_id)
+    if owner_target_chat:
+        completion_msg = (
+            f"<b>[รายงานผลการทำงานจาก PM และลูกทีมทุกแผนก]</b>\n"
+            f"✅ <b>สถานะ:</b> PM กระจายงานและสั่งลูกทีมปฏิบัติการเสร็จเรียบร้อยแล้วครับ!\n\n"
+            f"📌 <b>สรุปคำสั่ง:</b> {pending['summary']}\n\n"
+            f"📋 <b>แผนงานและผลงานปฏิบัติการ:</b>\n{pm_plan}\n\n"
+            f"🌐 <b>ท่าน Owner สามารถคลิกเข้ามาดูรายละเอียดการทำงานของลูกทีมแต่ละแผนกทางหน้าเว็บได้ที่:</b>\n"
+            f"http://localhost:8888/#/skype\n\n"
+            f"💡 <i>(หากท่าน Owner มีคำสั่งเพิ่มเติม สามารถพิมพ์สั่งงานต่อทาง Telegram 1-on-1 นี้ได้เลยครับ!)</i>"
+        )
+        await send_telegram_message(owner_target_chat, completion_msg)
 
-    return {"status": "confirmed_and_forwarded", "id": pending["id"], "forwarded_departments": forwarded_depts, "plan": pm_plan}
+    return {"status": "confirmed_and_forwarded", "id": pending["id"], "forwarded_departments": forwarded_depts, "plan": pm_plan, "owner_notified": True}
+
 
 
 def get_verifications() -> List[dict]:

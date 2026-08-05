@@ -85,6 +85,9 @@ function renderDepartmentRoomsList(departmentRooms) {
         </div>
 
         <div style="display:flex; gap:6px; align-items:center;">
+          <button class="btn btn-sm btn-primary" onclick="inspectDepartmentWorkspace('${esc(deptId)}', '${esc(info.name)}', '${esc(info.pm_name)}')" title="เข้าดูการทำงานของลูกทีม">
+            🔍 เข้าดูการทำงานของลูกทีม
+          </button>
           <button class="btn btn-sm btn-danger" onclick="deleteDepartmentRoom('${esc(deptId)}', '${esc(info.name)}')" title="ยุบแผนก / ลบห้อง">
             🗑️ ยุบแผนก
           </button>
@@ -93,6 +96,7 @@ function renderDepartmentRoomsList(departmentRooms) {
     `;
   }).join('');
 }
+
 
 // ─── Room Creation Modal ──────────────────────────────────
 function openCreateRoomModal() {
@@ -279,3 +283,17 @@ function copyTelegramWebhookUrl() {
     showToast('คัดลอกไม่สำเร็จ กรุณาคัดลอกเอง', 'warning');
   });
 }
+
+
+async function inspectDepartmentWorkspace(deptId, deptName, pmName) {
+  showToast(`🔍 กำลังเปิดกระดานการทำงานของลูกทีมแผนก ${deptName}...`, 'info');
+  try {
+    const logFilter = document.getElementById('log-filter-agent');
+    if (logFilter) logFilter.value = deptId;
+    navigateTo('logs');
+    if (typeof loadLogs !== 'undefined') loadLogs();
+  } catch (e) {
+    showToast('เปิดกระดานการทำงานไม่สำเร็จ: ' + e.message, 'error');
+  }
+}
+
