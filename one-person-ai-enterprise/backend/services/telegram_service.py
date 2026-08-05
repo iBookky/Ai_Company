@@ -57,8 +57,9 @@ _chat_histories: Dict[str, List[dict]] = {}
 
 async def send_telegram_message(chat_id: str, text: str) -> bool:
     """ส่งข้อความไปยัง Telegram Chat"""
-    token = TELEGRAM_BOT_TOKEN or os.getenv("TELEGRAM_BOT_TOKEN", "")
+    token = get_bot_token()
     if not token or not chat_id:
+
         logger.warning(f"Telegram Bot Token หรือ Chat ID ({chat_id}) ไม่ถูกตั้งค่า")
         return False
 
@@ -559,19 +560,24 @@ _polling_task = None
 _polling_running = False
 
 
+def get_bot_token() -> str:
+    """ดึง TELEGRAM_BOT_TOKEN แบบ Dynamic เพื่อป้องกันปัญหาอ่านค่าว่างช่วงโมดูลโหลด"""
+    return os.getenv("TELEGRAM_BOT_TOKEN", "") or TELEGRAM_BOT_TOKEN
+
+
 async def start_telegram_polling():
     """เริ่มระบบ Telegram Background Listener เพื่อคอยรับและตอบกลับข้อความจาก Owner บน Telegram เรียลไทม์ 24/7"""
     global _polling_task, _polling_running
     if _polling_running:
         return
 
-    token = TELEGRAM_BOT_TOKEN or os.getenv("TELEGRAM_BOT_TOKEN", "")
+    token = get_bot_token()
     if not token:
-        logger.warning("ไม่พบ TELEGRAM_BOT_TOKEN ไม่สามารถเริ่ม Telegram Polling ได้")
+        print("⚠️ [Telegram Worker] ไม่พบ TELEGRAM_BOT_TOKEN ไม่สามารถเริ่ม Telegram Polling ได้")
         return
 
     _polling_running = True
-    logger.info("🚀 เริ่มทำงาน Telegram Background Listener Worker...")
+    print(f"🚀 [Telegram Worker] เริ่มทำงาน Telegram Background Listener เรียลไทม์ (Token: {token[:10]}...)...")
 
     async def _polling_loop():
         global _polling_running
@@ -579,20 +585,25 @@ async def start_telegram_polling():
         async with httpx.AsyncClient(timeout=30.0) as client:
             while _polling_running:
                 try:
-                    url = f"https://api.telegram.org/bot{token}/getUpdates"
-                    params = {"offset": last_offset + 1, "timeout": 15}
-                    resp = await client.get(url, params=params)
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        for update in data.get("result", []):
-                            last_offset = update["update_id"]
-                            await handle_webhook(update)
+                    curr_token = get_bot_token()
+                    if curr_token:
+                        url = f"https://api.telegram.org/bot{curr_token}/getUpdates"
+                        params = {"offset": last_offset + 1, "timeout": 15}
+                        resp = await client.get(url, params=params)
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            for update in data.get("result", []):
+                                last_offset = update["update_id"]
+                                msg_text = update.get("message", {}).get("text", "")
+                                print(f"📥 [Telegram Worker] รับข้อความใหม่จาก Telegram: '{msg_text[:40]}...' (Update ID: {update['update_id']})")
+                                await handle_webhook(update)
                 except Exception as e:
                     logger.debug(f"Telegram Polling loop update: {e}")
                     await asyncio.sleep(2)
                 await asyncio.sleep(0.5)
 
     _polling_task = asyncio.create_task(_polling_loop())
+
 
 
 def stop_telegram_polling():
