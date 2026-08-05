@@ -139,7 +139,7 @@ def get_ops_chat_id_for_department(dept_id: str) -> str:
 
 # ─── Dynamic Department Room Management (สร้าง/ยุบแผนก) ─────────────────────
 
-def create_department_room(name: str, chat_id: str = "", pm_name: str = "", dept_id: Optional[str] = None) -> dict:
+def create_department_room(name: str, chat_id: str = "", pm_name: str = "", dept_id: Optional[str] = None, bot_token: str = "") -> dict:
     """สร้างห้องทำงานแผนกใหม่ (สร้างโฟลเดอร์ + config.json)"""
     DEPARTMENTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -160,16 +160,24 @@ def create_department_room(name: str, chat_id: str = "", pm_name: str = "", dept
     identity_file = dept_dir / "identity.md"
     skill_file = dept_dir / "skill.md"
 
-    cfg = {
+    cfg = {}
+    if config_file.exists():
+        try:
+            cfg = json.loads(config_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    cfg.update({
         "name": name,
         "role": f"pm_{dept_id}",
-        "pm_name": pm_name or f"PM {name}",
-        "model": "gemini-1.5-flash",
-        "temperature": 0.5,
+        "pm_name": pm_name or cfg.get("pm_name") or f"PM {name}",
+        "model": cfg.get("model", "gemini-1.5-flash"),
+        "temperature": cfg.get("temperature", 0.5),
         "department": dept_id,
-        "ops_chat_id": chat_id or "",
-        "created_at": datetime.now().isoformat(),
-    }
+        "ops_chat_id": chat_id or cfg.get("ops_chat_id", ""),
+        "bot_token": bot_token or cfg.get("bot_token", ""),
+        "created_at": cfg.get("created_at", datetime.now().isoformat()),
+    })
     config_file.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
 
     if not identity_file.exists():
@@ -185,6 +193,7 @@ def create_department_room(name: str, chat_id: str = "", pm_name: str = "", dept
         "name": name,
         "pm_name": cfg["pm_name"],
         "ops_chat_id": chat_id,
+        "bot_token": cfg["bot_token"],
         "path": str(dept_dir),
     }
 
@@ -218,14 +227,19 @@ def get_all_department_rooms() -> Dict[str, dict]:
                     pass
 
             ops_chat = cfg.get("ops_chat_id") or TELEGRAM_OPS_CHAT_IDS.get(dept_id, "")
+            bot_token = cfg.get("bot_token", "")
             rooms[dept_id] = {
                 "id": dept_id,
                 "name": cfg.get("name", dept_id),
                 "pm_name": cfg.get("pm_name", f"PM {cfg.get('name', dept_id)}"),
                 "role": cfg.get("role", "agent"),
                 "ops_chat_id": ops_chat,
-                "configured": bool(ops_chat),
+                "bot_token": bot_token,
+                "configured": bool(ops_chat or bot_token),
             }
+
+    return rooms
+
 
     return rooms
 

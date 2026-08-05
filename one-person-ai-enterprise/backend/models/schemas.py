@@ -171,6 +171,8 @@ class DepartmentRoomCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="ชื่อแผนก เช่น ทีมทรัพยากรบุคคล")
     chat_id: Optional[str] = Field("", description="Telegram Chat ID ประจำห้องแผนก")
     pm_name: Optional[str] = Field("", description="ชื่อ PM หัวหน้าแผนก")
+    bot_token: Optional[str] = Field("", description="Telegram Bot Token ของ PM ประจำแผนกสำหรับสั่งงานตรง 1-on-1")
+
 
 
 # ─── Settings Schemas ─────────────────────────────────────────────────────────

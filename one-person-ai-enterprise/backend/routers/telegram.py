@@ -39,7 +39,7 @@ async def get_telegram_rooms():
 
 @router.post("/rooms")
 async def create_department_room(req: DepartmentRoomCreate):
-    """สร้างห้องทำงานแผนกใหม่ (สร้างโฟลเดอร์แผนก + คอนฟิก)"""
+    """สร้างห้องทำงานแผนกใหม่ (สร้างโฟลเดอร์แผนก + คอนฟิก + Bot Token ของ PM)"""
     if not req.name.strip():
         raise HTTPException(status_code=400, detail="กรุณาระบุชื่อแผนก")
 
@@ -47,9 +47,12 @@ async def create_department_room(req: DepartmentRoomCreate):
         name=req.name.strip(),
         chat_id=req.chat_id.strip() if req.chat_id else "",
         pm_name=req.pm_name.strip() if req.pm_name else "",
-        dept_id=req.id.strip() if req.id else None
+        dept_id=req.id.strip() if req.id else None,
+        bot_token=req.bot_token.strip() if req.bot_token else ""
     )
-    return {"status": "success", "message": f"สร้างห้องทำงานแผนก '{req.name}' เรียบร้อย", "room": room}
+    await telegram_service.start_telegram_polling()
+    return {"status": "success", "message": f"ตั้งค่าห้องทำงานแผนก '{req.name}' และ PM Bot เรียบร้อย", "room": room}
+
 
 
 @router.delete("/rooms/{dept_id}")

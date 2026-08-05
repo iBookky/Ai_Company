@@ -67,6 +67,11 @@ function renderDepartmentRoomsList(departmentRooms) {
 
   container.innerHTML = entries.map(([deptId, info]) => {
     const isConfigured = info.configured;
+    const botToken = info.bot_token || '';
+    const botStatus = botToken 
+      ? `<span style="color:var(--color-success)">🤖 PM Bot: <code style="color:var(--color-text)">${esc(botToken.slice(0, 10))}...</code></span>` 
+      : `<span style="color:var(--color-warning)">⚠️ PM Bot: ยังไม่ใส่ Token</span>`;
+
     return `
       <div class="dept-room-card" style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); border:1px solid var(--color-border); border-radius:10px; padding:0.8rem 1.2rem;">
         <div style="display:flex; flex-direction:column; gap:3px;">
@@ -77,14 +82,18 @@ function renderDepartmentRoomsList(departmentRooms) {
           <div style="font-size:12px; color:var(--color-text-muted);">
             👤 <strong>ดูแลโดย:</strong> ${esc(info.pm_name || 'PM ประจำแผนก')}
           </div>
-          <div style="font-size:11px; margin-top:2px;">
+          <div style="font-size:11px; margin-top:2px; display:flex; gap:12px;">
             ${isConfigured
-              ? `<span style="color:var(--color-success)">✅ Chat ID: <code style="color:var(--color-text)">${esc(info.ops_chat_id)}</code></span>`
-              : `<span style="color:var(--color-warning)">⚠️ ยังไม่ตั้ง Chat ID เฉพาะ</span>`}
+              ? `<span style="color:var(--color-success)">✅ Chat ID: <code style="color:var(--color-text)">${esc(info.ops_chat_id || 'ยังไม่ระบุ')}</code></span>`
+              : `<span style="color:var(--color-warning)">⚠️ ยังไม่ตั้ง Chat ID</span>`}
+            ${botStatus}
           </div>
         </div>
 
         <div style="display:flex; gap:6px; align-items:center;">
+          <button class="btn btn-sm" onclick="configurePmBotToken('${esc(deptId)}', '${esc(info.name)}', '${esc(info.pm_name)}', '${esc(botToken)}')" title="ตั้งค่า Bot Token ของ PM">
+            ⚙️ ตั้งค่า PM Bot
+          </button>
           <button class="btn btn-sm btn-primary" onclick="inspectDepartmentWorkspace('${esc(deptId)}', '${esc(info.name)}', '${esc(info.pm_name)}')" title="เข้าดูการทำงานของลูกทีม">
             🔍 เข้าดูการทำงานของลูกทีม
           </button>
@@ -96,6 +105,7 @@ function renderDepartmentRoomsList(departmentRooms) {
     `;
   }).join('');
 }
+
 
 
 // ─── Room Creation Modal ──────────────────────────────────
@@ -121,12 +131,14 @@ async function submitCreateRoomForm(event) {
   const name = document.getElementById('new-room-name').value.trim();
   const pmName = document.getElementById('new-room-pm').value.trim();
   const chatId = document.getElementById('new-room-chat-id').value.trim();
+  const botToken = document.getElementById('new-room-bot-token')?.value.trim() || '';
 
   try {
     const resp = await apiFetch('/api/telegram/rooms', {
       method: 'POST',
-      body: JSON.stringify({ name, pm_name: pmName, chat_id: chatId }),
+      body: JSON.stringify({ name, pm_name: pmName, chat_id: chatId, bot_token: botToken }),
     });
+
 
     showToast(`✅ สร้างห้องแผนก "${name}" เรียบร้อย`, 'success');
     closeCreateRoomModal();
@@ -296,4 +308,28 @@ async function inspectDepartmentWorkspace(deptId, deptName, pmName) {
     showToast('เปิดกระดานการทำงานไม่สำเร็จ: ' + e.message, 'error');
   }
 }
+
+
+async function configurePmBotToken(deptId, deptName, pmName, currentToken) {
+  const newToken = prompt(`🤖 ตั้งค่า Telegram Bot Token สำหรับ PM (${pmName} - แผนก ${deptName})\n\nระบุ Bot Token ที่ได้จาก @BotFather สำหรับ PM ท่านนี้:`, currentToken || '');
+  if (newToken === null) return;
+
+  try {
+    showToast(`⏳ กำลังบันทึก Bot Token สำหรับ ${pmName}...`, 'info');
+    await apiFetch('/api/telegram/rooms', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: deptId,
+        name: deptName,
+        pm_name: pmName,
+        bot_token: newToken.trim()
+      })
+    });
+    showToast(`✅ บันทึก PM Bot Token สำหรับ ${pmName} เรียบร้อย!`, 'success');
+    await loadTelegramRoomStatus();
+  } catch (e) {
+    showToast('บันทึก Bot Token ไม่สำเร็จ: ' + e.message, 'error');
+  }
+}
+
 
