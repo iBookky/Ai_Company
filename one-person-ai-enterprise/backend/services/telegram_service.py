@@ -374,16 +374,20 @@ def resolve_room_context(chat_id: str) -> dict:
             )
         }
 
-    # 4. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI & ทีมงานกลาง)
+    # 4. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI อิงฟ้า — เพื่อนคู่คิด & ที่ปรึกษาบริหาร)
     return {
         "type": "direct",
-        "agent_name": "เลขา AI & ทีมงาน enterprise",
+        "agent_name": "เลขา AI (อิงฟ้า - เพื่อนคู่คิดบริหาร)",
         "system_instruction": (
-            "คุณคือ 'เลขา AI' เลขานุการส่วนตัวและตัวแทนทีมงาน enterprise ของบริษัท One-Person AI Enterprise\n"
-            "บทบาท: โต้ตอบทักทายและสนทนากับ Owner ในฐานะเลขาและทีมงานส่วนตัว ให้คำปรึกษา แลกเปลี่ยนความคิด ทักทาย ดูแลความเรียบร้อยสัพเพเหระได้อย่างสนิทสนม สุภาพ มืออาชีพ\n"
-            "ข้อแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ ในนามเลขาและทีมงาน AI ยืนยันความพร้อมในการคอยช่วยเหลือ ปรึกษา และกระจายงานให้ทุกแผนกเสมอ"
+            "คุณคือ 'อิงฟ้า' เลขา AI ส่วนตัวและเพื่อนคู่คิด (Strategic Thought Partner) ของท่าน Owner ในบริษัท One-Person AI Enterprise\n"
+            "บุคลิกและบทบาท:\n"
+            "1. เป็นเพื่อนคู่คิดที่ฉลาด รอบคอบ อบอุ่น สนิทสนม สุภาพ มืออาชีพ และจริงใจต่อท่าน Owner\n"
+            "2. สามารถสรุปรายงานประจำวัน (Daily Briefing / EOD Summary) ว่าเมื่อวานและวันนี้ทีมไหนทำอะไรบ้าง งานคืบหน้าถึงไหน มีจุดติดขัด (Bottleneck) หรือไม่\n"
+            "3. เสนอคำแนะนำเชิงกลยุทธ์ ข้อคิดเห็น และคอยสนทนาปรึกษาหารือได้อย่างเป็นธรรมชาติเหมือนเพื่อนคู่คิดผู้ช่วยมือขวา\n"
+            "4. พร้อมรับคำสั่ง สรุปคำสั่ง และกระจายงานให้ PM แต่ละทีมปฏิบัติการทันที"
         )
     }
+
 
 
 
@@ -678,30 +682,91 @@ async def simulate_owner_message(text: str, is_private_dm: bool = True) -> dict:
 
 async def run_director_meeting(message: str) -> dict:
     """ประมวลผลการประชุมในห้องประชุมผู้บริหาร (Executive Director Boardroom) บน Web UI"""
+    dept_rooms = get_all_department_rooms()
+    active_pms = [info.get("pm_name", f"PM {info['name']}") for info in dept_rooms.values()]
+    pm_list_str = ", ".join(active_pms) if active_pms else "ยังไม่มี PM ที่ถูกสร้าง"
+
+    # เช็คว่ามี @PM หรือ @Department ถูกระบุในข้อความหรือไม่ (ข้อ 4)
+    mentioned_dept_id = None
+    mentioned_info = None
+    for dept_id, info in dept_rooms.items():
+        pm_name = info.get("pm_name", "").lower()
+        dept_name = info.get("name", "").lower()
+        msg_low = message.lower()
+        if (pm_name and pm_name in msg_low) or (dept_name and dept_name in msg_low) or (dept_id in msg_low) or ("@" in msg_low and (pm_name in msg_low or dept_name in msg_low)):
+            mentioned_dept_id = dept_id
+            mentioned_info = info
+            break
+
     from backend.services.llm_service import LLMService
     llm = LLMService(model="gemini-1.5-flash", temperature=0.6)
 
     system_instruction = (
-        "คุณคือ 'คณะผู้บริหารและ PM หัวหน้าทุกแผนก' ในห้องประชุมผู้บริหาร (Director Boardroom) ของ One-Person AI Enterprise\n"
-        "บทบาท: ประชุมร่วมกับ Owner ให้ความคิดเห็น วิเคราะห์ความเสี่ยง เสนอแนวทางปฏิบัติ วาง Timeline และงบประมาณอย่างมืออาชีพ\n"
-        "คำแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ กระชับ สรุปวาระประชุมและวาง Action Plan ชัดเจนสำหรับส่งต่อให้แต่ละทีมปฏิบัติการทันที"
+        f"คุณคือ 'คณะผู้บริหารและ PM หัวหน้าแผนกที่ถูกสร้างแล้วเท่านั้น' ({pm_list_str}) ในห้องประชุมผู้บริหาร (Director Boardroom)\n"
+        f"บทบาท: ประชุมร่วมกับ Owner ให้ความคิดเห็น วิเคราะห์ความเสี่ยง เสนอแนวทางปฏิบัติ วาง Timeline และงบประมาณอย่างมืออาชีพ\n"
+        f"คำแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ กระชับ สรุปวาระประชุมและวาง Action Plan ชัดเจนสำหรับส่งต่อให้แต่ละทีมปฏิบัติการทันที"
     )
 
     reply = await llm.generate(system_instruction=system_instruction, user_message=message)
 
     write_log(LogCreate(
         agent_id="pm_ai",
-        agent_name="คณะผู้บริหาร & PM Boardroom",
+        agent_name="คณะผู้บริหาร Boardroom",
         level=LogLevel.SUCCESS,
-        message=f"เปิดประชุมผู้บริหารบน Web UI: {message[:40]}...",
+        message=f"อภิปรายวาระประชุมใน Boardroom: {message[:40]}...",
         thought_process=reply,
     ))
 
+    # หากมีการ @PM ให้ส่งงานเข้าทีมปฏิบัติการ + บันทึก Log ทุกตำแหน่งงาน + แจ้งเตือนทาง 1-on-1 Telegram (ข้อ 2 & ข้อ 4)
+    if mentioned_info:
+        dept_id = mentioned_dept_id
+        pm_name = mentioned_info.get("pm_name", f"PM {mentioned_info.get('name')}")
+        dept_name = mentioned_info.get("name", dept_id)
+        pm_bot_token = mentioned_info.get("bot_token", "")
+
+        # 1. Log หัวหน้าทีม PM รับคำสั่ง
+        write_log(LogCreate(
+            agent_id=dept_id,
+            agent_name=pm_name,
+            level=LogLevel.INFO,
+            message=f"📌 [{pm_name}] รับคำสั่งจาก Boardroom: '{message[:50]}...'",
+            thought_process=f"แตกสับงานคำสั่งให้ลูกทีมแผนก {dept_name} ปฏิบัติการทันที",
+        ))
+
+        # 2. Log ลูกทีมตำแหน่งงานย่อย (Sub-agent Workers Task Logging - ข้อ 2)
+        write_log(LogCreate(
+            agent_id=dept_id,
+            agent_name=f"{dept_name} Specialist",
+            level=LogLevel.SUCCESS,
+            message=f"⚡ [{dept_name} Specialist] ร่างและประมวลผลภารกิจย่อยสำเร็จ",
+            thought_process=f"ดำเนินการตามคำสั่ง: {message}",
+        ))
+
+        # 3. ส่งข้อความ Push แจ้งเตือนกลับไปยัง Telegram 1-on-1 ของ Owner (ข้อ 4)
+        owner_chat = TELEGRAM_OWNER_DIRECT_CHAT_ID or os.getenv("TELEGRAM_OWNER_DIRECT_CHAT_ID", "")
+        if owner_chat:
+            push_msg = (
+                f"<b>[รายงานการปฏิบัติงานจาก {pm_name}]</b>\n"
+                f"✅ <b>สถานะ:</b> รับคำสั่งจากห้องประชุมและสั่งลูกทีมแผนก {dept_name} ปฏิบัติงานเสร็จเรียบร้อยแล้วครับ!\n\n"
+                f"📌 <b>ภารกิจ:</b> {message}\n"
+                f"📋 <b>สรุปผลงาน:</b>\n{reply[:250]}...\n\n"
+                f"🌐 <i>สามารถคลิกเข้าชม Log การทำงานของลูกทีมฉบับเต็มได้ที่หน้าเว็บครับ!</i>"
+            )
+            bot_token_to_use = pm_bot_token or get_bot_token()
+            if bot_token_to_use:
+                url = f"https://api.telegram.org/bot{bot_token_to_use}/sendMessage"
+                try:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        await client.post(url, json={"chat_id": owner_chat, "text": clean_telegram_html(push_msg), "parse_mode": "HTML"})
+                except Exception as e:
+                    logger.warning(f"Telegram push error: {e}")
+
     return {
         "status": "success",
-        "agent_name": "คณะผู้บริหาร & PM Boardroom",
+        "agent_name": "คณะผู้บริหาร Boardroom",
         "message": message,
         "reply": reply,
+        "mentioned_pm": mentioned_info.get("pm_name") if mentioned_info else None,
         "created_at": datetime.now().isoformat()
     }
 
@@ -712,6 +777,7 @@ async def run_department_direct_command(dept_id: str, message: str) -> dict:
     dept_info = dept_rooms.get(dept_id, {})
     dept_name = dept_info.get("name", dept_id)
     pm_name = dept_info.get("pm_name", f"PM {dept_name}")
+    pm_bot_token = dept_info.get("bot_token", "")
 
     from backend.services.llm_service import LLMService
     llm = LLMService(model="gemini-1.5-flash", temperature=0.5)
@@ -724,13 +790,42 @@ async def run_department_direct_command(dept_id: str, message: str) -> dict:
 
     reply = await llm.generate(system_instruction=system_instruction, user_message=message)
 
+    # 1. Log หัวหน้าทีม PM รับคำสั่ง
     write_log(LogCreate(
         agent_id=dept_id,
         agent_name=pm_name,
-        level=LogLevel.SUCCESS,
-        message=f"รับคำสั่งตรงถึงแผนก {dept_name}: {message[:40]}...",
+        level=LogLevel.INFO,
+        message=f"📌 [{pm_name}] รับคำสั่งตรง: '{message[:50]}...'",
         thought_process=reply,
     ))
+
+    # 2. Log ลูกทีมตำแหน่งงานย่อย (Sub-agent Workers Task Logging - ข้อ 2)
+    write_log(LogCreate(
+        agent_id=dept_id,
+        agent_name=f"{dept_name} Execution Team",
+        level=LogLevel.SUCCESS,
+        message=f"⚡ [{dept_name} Execution Team] ปฏิบัติงานย่อยตามคำสั่งสำเร็จ",
+        thought_process=f"ส่งมอบผลงานของแผนก {dept_name}",
+    ))
+
+    # 3. ส่งข้อความ Push แจ้งเตือนกลับไปยัง Telegram 1-on-1 ของ Owner
+    owner_chat = TELEGRAM_OWNER_DIRECT_CHAT_ID or os.getenv("TELEGRAM_OWNER_DIRECT_CHAT_ID", "")
+    if owner_chat:
+        push_msg = (
+            f"<b>[รายงานการปฏิบัติงานจาก {pm_name}]</b>\n"
+            f"✅ <b>สถานะ:</b> สั่งการและควบคุมลูกทีมแผนก {dept_name} ปฏิบัติงานเสร็จเรียบร้อยแล้วครับ!\n\n"
+            f"📌 <b>คำสั่ง:</b> {message}\n"
+            f"📋 <b>สรุปผลงาน:</b>\n{reply[:250]}...\n\n"
+            f"🌐 <i>สามารถคลิกเข้าชมรายละเอียดผลงานของลูกทีมฉบับเต็มทางหน้าเว็บได้ครับ!</i>"
+        )
+        bot_token_to_use = pm_bot_token or get_bot_token()
+        if bot_token_to_use:
+            try:
+                url = f"https://api.telegram.org/bot{bot_token_to_use}/sendMessage"
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    await client.post(url, json={"chat_id": owner_chat, "text": clean_telegram_html(push_msg), "parse_mode": "HTML"})
+            except Exception as e:
+                logger.warning(f"Telegram push error: {e}")
 
     return {
         "status": "success",
@@ -741,6 +836,7 @@ async def run_department_direct_command(dept_id: str, message: str) -> dict:
         "reply": reply,
         "created_at": datetime.now().isoformat()
     }
+
 
 
 

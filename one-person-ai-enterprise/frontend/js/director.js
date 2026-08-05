@@ -4,7 +4,63 @@
 
 async function loadDirectorPage() {
   console.log("🏛️ Director Boardroom Page loaded");
+  try {
+    const data = await apiFetch('/api/telegram/rooms');
+    const deptRooms = data.department_rooms || {};
+    renderBoardroomParticipants(deptRooms);
+  } catch (e) {
+    console.error("Failed to load director page participants:", e);
+  }
 }
+
+function renderBoardroomParticipants(deptRooms) {
+  const container = document.getElementById('boardroom-participants-list');
+  if (!container) return;
+
+  const entries = Object.entries(deptRooms);
+  let html = `
+    <div style="display:flex; align-items:center; gap:0.5rem;"><span>👑</span> <strong>Owner (คุณ)</strong></div>
+    <div style="display:flex; align-items:center; gap:0.5rem;"><span>🗂️</span> <strong>เลขา AI (อิงฟ้า - เพื่อนคู่คิด)</strong></div>
+  `;
+
+  if (!entries.length) {
+    html += `<div style="font-size:0.8rem; color:var(--color-text-muted); margin-top:0.5rem;">⚠️ ยังไม่มี PM ในระบบ (สร้างแผนกใหม่เพื่อดึง PM เข้าร่วมประชุม)</div>`;
+  } else {
+    entries.forEach(([id, info]) => {
+      html += `
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span>👔</span> <strong>${esc(info.pm_name || 'PM ' + info.name)}</strong>
+          <span style="font-size:10px; color:var(--color-text-muted);">(${esc(info.name)})</span>
+        </div>
+      `;
+    });
+  }
+
+  container.innerHTML = html;
+
+  // Render quick @PM mention buttons
+  const mentionContainer = document.getElementById('boardroom-mention-buttons');
+  if (mentionContainer) {
+    if (entries.length) {
+      mentionContainer.innerHTML = '<span style="font-size:0.8rem; color:var(--color-text-muted);">แท็กสั่งงานตรง:</span> ' + entries.map(([id, info]) => `
+        <button class="btn btn-sm btn-outline" style="font-size:11px; padding:2px 6px; margin-right:4px;" onclick="insertMention('${esc(info.pm_name || info.name)}')">
+          @${esc(info.pm_name || info.name)}
+        </button>
+      `).join(' ');
+    } else {
+      mentionContainer.innerHTML = '';
+    }
+  }
+}
+
+function insertMention(name) {
+  const input = document.getElementById('director-message-input');
+  if (input) {
+    input.value = `@${name} ` + input.value;
+    input.focus();
+  }
+}
+
 
 async function sendDirectorMeetingMessage() {
   const input = document.getElementById('director-message-input');

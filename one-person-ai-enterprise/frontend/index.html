@@ -42,10 +42,11 @@
       </a>
 
       <a href="#/skype" class="nav-item" data-page="skype" id="nav-skype">
-        <span class="nav-icon">✈️</span>
-        <span class="nav-label">Telegram Rooms</span>
+        <span class="nav-icon">🤖</span>
+        <span class="nav-label">PM Bots & ทีมปฏิบัติการ</span>
         <span class="nav-badge pulse-badge" id="skype-badge" style="display:none">!</span>
       </a>
+
 
       <a href="#/logs" class="nav-item" data-page="logs" id="nav-logs">
         <span class="nav-icon">📋</span>
@@ -179,9 +180,10 @@
 
           <!-- Meeting Input Area -->
           <div class="chat-input-area" style="border-top: 1px solid var(--color-border); padding-top: 1rem; display:flex; flex-direction:column; gap: 0.75rem;">
-            <textarea id="director-message-input" class="form-textarea" rows="3" placeholder="พิมพ์วาระการประชุม นโยบาย หรือสั่งเปิดประชุมผู้บริหาร..."></textarea>
+            <div id="boardroom-mention-buttons"></div>
+            <textarea id="director-message-input" class="form-textarea" rows="3" placeholder="พิมพ์วาระการประชุม หรือพิมพ์ @ชื่อPM เช่น @PMลิซ่า เพื่อสั่งงานตรง..."></textarea>
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size: 0.8rem; color:var(--color-text-muted);">💡 สามารถสั่งการและอภิปรายแผนงานร่วมกับ PM Boardroom ได้ตลอดเวลา</span>
+              <span style="font-size: 0.8rem; color:var(--color-text-muted);">💡 แท็ก @PM เพื่อมอบหมายภารกิจและแจ้งเตือนเข้า Telegram 1-on-1</span>
               <button class="btn btn-primary" id="btn-send-director-meeting" onclick="sendDirectorMeetingMessage()">
                 🗣️ พิมพ์เปิดประชุม / ส่งวาระ
               </button>
@@ -195,15 +197,12 @@
             <div class="card-header">
               <h2>👑 ผู้เข้าร่วมประชุม Boardroom</h2>
             </div>
-            <div style="display:flex; flex-direction:column; gap: 0.6rem; padding: 0.5rem 0; font-size:0.9rem;">
+            <div id="boardroom-participants-list" style="display:flex; flex-direction:column; gap: 0.6rem; padding: 0.5rem 0; font-size:0.9rem;">
               <div style="display:flex; align-items:center; gap:0.5rem;"><span>👑</span> <strong>Owner (คุณ)</strong></div>
-              <div style="display:flex; align-items:center; gap:0.5rem;"><span>🗂️</span> <strong>เลขา AI (อิงฟ้า)</strong></div>
-              <div style="display:flex; align-items:center; gap:0.5rem;"><span>📊</span> <strong>PM การตลาด AI (ลิซ่า)</strong></div>
-              <div style="display:flex; align-items:center; gap:0.5rem;"><span>💻</span> <strong>PM ไอที & นวัตกรรม AI (เดวิด)</strong></div>
-              <div style="display:flex; align-items:center; gap:0.5rem;"><span>📦</span> <strong>PM ปฏิบัติการ AI (สมชาย)</strong></div>
-              <div style="display:flex; align-items:center; gap:0.5rem;"><span>💰</span> <strong>PM การเงิน AI (สมหญิง)</strong></div>
+              <div style="display:flex; align-items:center; gap:0.5rem;"><span>🗂️</span> <strong>เลขา AI (อิงฟ้า - เพื่อนคู่คิด)</strong></div>
             </div>
           </div>
+
 
           <div class="card">
             <div class="card-header">

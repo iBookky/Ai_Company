@@ -1,10 +1,9 @@
 {
   "name": "เลขานุการ AI",
   "role": "secretary",
+  "pm_name": "PM อิงฟ้า (เลขา AI)",
   "model": "gemini-1.5-flash",
   "temperature": 0.6,
   "department": "01_secretary",
-  "created_at": "2026-08-02T22:58:34.923865",
-  "ops_chat_id": "-100111111111",
-  "updated_at": "2026-08-05T15:58:08.282737"
+  "bot_token": ""
 }

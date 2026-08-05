@@ -1,12 +1,9 @@
 {
   "name": "การตลาด AI",
   "role": "pm_02_marketing",
-  "model": "gemini-1.5-flash",
-  "temperature": 0.7,
-  "department": "02_marketing",
-  "created_at": "2026-08-02T22:58:34.923871",
-  "ops_chat_id": "-5105267686",
-  "updated_at": "2026-08-05T15:58:16.614469",
   "pm_name": "PM ลิซ่า",
-  "bot_token": "8776309955:AA_test_marketing_bot_token"
+  "model": "gemini-1.5-flash",
+  "temperature": 0.5,
+  "department": "02_marketing",
+  "bot_token": ""
 }
