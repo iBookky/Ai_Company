@@ -575,7 +575,10 @@ function openCreateAgentModal() {
   document.getElementById('ca-skill').value = '';
   document.getElementById('ca-temp').value = 0.5;
   document.getElementById('ca-temp-val').textContent = '0.5';
-  document.getElementById('ca-model').value = 'gemini-1.5-flash';
+  
+  // เรียกใช้ dynamic model list
+  renderModelSelect('ca-model', 'gemini-1.5-flash');
+  
   updateAgentDeptSelect(allRooms);
   openModal('modal-create-agent');
 }
@@ -592,7 +595,10 @@ async function editAgent(agentId) {
     document.getElementById('ca-edit-id').value = a.id;
     document.getElementById('agent-modal-title').textContent = `✏️ แก้ไข Agent: ${a.name}`;
     document.getElementById('ca-name').value = a.name;
-    document.getElementById('ca-model').value = a.model;
+    
+    // เรียกใช้ dynamic model list
+    renderModelSelect('ca-model', a.model);
+    
     document.getElementById('ca-temp').value = a.temperature;
     document.getElementById('ca-temp-val').textContent = a.temperature;
     document.getElementById('ca-identity').value = a.identity || '';
@@ -805,6 +811,8 @@ function clearLogFilter() {
 // Track which settings are already configured (masked)
 let _settingsState = {};
 
+let allAvailableModels = [];
+
 async function loadSettings() {
   try {
     const [s, rooms] = await Promise.all([
@@ -829,11 +837,17 @@ async function loadSettings() {
     // Plain text fields — fill directly
     document.getElementById('s-direct-chat').value = s.telegram_owner_direct_chat_id || '';
     document.getElementById('s-gemini-fallbacks').value = s.gemini_fallback_models || '';
+    document.getElementById('s-available-models').value = s.available_models || '';
 
-    if (s.default_model) {
-      const sel = document.getElementById('s-default-model');
-      if (sel) sel.value = s.default_model;
+    // เก็บรายชื่อโมเดลทั้งหมดไว้สร้าง Dropdown
+    const rawModels = s.available_models || '';
+    allAvailableModels = rawModels.split(',').map(m => m.trim()).filter(m => m);
+    if (allAvailableModels.length === 0) {
+      allAvailableModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp', 'claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307'];
     }
+
+    // สร้าง dropdown แบบ dynamic
+    renderModelSelect('s-default-model', s.default_model);
 
     // Badges
     const llmOk = s.gemini_configured || s.anthropic_configured;
@@ -849,6 +863,25 @@ async function loadSettings() {
   } catch (err) {
     console.error('[loadSettings]', err);
     toast('โหลดการตั้งค่าไม่สำเร็จ: ' + err.message, 'error');
+  }
+}
+
+function renderModelSelect(selectId, selectedValue = '') {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  
+  sel.innerHTML = allAvailableModels.map(m => {
+    // ใส่ emoji แนะนำความเร็ว/ความฉลาดเพื่อความสวยงาม
+    let emoji = '🤖';
+    if (m.includes('flash')) emoji = '⚡';
+    else if (m.includes('pro')) emoji = '🧠';
+    else if (m.includes('sonnet')) emoji = '🎭';
+    
+    return `<option value="${m}">${emoji} ${m}</option>`;
+  }).join('');
+  
+  if (selectedValue) {
+    sel.value = selectedValue;
   }
 }
 
@@ -945,6 +978,7 @@ async function saveLLMSection() {
     anthropic_api_key:      document.getElementById('s-claude-key').value.trim() || null,
     default_model:          document.getElementById('s-default-model').value || null,
     gemini_fallback_models: document.getElementById('s-gemini-fallbacks').value.trim() || null,
+    available_models:       document.getElementById('s-available-models').value.trim() || null,
   };
   // Remove nulls
   Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
@@ -1016,6 +1050,7 @@ async function saveSettings() {
     anthropic_api_key:             document.getElementById('s-claude-key').value.trim() || null,
     default_model:                 document.getElementById('s-default-model').value || null,
     gemini_fallback_models:        document.getElementById('s-gemini-fallbacks').value.trim() || null,
+    available_models:              document.getElementById('s-available-models').value.trim() || null,
     telegram_bot_token:            document.getElementById('s-tg-token').value.trim() || null,
     telegram_owner_direct_chat_id: document.getElementById('s-direct-chat').value.trim() || null,
   };
