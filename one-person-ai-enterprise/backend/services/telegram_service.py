@@ -447,10 +447,24 @@ async def _handle_personal_chat(chat_id: str, sender_name: str, text: str, bot_t
             dept_rooms = get_all_department_rooms()
             matching_pm = next((info for info in dept_rooms.values() if info.get("bot_token") == bot_token), None)
             if matching_pm:
+                dept_id = matching_pm["id"]
                 ctx["agent_name"] = matching_pm.get("pm_name", matching_pm["name"])
+                
+                # โหลดข้อมูล identity และ skill จริงจากแผนก
+                identity_content = ""
+                skill_content = ""
+                dept_dir = DEPARTMENTS_DIR / dept_id
+                if dept_dir.exists():
+                    if (dept_dir / "identity.md").exists():
+                        identity_content = (dept_dir / "identity.md").read_text(encoding="utf-8")
+                    if (dept_dir / "skill.md").exists():
+                        skill_content = (dept_dir / "skill.md").read_text(encoding="utf-8")
+
                 ctx["system_instruction"] = (
-                    f"คุณคือ '{matching_pm.get('pm_name')}' หัวหน้าทีมแผนก {matching_pm['name']} ของบริษัท One-Person AI Enterprise\n"
-                    f"บทบาท: สนทนาโต้ตอบแบบ 1-on-1 ใน Telegram กับคุณ Owner อย่างกระตือรือร้น สุภาพ พร้อมรายงานสถานะงาน รับฟังคำสั่งตรง และช่วยเหลืองานตามขอบเขตความรับผิดชอบของแผนกตนเอง"
+                    f"คุณคือ '{matching_pm.get('pm_name')}' PM หัวหน้าทีมแผนก {matching_pm['name']} ของบริษัท One-Person AI Enterprise\n\n"
+                    f"--- ข้อมูลเอกลักษณ์ตัวตนของคุณ (Identity) ---\n{identity_content}\n\n"
+                    f"--- ทักษะและขั้นตอนการทำงานของคุณ (Skills) ---\n{skill_content}\n\n"
+                    f"บทบาท: สนทนาโต้ตอบแบบ 1-on-1 ใน Telegram กับคุณ Owner อย่างฉลาด สุภาพ มีไหวพริบ กระตือรือร้น รายงานสถานะงานและพร้อมรับคำสั่งตรงปฏิบัติงานทันที"
                 )
 
         llm = LLMService(model="gemini-1.5-flash", temperature=0.7)
@@ -921,9 +935,19 @@ async def run_director_meeting(message: str) -> dict:
                 except Exception as e:
                     logger.warning(f"Telegram push error: {e}")
 
+    # กำหนดผู้ตอบจริง
+    if mentioned_info:
+        responder_name = mentioned_info.get("pm_name", f"PM {mentioned_info.get('name')}")
+        responder_avatar = "🤖"
+    else:
+        responder_name = "อิงฟ้า (เลขา AI)"
+        responder_avatar = "🗂️"
+
     return {
         "status": "success",
-        "agent_name": "คณะผู้บริหาร Boardroom",
+        "agent_name": responder_name,
+        "responder_name": responder_name,
+        "responder_avatar": responder_avatar,
         "message": message,
         "reply": reply,
         "mentioned_pm": mentioned_info.get("pm_name") if mentioned_info else None,

@@ -322,21 +322,23 @@ async function sendBoardroomMessage() {
   if (!text) return;
 
   ta.value = '';
-  addChatMessage('boardroom-messages', 'owner', '👑', '', text);
+  addChatMessage('boardroom-messages', 'owner', '👑', 'Owner (คุณ)', text);
 
   const btn = document.getElementById('btn-boardroom-send');
   btn.disabled = true; btn.textContent = '...';
 
-  const thinking = addChatMessage('boardroom-messages', 'thinking', '🏛️', 'ระบบ', 'กำลังประมวลผล...');
+  const thinking = addChatMessage('boardroom-messages', 'thinking', '🏛️', 'คณะผู้บริหาร', 'กำลังอภิปรายและประมวลผลวาระประชุม...');
 
   try {
     const res = await apiPost('/api/telegram/director-meeting', { text });
     thinking.remove();
     const reply = res.reply || res.message || res.result || JSON.stringify(res, null, 2);
-    addChatMessage('boardroom-messages', 'ai', '🏛️', 'ระบบ AI Enterprise', reply);
+    const name = res.responder_name || 'คณะผู้บริหาร Boardroom';
+    const avatar = res.responder_avatar || '🤖';
+    addChatMessage('boardroom-messages', 'ai', avatar, name, reply);
   } catch (err) {
     thinking.remove();
-    addChatMessage('boardroom-messages', 'ai', '❌', 'ระบบ', 'เกิดข้อผิดพลาด: ' + err.message);
+    addChatMessage('boardroom-messages', 'ai', '❌', 'ระบบ Boardroom', 'เกิดข้อผิดพลาด: ' + err.message);
   } finally {
     btn.disabled = false; btn.textContent = 'ส่ง ↵';
   }
@@ -347,11 +349,22 @@ function addChatMessage(containerId, role, avatar, agentName, text) {
   const div = document.createElement('div');
   div.className = `chat-msg ${role}`;
   const time = new Date().toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour12: false });
+  
+  // แปลง \n ใน text เป็น <br/> และแสดง HTML แบบจำกัดเพื่อให้อ่านง่าย
+  let formattedText = escHtml(text).replace(/\n/g, '<br/>');
+  
+  // คืนค่า tag ที่ปลอดภัยเบื้องต้น เช่น <b>, 🌟, 📌, 📋 เพื่อให้อ่านง่ายขึ้น
+  formattedText = formattedText
+    .replace(/&lt;b&gt;/g, '<strong>').replace(/&lt;\/b&gt;/g, '</strong>')
+    .replace(/&lt;strong&gt;/g, '<strong>').replace(/&lt;\/strong&gt;/g, '</strong>')
+    .replace(/&lt;code&gt;/g, '<code>').replace(/&lt;\/code&gt;/g, '</code>')
+    .replace(/&lt;pre&gt;/g, '<pre>').replace(/&lt;\/pre&gt;/g, '</pre>');
+
   div.innerHTML = `
     <div class="msg-avatar">${avatar}</div>
     <div>
       ${agentName ? `<div class="msg-agent">${escHtml(agentName)}</div>` : ''}
-      <div class="msg-bubble">${escHtml(text)}</div>
+      <div class="msg-bubble">${formattedText}</div>
       <div class="msg-time">${time}</div>
     </div>`;
   el.appendChild(div);
