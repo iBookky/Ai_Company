@@ -3,9 +3,10 @@
   "role": "pm_01_secretary",
   "pm_name": "PM อิงฟ้า",
   "model": "gemini-1.5-flash",
-  "temperature": 0.6,
+  "temperature": 0.7,
   "department": "01_secretary",
   "bot_token": "8776309955:AA_test_success",
   "ops_chat_id": "",
-  "created_at": "2026-08-06T08:41:49.975725"
+  "created_at": "2026-08-06T08:41:49.975725",
+  "updated_at": "2026-08-06T10:56:42.723031"
 }

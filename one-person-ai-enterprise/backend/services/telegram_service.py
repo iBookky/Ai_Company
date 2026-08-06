@@ -300,7 +300,7 @@ async def classify_intent(text: str) -> str:
     if any(k in lowered for k in order_keywords):
         return "TASK_ORDER"
 
-    # ใช้ LLM ช่วยจำแนกความหมาย
+    # ใช้ LLM ช่วยจำแนกความหมาย พร้อมกำหนด Timeout
     try:
         from backend.services.llm_service import LLMService
         llm = LLMService(model="gemini-1.5-flash", temperature=0.0)
@@ -311,16 +311,21 @@ async def classify_intent(text: str) -> str:
             f"ข้อความ: '{text}'\n"
             "คำตอบ (ตอบเฉพาะ CHAT หรือ TASK_ORDER เท่านั้น):"
         )
-        resp = await llm.generate(
-            system_instruction="คุณคือตัวจำแนกเจตนาข้อความ ตอบคำเดียวเท่านั้น CHAT หรือ TASK_ORDER",
-            user_message=prompt
+        # ป้องกัน API ค้างด้วย timeout 4.0 วินาที
+        resp = await asyncio.wait_for(
+            llm.generate(
+                system_instruction="คุณคือตัวจำแนกเจตนาข้อความ ตอบคำเดียวเท่านั้น CHAT หรือ TASK_ORDER",
+                user_message=prompt
+            ),
+            timeout=4.0
         )
         resp_clean = resp.strip().upper()
         if "TASK_ORDER" in resp_clean:
             return "TASK_ORDER"
         if "CHAT" in resp_clean:
             return "CHAT"
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Intent classification failed/timeout: {e}. Fallback to CHAT.")
         pass
 
     return "CHAT"
@@ -340,7 +345,7 @@ async def handle_webhook(payload: dict, bot_token: Optional[str] = None) -> dict
     if not text:
         return {"status": "ignored", "reason": "empty_text"}
 
-    ctx = resolve_room_context(chat_id)
+    ctx = resolve_room_context(chat_id, bot_token=bot_token)
     
     # หากระบุ bot_token (คุยส่วนตัวหา PM บอท) ให้ปรับปรุงชื่อผู้รับการบันทึก Log ให้ถูกต้อง
     if bot_token:
@@ -373,17 +378,43 @@ async def handle_webhook(payload: dict, bot_token: Optional[str] = None) -> dict
         return await _initiate_verification(chat_id, sender_name, text)
 
 
-def resolve_room_context(chat_id: str) -> dict:
+def resolve_room_context(chat_id: str, bot_token: Optional[str] = None) -> dict:
     """ตรวจสอบประเภทของห้องเพื่อเลือกบุคลิกและบทบาทโต้ตอบในฐานะทีมงานให้ตรงกับบริบทห้อง"""
     owner_direct = TELEGRAM_OWNER_DIRECT_CHAT_ID or os.getenv("TELEGRAM_OWNER_DIRECT_CHAT_ID", "")
     exec_chat = TELEGRAM_EXEC_CHAT_ID or os.getenv("TELEGRAM_EXEC_CHAT_ID", "") or os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
 
     dept_rooms = get_all_department_rooms()
 
-    # 1. เช็คว่าเป็นห้องทำงานแผนกใดหรือไม่ หรือคุย Direct 1-on-1 กับ PM Bot ตัวใดอยู่
+    # 1. ปรับปรุง: หากระบุ bot_token ให้เจาะจงเลยว่าเป็น PM แผนกนั้นๆ กำลังคุยกับคุณ (ไม่ว่าจะคุยผ่านห้องแชทใด)
+    if bot_token:
+        for dept_id, info in dept_rooms.items():
+            if info.get("bot_token") == bot_token:
+                # โหลดข้อมูลจริงจากแผนก
+                identity_content = ""
+                skill_content = ""
+                dept_dir = DEPARTMENTS_DIR / dept_id
+                if dept_dir.exists():
+                    if (dept_dir / "identity.md").exists():
+                        identity_content = (dept_dir / "identity.md").read_text(encoding="utf-8")
+                    if (dept_dir / "skill.md").exists():
+                        skill_content = (dept_dir / "skill.md").read_text(encoding="utf-8")
+
+                return {
+                    "type": "direct_pm",
+                    "dept_id": dept_id,
+                    "dept_name": info.get("name", dept_id),
+                    "agent_name": info.get("pm_name") or f"PM {info.get('name')}",
+                    "system_instruction": (
+                        f"คุณคือ '{info.get('pm_name')}' PM หัวหน้าทีมแผนก {info['name']} ของบริษัท One-Person AI Enterprise\n\n"
+                        f"--- ข้อมูลเอกลักษณ์ตัวตนของคุณ (Identity) ---\n{identity_content}\n\n"
+                        f"--- ทักษะและขั้นตอนการทำงานของคุณ (Skills) ---\n{skill_content}\n\n"
+                        f"บทบาท: สนทนาโต้ตอบแบบ 1-on-1 ใน Telegram กับคุณ Owner อย่างฉลาด สุภาพ มีไหวพริบ กระตือรือร้น รายงานสถานะงานและพร้อมรับคำสั่งตรงปฏิบัติงานทันที"
+                    )
+                }
+
+    # 2. เช็คห้องทำงานแผนก (ops_chat_id)
     for dept_id, info in dept_rooms.items():
-        # เช็คทั้งห้องแชทแผนก (ops_chat_id) หรือหาก Owner ทักแชท 1-on-1 หาบอท PM ของแผนกนั้น (ซึ่ง chat_id จะเท่ากับ owner_direct_chat_id)
-        if (info.get("ops_chat_id") and str(info["ops_chat_id"]) == str(chat_id)):
+        if info.get("ops_chat_id") and str(info["ops_chat_id"]) == str(chat_id):
             return {
                 "type": "department",
                 "dept_id": dept_id,
@@ -396,7 +427,7 @@ def resolve_room_context(chat_id: str) -> dict:
                 )
             }
         
-    # 2. เช็คว่าเป็นห้องประชุมผู้บริหาร (Executive Boardroom)
+    # 3. เช็คว่าเป็นห้องประชุมผู้บริหาร (Executive Boardroom)
     admin_chat = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
     if str(chat_id) in [str(exec_chat), str(admin_chat)] and str(chat_id) != "":
         return {
@@ -409,7 +440,7 @@ def resolve_room_context(chat_id: str) -> dict:
             )
         }
 
-    # 3. เช็คว่าเป็นห้องกลุ่มประชุม/ห้องปฏิบัติการอื่นๆ (Group Room)
+    # 4. เช็คว่าเป็นห้องกลุ่มประชุม/ห้องปฏิบัติการอื่นๆ (Group Room)
     if str(chat_id).startswith("-"):
         return {
             "type": "group_meeting",
@@ -421,7 +452,7 @@ def resolve_room_context(chat_id: str) -> dict:
             )
         }
 
-    # 4. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI อิงฟ้า — เพื่อนคู่คิด & ที่ปรึกษาบริหาร)
+    # 5. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI อิงฟ้า — เพื่อนคู่คิด & ที่ปรึกษาบริหาร)
     return {
         "type": "direct",
         "agent_name": "เลขา AI (อิงฟ้า - เพื่อนคู่คิดบริหาร)",
@@ -440,7 +471,7 @@ async def _handle_personal_chat(chat_id: str, sender_name: str, text: str, bot_t
     """ตอบสนองการพูดคุย/ทักทายกับ Owner ในฐานะทีมงานประจำห้องนั้นๆ"""
     try:
         from backend.services.llm_service import LLMService
-        ctx = resolve_room_context(chat_id)
+        ctx = resolve_room_context(chat_id, bot_token=bot_token)
         
         # ปรับปรุง: หากเป็นการทักส่วนตัว 1-on-1 หา PM Bot (ไม่ใช่เลขาอิงฟ้า) ให้ใช้ Persona ของ PM คนนั้นตอบแทน
         if ctx["type"] == "direct" and bot_token:
@@ -495,7 +526,7 @@ async def _handle_personal_chat(chat_id: str, sender_name: str, text: str, bot_t
 
         return {"status": "chat_replied", "reply": reply, "room_type": ctx["type"], "agent_name": ctx["agent_name"]}
     except Exception as e:
-        ctx = resolve_room_context(chat_id)
+        ctx = resolve_room_context(chat_id, bot_token=bot_token)
         err_msg = f"สวัสดีครับท่าน Owner ทีมงาน {ctx['agent_name']} พร้อมปฏิบัติงานและดูแลท่านเสมอครับ มีอะไรให้ทีมงานช่วยดูแลไหมครับ?"
         await send_telegram_message(chat_id, err_msg, bot_token=bot_token)
         return {"status": "chat_replied_fallback", "reply": err_msg}
