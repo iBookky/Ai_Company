@@ -59,8 +59,13 @@ class LLMService:
                     model_candidates.append(f"models/{raw_model}")
                 model_candidates.append(raw_model)
             
-            # Fallback candidates ที่เสถียรและใช้งานได้แน่นอน
-            fallback_models = ["models/gemini-1.5-flash", "gemini-1.5-flash", "models/gemini-1.5-pro", "gemini-1.5-pro"]
+            # Fallback candidates โหลดโดยตรงจากไฟล์ .env (GEMINI_FALLBACK_MODELS)
+            env_fallbacks = os.getenv("GEMINI_FALLBACK_MODELS", "")
+            if env_fallbacks:
+                fallback_models = [m.strip() for m in env_fallbacks.split(",") if m.strip()]
+            else:
+                fallback_models = ["models/gemini-1.5-flash", "gemini-1.5-flash", "models/gemini-1.5-pro", "gemini-1.5-pro"]
+
             for m in fallback_models:
                 if m not in model_candidates:
                     model_candidates.append(m)

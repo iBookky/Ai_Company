@@ -828,6 +828,7 @@ async function loadSettings() {
 
     // Plain text fields — fill directly
     document.getElementById('s-direct-chat').value = s.telegram_owner_direct_chat_id || '';
+    document.getElementById('s-gemini-fallbacks').value = s.gemini_fallback_models || '';
 
     if (s.default_model) {
       const sel = document.getElementById('s-default-model');
@@ -940,9 +941,10 @@ async function _doSaveSettings(body, btnId, statusId, btnLabel) {
 // ─── Per-section save functions ───────────────────────────────
 async function saveLLMSection() {
   const body = {
-    gemini_api_key:    document.getElementById('s-gemini-key').value.trim() || null,
-    anthropic_api_key: document.getElementById('s-claude-key').value.trim() || null,
-    default_model:     document.getElementById('s-default-model').value || null,
+    gemini_api_key:         document.getElementById('s-gemini-key').value.trim() || null,
+    anthropic_api_key:      document.getElementById('s-claude-key').value.trim() || null,
+    default_model:          document.getElementById('s-default-model').value || null,
+    gemini_fallback_models: document.getElementById('s-gemini-fallbacks').value.trim() || null,
   };
   // Remove nulls
   Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
@@ -1013,6 +1015,7 @@ async function saveSettings() {
     gemini_api_key:                document.getElementById('s-gemini-key').value.trim() || null,
     anthropic_api_key:             document.getElementById('s-claude-key').value.trim() || null,
     default_model:                 document.getElementById('s-default-model').value || null,
+    gemini_fallback_models:        document.getElementById('s-gemini-fallbacks').value.trim() || null,
     telegram_bot_token:            document.getElementById('s-tg-token').value.trim() || null,
     telegram_owner_direct_chat_id: document.getElementById('s-direct-chat').value.trim() || null,
   };

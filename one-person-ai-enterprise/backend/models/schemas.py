@@ -188,6 +188,7 @@ class AppSettings(BaseModel):
     telegram_ops_chat_id: str = ""
     telegram_ops_chat_ids: dict[str, str] = {}
     default_model: str = "gemini-1.5-flash"
+    gemini_fallback_models: str = ""
     gemini_configured: bool = False
     anthropic_configured: bool = False
     telegram_configured: bool = False
@@ -204,6 +205,7 @@ class SettingsUpdate(BaseModel):
     telegram_ops_chat_id: Optional[str] = None
     telegram_ops_chat_ids: Optional[dict[str, str]] = None
     default_model: Optional[str] = None
+    gemini_fallback_models: Optional[str] = None
 
 
 

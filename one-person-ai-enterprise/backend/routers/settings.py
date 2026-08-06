@@ -59,6 +59,7 @@ def _load_settings() -> AppSettings:
         telegram_ops_chat_id=os.getenv("TELEGRAM_OPS_CHAT_ID", ""),
         telegram_ops_chat_ids=ops_chat_ids,
         default_model=os.getenv("DEFAULT_MODEL", "gemini-1.5-flash"),
+        gemini_fallback_models=os.getenv("GEMINI_FALLBACK_MODELS", ""),
         gemini_configured=bool(os.getenv("GEMINI_API_KEY")),
         anthropic_configured=bool(os.getenv("ANTHROPIC_API_KEY")),
         telegram_configured=bool(os.getenv("TELEGRAM_BOT_TOKEN")),
@@ -90,6 +91,7 @@ async def get_settings():
         "telegram_ops_chat_ids": settings.telegram_ops_chat_ids,
         "telegram_configured": settings.telegram_configured,
         "default_model": settings.default_model,
+        "gemini_fallback_models": settings.gemini_fallback_models,
     }
 
 
@@ -110,6 +112,7 @@ async def update_settings(data: SettingsUpdate):
         "telegram_admin_chat_id": "TELEGRAM_ADMIN_CHAT_ID",
         "telegram_ops_chat_id": "TELEGRAM_OPS_CHAT_ID",
         "default_model": "DEFAULT_MODEL",
+        "gemini_fallback_models": "GEMINI_FALLBACK_MODELS",
     }
 
     updated = []
