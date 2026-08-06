@@ -41,7 +41,7 @@ class AgentCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="ชื่อตำแหน่ง Agent")
     department: str = Field(..., min_length=1, description="สังกัดแผนก เช่น 03_sales")
     parent_department: Optional[str] = Field(None, description="สังกัดหัวหน้าทีม")
-    model: ModelChoice = Field(ModelChoice.GEMINI_FLASH, description="โมเดล LLM ที่ใช้")
+    model: str = Field("gemini-1.5-flash", description="โมเดล LLM ที่ใช้")
     temperature: float = Field(0.5, ge=0.0, le=1.0, description="ค่า Temperature")
     identity: str = Field(..., min_length=10, description="System Identity/Role")
     skill: str = Field(..., min_length=10, description="Skills และ Instructions")
@@ -67,7 +67,7 @@ class AgentRead(BaseModel):
 
 class AgentUpdate(BaseModel):
     name: Optional[str] = None
-    model: Optional[ModelChoice] = None
+    model: Optional[str] = None
     temperature: Optional[float] = Field(None, ge=0.0, le=1.0)
     identity: Optional[str] = None
     skill: Optional[str] = None
