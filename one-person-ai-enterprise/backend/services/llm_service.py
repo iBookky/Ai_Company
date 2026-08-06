@@ -52,13 +52,18 @@ class LLMService:
 
 
             raw_model = self.model
-            model_candidates = [
-                "models/gemini-2.5-flash",
-                "models/gemini-2.0-flash",
-                "models/gemini-flash-latest",
-                raw_model,
-            ]
-
+            # ปรับปรุงให้ลองโมเดลที่เสถียรและรองรับจริงใน SDK ปัจจุบันก่อน
+            model_candidates = []
+            if raw_model:
+                if not raw_model.startswith("models/"):
+                    model_candidates.append(f"models/{raw_model}")
+                model_candidates.append(raw_model)
+            
+            # Fallback candidates ที่เสถียรและใช้งานได้แน่นอน
+            fallback_models = ["models/gemini-1.5-flash", "gemini-1.5-flash", "models/gemini-1.5-pro", "gemini-1.5-pro"]
+            for m in fallback_models:
+                if m not in model_candidates:
+                    model_candidates.append(m)
 
             last_error = None
             for target_model in model_candidates:
