@@ -198,6 +198,40 @@ def create_department_room(name: str, chat_id: str = "", pm_name: str = "", dept
     }
 
 
+async def propose_team_structure(dept_name: str, pm_name: str = "") -> dict:
+    """เสนอร่างโครงสร้างทีม บทบาทลูกทีม และ KPI ที่เหมาะสมให้ Owner พิจารณาปรับแก้และอนุมัติก่อนสร้างจริง"""
+    from backend.services.llm_service import LLMService
+    llm = LLMService(model="gemini-1.5-flash", temperature=0.5)
+
+    prompt = (
+        f"ขอให้นำเสนอโครงสร้างทีมสำหรับแผนก '{dept_name}'\n"
+        f"ชื่อ PM หัวหน้าทีม: {pm_name or 'PM ' + dept_name}\n"
+        f"กรุณาจัดทำข้อเสนอโครงสร้างทีมในรูปแบบ JSON ประกอบด้วย:\n"
+        f"- department_name: ชื่อแผนก\n"
+        f"- pm_name: ชื่อ PM หัวหน้าทีม\n"
+        f"- proposed_roles: รายชื่อตำแหน่งลูกทีม AI ย่อยในทีม 3-4 ตำแหน่ง\n"
+        f"- recommended_kpi: KPI เป้าหมายสำคัญของทีมนี้\n"
+        f"- team_mission: พันธกิจและขอบเขตงานหลักของทีม\n\n"
+        f"ตอบกลับเป็น JSON เท่านั้น ไม่ต้องมี markdown formatting เพิ่มเติม"
+    )
+
+    try:
+        res_raw = await llm.generate(system_instruction="คุณคือเลขา AI และนักวางโครงสร้างองค์กร ตอบเป็น JSON เท่านั้น", user_message=prompt)
+        res_clean = res_raw.strip().strip("```json").strip("```").strip()
+        proposal = json.loads(res_clean)
+    except Exception:
+        proposal = {
+            "department_name": dept_name,
+            "pm_name": pm_name or f"PM {dept_name}",
+            "proposed_roles": ["PM หัวหน้าทีม", "Specialist 1", "Specialist 2", "Data Analyst"],
+            "recommended_kpi": f"ปฏิบัติภารกิจของแผนก {dept_name} ให้สำเร็จตามเป้าหมาย 100%",
+            "team_mission": f"บริหารจัดการและส่งมอบผลงานคุณภาพของแผนก {dept_name}"
+        }
+
+    return proposal
+
+
+
 def delete_department_room(dept_id: str) -> bool:
     """ยุบแผนก / ลบห้องทำงานแผนก (ลบโฟลเดอร์ + ลบคอนฟิก)"""
     dept_dir = DEPARTMENTS_DIR / dept_id

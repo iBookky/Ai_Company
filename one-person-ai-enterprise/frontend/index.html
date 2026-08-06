@@ -528,40 +528,45 @@
   <!-- ─── Create Department Room Modal ─────────────────── -->
   <div class="modal" id="create-room-modal">
     <div class="modal-overlay" onclick="closeCreateRoomModal()"></div>
-    <div class="modal-box" style="max-width:480px">
+    <div class="modal-box" style="max-width:520px">
       <div class="modal-header">
-        <h2>🏢 สร้างห้องทำงานแผนกใหม่</h2>
+        <h2>🏢 สร้างทีมงานและแผนกใหม่</h2>
         <button class="modal-close" onclick="closeCreateRoomModal()">✕</button>
       </div>
       <form id="create-room-form" onsubmit="submitCreateRoomForm(event)">
         <div class="modal-body">
           <div class="form-group">
-            <label class="form-label required">ชื่อแผนก</label>
-            <input type="text" class="form-input" id="new-room-name" placeholder="เช่น ทีมทรัพยากรบุคคล (HR)" required />
+            <label class="form-label required">ชื่อทีม / แผนก</label>
+            <input type="text" class="form-input" id="new-room-name" placeholder="เช่น ทีมการตลาด AI หรือ ทีมไอที & นวัตกรรม" required />
           </div>
           <div class="form-group">
-            <label class="form-label">ชื่อ PM หัวหน้าแผนก</label>
-            <input type="text" class="form-input" id="new-room-pm" placeholder="เช่น PM HR (หากไม่ระบุจะตั้งให้อัตโนมัติ)" />
+            <label class="form-label">ชื่อ PM หัวหน้าทีม</label>
+            <input type="text" class="form-input" id="new-room-pm" placeholder="เช่น PM ลิซ่า (หากไม่ระบุจะตั้งให้อัตโนมัติ)" />
           </div>
           <div class="form-group">
-            <label class="form-label">Telegram Ops Chat ID ประจำห้อง</label>
-            <input type="text" class="form-input font-mono" id="new-room-chat-id" placeholder="-100xxxxxxxxx (ใส่ภายหลังได้)" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">🤖 PM Bot Token (สั่งงานตรงกับ PM ทาง Telegram 1-on-1)</label>
-            <input type="text" class="form-input font-mono" id="new-room-bot-token" placeholder="8776309955:AAxxx... (ใส่ Bot Token ของ PM แผนกนี้)" />
+            <label class="form-label">🤖 PM Telegram Bot Token (สั่งงานตรงกับ PM ทาง Telegram 1-on-1)</label>
+            <input type="text" class="form-input font-mono" id="new-room-bot-token" placeholder="8776309955:AAxxx... (ใส่ Token จาก @BotFather)" />
           </div>
 
+          <button type="button" class="btn btn-secondary btn-sm" onclick="requestTeamProposal()" style="margin: 0.5rem 0;">
+            💡 ให้นำเสนอโครงสร้างทีมและ KPI (AI Propose)
+          </button>
+
+          <!-- Proposal Preview Box -->
+          <div id="team-proposal-box" style="display:none; background:rgba(255,255,255,0.03); border:1px solid var(--color-border); border-radius:8px; padding:0.8rem; margin-top:0.5rem; font-size:12px;">
+          </div>
         </div>
+
         <div class="modal-footer">
           <button type="button" class="btn" onclick="closeCreateRoomModal()">ยกเลิก</button>
           <button type="submit" class="btn btn-primary" id="btn-submit-create-room">
-            💾 สร้างห้องแผนก
+            ✅ อนุมัติและสร้างทีม
           </button>
         </div>
       </form>
     </div>
   </div>
+
 
   <!-- ─── Toast Notification ──────────────────────────── -->
   <div id="toast-container" class="toast-container"></div>

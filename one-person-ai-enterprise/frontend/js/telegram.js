@@ -126,31 +126,67 @@ async function submitCreateRoomForm(event) {
   event.preventDefault();
   const btn = document.getElementById('btn-submit-create-room');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinning">⏳</span> กำลังสร้าง...';
+  btn.innerHTML = '<span class="spinning">⏳</span> กำลังสร้างทีม...';
 
   const name = document.getElementById('new-room-name').value.trim();
   const pmName = document.getElementById('new-room-pm').value.trim();
-  const chatId = document.getElementById('new-room-chat-id').value.trim();
   const botToken = document.getElementById('new-room-bot-token')?.value.trim() || '';
 
   try {
     const resp = await apiFetch('/api/telegram/rooms', {
       method: 'POST',
-      body: JSON.stringify({ name, pm_name: pmName, chat_id: chatId, bot_token: botToken }),
+      body: JSON.stringify({ name, pm_name: pmName, bot_token: botToken }),
     });
 
-
-    showToast(`✅ สร้างห้องแผนก "${name}" เรียบร้อย`, 'success');
+    showToast(`✅ สร้างทีม "${name}" และตั้งค่า PM เรียบร้อย`, 'success');
     closeCreateRoomModal();
 
-    await loadTelegramRoomStatus();
+    if (typeof loadAgents !== 'undefined') await loadAgents();
   } catch (e) {
-    showToast(`สร้างห้องแผนกไม่สำเร็จ: ${e.message}`, 'error');
+    showToast(`สร้างทีมไม่สำเร็จ: ${e.message}`, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '💾 สร้างห้องแผนก';
+    btn.innerHTML = '✅ อนุมัติและสร้างทีม';
   }
 }
+
+async function requestTeamProposal() {
+  const name = document.getElementById('new-room-name').value.trim();
+  const pmName = document.getElementById('new-room-pm').value.trim();
+  if (!name) {
+    showToast('กรุณาระบุชื่อทีม/แผนกก่อนกดให้นำเสนอโครงสร้างทีม', 'warning');
+    return;
+  }
+
+  const box = document.getElementById('team-proposal-box');
+  if (box) {
+    box.style.display = 'block';
+    box.innerHTML = '<span class="spinning">⏳</span> AI กำลังวิเคราะห์และร่างโครงสร้างทีมที่เหมาะสม...';
+  }
+
+  try {
+    const res = await apiFetch('/api/telegram/propose-team', {
+      method: 'POST',
+      body: JSON.stringify({ name, pm_name: pmName })
+    });
+    const p = res.proposal || {};
+    if (document.getElementById('new-room-pm') && p.pm_name) {
+      document.getElementById('new-room-pm').value = p.pm_name;
+    }
+    if (box) {
+      box.innerHTML = `
+        <div style="font-weight:600; color:var(--brand-400); margin-bottom:4px;">📋 ร่างโครงสร้างทีมเสนอ Owner พิจารณา:</div>
+        <div><strong>👔 หัวหน้าทีม (PM):</strong> ${esc(p.pm_name)}</div>
+        <div><strong>👥 บทบาทลูกทีม:</strong> ${(p.proposed_roles || []).map(r => `<span style="background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:4px; margin-right:4px;">${esc(r)}</span>`).join('')}</div>
+        <div><strong>🎯 KPI เสนอแนะนำ:</strong> ${esc(p.recommended_kpi || '-')}</div>
+        <div><strong>📌 ขอบเขตงาน:</strong> ${esc(p.team_mission || '-')}</div>
+      `;
+    }
+  } catch (e) {
+    if (box) box.innerHTML = `<span style="color:var(--color-error)">ไม่สามารถสร้างข้อเสนอโครงสร้างทีมได้: ${esc(e.message)}</span>`;
+  }
+}
+
 
 // ─── Dissolve Department Room (ยุบแผนก / ลบห้อง) ───────────
 async function deleteDepartmentRoom(deptId, deptName) {

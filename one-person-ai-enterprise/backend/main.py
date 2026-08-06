@@ -35,9 +35,10 @@ async def lifespan(app: FastAPI):
         message="🚀 One-Person AI Enterprise เริ่มต้นระบบสำเร็จ",
     ))
 
-    # เริ่มระบบ Telegram Background Polling Listener
-    from backend.services import telegram_service
+    # เริ่มระบบ Telegram Background Polling Listener & Daily Scheduler (08:30 & 18:00 ICT)
+    from backend.services import telegram_service, scheduler_service
     await telegram_service.start_telegram_polling()
+    scheduler_service.start_scheduler()
 
     # สร้างโฟลเดอร์ที่จำเป็น
     for folder in ["departments", "logs", "drafts/proposals", "drafts/accounting", "drafts/contracts"]:
@@ -46,7 +47,9 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
+    scheduler_service.stop_scheduler()
     telegram_service.stop_telegram_polling()
+
     log_service.write_log(LogCreate(
         agent_id="system",
         agent_name="System",

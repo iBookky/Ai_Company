@@ -54,6 +54,20 @@ async def create_department_room(req: DepartmentRoomCreate):
     return {"status": "success", "message": f"ตั้งค่าห้องทำงานแผนก '{req.name}' และ PM Bot เรียบร้อย", "room": room}
 
 
+class TeamProposeRequest(BaseModel):
+    name: str
+    pm_name: Optional[str] = ""
+
+@router.post("/propose-team")
+async def propose_team_structure(req: TeamProposeRequest):
+    """เสนอร่างโครงสร้างทีม บทบาทลูกทีม และ KPI ให้ Owner พิจารณาอนุมัติก่อนสร้างจริง"""
+    if not req.name.strip():
+        raise HTTPException(status_code=400, detail="กรุณาระบุชื่อแผนก")
+    proposal = await telegram_service.propose_team_structure(req.name.strip(), req.pm_name.strip() if req.pm_name else "")
+    return {"status": "success", "proposal": proposal}
+
+
+
 
 @router.delete("/rooms/{dept_id}")
 async def delete_department_room(dept_id: str):
