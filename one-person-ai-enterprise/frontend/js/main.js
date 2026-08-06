@@ -774,45 +774,79 @@ function clearLogFilter() {
 // ══════════════════════════════════════════════════════════════
 //  PAGE: SETTINGS
 // ══════════════════════════════════════════════════════════════
+// Track which settings are already configured (masked)
+let _settingsState = {};
+
 async function loadSettings() {
   try {
-    const s = await apiGet('/api/settings');
+    const [s, rooms] = await Promise.all([
+      apiGet('/api/settings'),
+      apiGet('/api/telegram/rooms'),
+    ]);
+    allRooms = rooms;
 
-    // Mask & fill keys
-    setMaskedInput('s-gemini-key',  s.gemini_api_key,  's-gemini-status');
-    setMaskedInput('s-claude-key',  s.anthropic_api_key, 's-claude-status');
-    setMaskedInput('s-tg-token',    s.telegram_bot_token, 's-tg-token-status');
+    // Store which fields are already configured (not empty)
+    _settingsState = {
+      gemini_api_key:             !!s.gemini_configured,
+      anthropic_api_key:          !!s.anthropic_configured,
+      telegram_bot_token:         !!s.telegram_configured,
+      telegram_owner_direct_chat_id: !!(s.telegram_owner_direct_chat_id),
+    };
+
+    // Show masked placeholder for sensitive fields
+    setMaskedInput('s-gemini-key', s.gemini_configured, s.gemini_api_key, 's-gemini-status');
+    setMaskedInput('s-claude-key', s.anthropic_configured, s.anthropic_api_key, 's-claude-status');
+    setMaskedInput('s-tg-token',   s.telegram_configured,  s.telegram_bot_token, 's-tg-token-status');
+
+    // Plain text fields — fill directly
     document.getElementById('s-direct-chat').value = s.telegram_owner_direct_chat_id || '';
 
-    if (s.default_model) document.getElementById('s-default-model').value = s.default_model;
+    if (s.default_model) {
+      const sel = document.getElementById('s-default-model');
+      if (sel) sel.value = s.default_model;
+    }
 
-    const llmOk = s.gemini_api_key || s.anthropic_api_key;
+    // Badges
+    const llmOk = s.gemini_configured || s.anthropic_configured;
     document.getElementById('llm-status').className = `badge ${llmOk ? 'badge-online' : ''}`;
     document.getElementById('llm-status').textContent = llmOk ? '✓ ตั้งค่าแล้ว' : '✗ ยังไม่ตั้งค่า';
 
-    const tgOk = s.telegram_bot_token;
+    const tgOk = s.telegram_configured;
     document.getElementById('tg-status').className = `badge ${tgOk ? 'badge-online' : ''}`;
     document.getElementById('tg-status').textContent = tgOk ? '✓ ตั้งค่าแล้ว' : '✗ ยังไม่ตั้งค่า';
 
     // PM Tokens
-    renderPmTokens(s.telegram_ops_chat_ids || {}, allRooms.department_rooms || {});
+    renderPmTokens(rooms.department_rooms || {});
   } catch (err) {
-    console.error(err);
+    console.error('[loadSettings]', err);
+    toast('โหลดการตั้งค่าไม่สำเร็จ: ' + err.message, 'error');
   }
 }
 
-function setMaskedInput(inputId, value, badgeId) {
+function setMaskedInput(inputId, isConfigured, maskedValue, badgeId) {
   const input = document.getElementById(inputId);
   const badge = document.getElementById(badgeId);
-  if (value) {
-    input.placeholder = '••••••' + value.slice(-6);
-    badge.className   = 'config-badge ok'; badge.textContent = '✓';
+  if (!input || !badge) return;
+
+  // Clear actual value (user must re-type to change)
+  input.value = '';
+
+  if (isConfigured) {
+    // Show last 6 chars hint in placeholder
+    const hint = maskedValue ? maskedValue.replace(/•+/, '').slice(-6) : '...';
+    input.placeholder = `ตั้งค่าแล้ว (••••••${hint}) — พิมพ์ใหม่เพื่อเปลี่ยน`;
+    badge.className   = 'config-badge ok';
+    badge.textContent = '✓ ตั้งค่าแล้ว';
   } else {
-    badge.className   = 'config-badge warn'; badge.textContent = '—';
+    input.placeholder = inputId === 's-gemini-key' ? 'AIzaSy...'
+      : inputId === 's-claude-key' ? 'sk-ant-...'
+      : '123456789:ABCdefGHI...';
+    badge.className   = 'config-badge warn';
+    badge.textContent = '✗ ยังไม่ตั้งค่า';
   }
 }
 
-function renderPmTokens(opsIds, depts) {
+function renderPmTokens(depts) {
   const el = document.getElementById('pm-tokens-container');
   const deptKeys = Object.keys(depts).filter(k => k !== '01_secretary');
   if (deptKeys.length === 0) {
@@ -823,6 +857,7 @@ function renderPmTokens(opsIds, depts) {
   el.innerHTML = deptKeys.map(id => {
     const d = depts[id];
     const hasToken = !!d.bot_token;
+    const tokenHint = hasToken ? d.bot_token.replace(/•+/, '').slice(-6) : '';
     return `
       <div class="pm-token-item">
         <div class="pm-token-label">
@@ -831,41 +866,137 @@ function renderPmTokens(opsIds, depts) {
         </div>
         <div class="input-row">
           <input type="password" class="form-input mono" id="pm-token-${id}"
-            placeholder="${hasToken ? '••••••' + d.bot_token.slice(-6) : 'Bot Token จาก @BotFather...'}"
-            autocomplete="off" />
-          <span class="form-hint" style="flex-shrink:0">
-            PM: ${escHtml(d.pm_name || '—')}
-          </span>
+            placeholder="${hasToken ? `ตั้งค่าแล้ว (••••••${tokenHint}) — พิมพ์ใหม่เพื่อเปลี่ยน` : 'Bot Token จาก @BotFather...'}" autocomplete="off" />
+          <span class="form-hint" style="flex-shrink:0">PM: ${escHtml(d.pm_name || '—')}</span>
         </div>
       </div>`;
   }).join('');
 }
 
+// ─── Helper: call PUT /api/settings and show save result ──────
+async function _doSaveSettings(body, btnId, statusId, btnLabel) {
+  const btn    = document.getElementById(btnId);
+  const status = document.getElementById(statusId);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
+  if (status) status.textContent = '';
+
+  // Remove any empty or untouched fields
+  const cleaned = {};
+  Object.entries(body).forEach(([k, v]) => {
+    if (v !== null && v !== undefined && String(v).trim() !== '') {
+      cleaned[k] = v;
+    }
+  });
+
+  if (Object.keys(cleaned).length === 0) {
+    toast('ไม่มีข้อมูลใหม่ให้บันทึก — กรุณาพิมพ์ค่าใหม่ก่อนค่ะ', 'warning');
+    if (btn) { btn.disabled = false; btn.textContent = btnLabel; }
+    return false;
+  }
+
+  try {
+    await apiPut('/api/settings', cleaned);
+    toast('✅ บันทึกสำเร็จ!', 'success');
+    if (status) { status.textContent = '✅ บันทึกแล้ว'; setTimeout(() => { if (status) status.textContent = ''; }, 3000); }
+    await loadSettings();
+    return true;
+  } catch (err) {
+    toast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
+    if (status) { status.textContent = '❌ ไม่สำเร็จ'; setTimeout(() => { if (status) status.textContent = ''; }, 3000); }
+    return false;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = btnLabel; }
+  }
+}
+
+// ─── Per-section save functions ───────────────────────────────
+async function saveLLMSection() {
+  const body = {
+    gemini_api_key:    document.getElementById('s-gemini-key').value.trim() || null,
+    anthropic_api_key: document.getElementById('s-claude-key').value.trim() || null,
+    default_model:     document.getElementById('s-default-model').value || null,
+  };
+  // Remove nulls
+  Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
+  await _doSaveSettings(body, 'btn-save-llm', 'save-status-llm', '💾 บันทึก LLM Keys');
+}
+
+async function saveTelegramSection() {
+  const body = {
+    telegram_bot_token:            document.getElementById('s-tg-token').value.trim() || null,
+    telegram_owner_direct_chat_id: document.getElementById('s-direct-chat').value.trim() || null,
+  };
+  Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
+  await _doSaveSettings(body, 'btn-save-tg', 'save-status-tg', '💾 บันทึก Telegram Settings');
+}
+
+async function savePmTokens() {
+  const btn    = document.getElementById('btn-save-pm');
+  const status = document.getElementById('save-status-pm');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
+  if (status) status.textContent = '';
+
+  const pmInputs = document.querySelectorAll('[id^="pm-token-"]');
+  const promises = [];
+  let count = 0;
+
+  pmInputs.forEach(inp => {
+    const val = inp.value.trim();
+    if (val) {  // user actually typed something
+      count++;
+      const deptId = inp.id.replace('pm-token-', '');
+      const room = (allRooms.department_rooms || {})[deptId];
+      if (room) {
+        promises.push(
+          apiPost('/api/telegram/rooms', {
+            name: room.name, pm_name: room.pm_name || '', id: deptId, bot_token: val
+          }).catch(e => ({ error: e.message }))
+        );
+      }
+    }
+  });
+
+  if (count === 0) {
+    toast('ไม่มี Token ใหม่ให้บันทึก — กรุณาพิมพ์ Token ในช่องที่ต้องการเปลี่ยนค่ะ', 'warning');
+    if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึก PM Bot Tokens'; }
+    return;
+  }
+
+  try {
+    await Promise.all(promises);
+    toast(`✅ บันทึก PM Bot Token สำเร็จ ${count} ทีม!`, 'success');
+    if (status) { status.textContent = `✅ บันทึก ${count} ทีม`; setTimeout(() => { if (status) status.textContent = ''; }, 3000); }
+    await loadSettings();
+  } catch (err) {
+    toast('บันทึก PM Token ไม่สำเร็จ: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึก PM Bot Tokens'; }
+  }
+}
+
+// ─── Save All (runs all 3 sections) ──────────────────────────
 async function saveSettings() {
-  const btn = document.getElementById('btn-save');
+  const btn    = document.getElementById('btn-save');
   const status = document.getElementById('save-status');
-  btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...';
+  btn.disabled = true; btn.textContent = '⏳ กำลังบันทึกทั้งหมด...';
   status.textContent = '';
 
-  const body = {};
-  const gKey = document.getElementById('s-gemini-key').value.trim();
-  const cKey = document.getElementById('s-claude-key').value.trim();
-  const tgTok = document.getElementById('s-tg-token').value.trim();
-  const directId = document.getElementById('s-direct-chat').value.trim();
-  const defModel = document.getElementById('s-default-model').value;
+  const body = {
+    gemini_api_key:                document.getElementById('s-gemini-key').value.trim() || null,
+    anthropic_api_key:             document.getElementById('s-claude-key').value.trim() || null,
+    default_model:                 document.getElementById('s-default-model').value || null,
+    telegram_bot_token:            document.getElementById('s-tg-token').value.trim() || null,
+    telegram_owner_direct_chat_id: document.getElementById('s-direct-chat').value.trim() || null,
+  };
+  // Remove nulls (only send fields user actually typed)
+  Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
 
-  if (gKey)     body.gemini_api_key = gKey;
-  if (cKey)     body.anthropic_api_key = cKey;
-  if (tgTok)    body.telegram_bot_token = tgTok;
-  if (directId) body.telegram_owner_direct_chat_id = directId;
-  if (defModel) body.default_model = defModel;
-
-  // PM tokens — save via telegram rooms API individually
+  // PM tokens
   const pmInputs = document.querySelectorAll('[id^="pm-token-"]');
   const pmPromises = [];
   pmInputs.forEach(inp => {
     const val = inp.value.trim();
-    if (val && !val.startsWith('••')) {
+    if (val) {
       const deptId = inp.id.replace('pm-token-', '');
       const room = (allRooms.department_rooms || {})[deptId];
       if (room) {
@@ -878,16 +1009,28 @@ async function saveSettings() {
     }
   });
 
+  const hasMainSettings = Object.keys(body).length > 0;
+  const hasPmTokens     = pmPromises.length > 0;
+
+  if (!hasMainSettings && !hasPmTokens) {
+    toast('ไม่มีข้อมูลใหม่ให้บันทึก — กรุณาพิมพ์ค่าใหม่ในช่องที่ต้องการก่อนค่ะ', 'warning');
+    btn.disabled = false; btn.textContent = '💾 บันทึกทั้งหมด';
+    return;
+  }
+
   try {
-    await Promise.all([apiPut('/api/settings', body), ...pmPromises]);
-    toast('✅ บันทึกการตั้งค่าสำเร็จ!', 'success');
+    const tasks = [];
+    if (hasMainSettings) tasks.push(apiPut('/api/settings', body));
+    tasks.push(...pmPromises);
+    await Promise.all(tasks);
+    toast('✅ บันทึกการตั้งค่าทั้งหมดสำเร็จ!', 'success');
     status.textContent = '✅ บันทึกเรียบร้อย';
     await loadSettings();
   } catch (err) {
     toast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
     status.textContent = '❌ บันทึกไม่สำเร็จ';
   } finally {
-    btn.disabled = false; btn.textContent = '💾 บันทึกการตั้งค่าทั้งหมด';
+    btn.disabled = false; btn.textContent = '💾 บันทึกทั้งหมด';
     setTimeout(() => { status.textContent = ''; }, 4000);
   }
 }

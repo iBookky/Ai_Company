@@ -256,7 +256,7 @@
       <div class="settings-layout">
 
         <!-- Section 1: LLM Keys -->
-        <section class="settings-section card">
+        <section class="settings-section card" id="section-llm">
           <div class="card-header">
             <span class="card-icon">🔑</span>
             <h2>LLM API Keys</h2>
@@ -288,10 +288,14 @@
               </select>
             </div>
           </div>
+          <div class="section-save-bar">
+            <button class="btn btn-primary" onclick="saveLLMSection()" id="btn-save-llm">💾 บันทึก LLM Keys</button>
+            <span class="save-status" id="save-status-llm"></span>
+          </div>
         </section>
 
         <!-- Section 2: Secretary Telegram Bot -->
-        <section class="settings-section card">
+        <section class="settings-section card" id="section-telegram">
           <div class="card-header">
             <span class="card-icon">🗂️</span>
             <h2>เลขา AI อิงฟ้า — Telegram 1-on-1</h2>
@@ -317,10 +321,14 @@
               <span class="form-hint">หาได้ง่ายๆ โดยทักแชทหาบอท <strong>@userinfobot</strong> ใน Telegram</span>
             </div>
           </div>
+          <div class="section-save-bar">
+            <button class="btn btn-primary" onclick="saveTelegramSection()" id="btn-save-tg">💾 บันทึก Telegram Settings</button>
+            <span class="save-status" id="save-status-tg"></span>
+          </div>
         </section>
 
         <!-- Section 3: PM Bot Tokens (Dynamic) -->
-        <section class="settings-section card">
+        <section class="settings-section card" id="section-pm-tokens">
           <div class="card-header">
             <span class="card-icon">🤖</span>
             <h2>PM Bot Tokens ของหัวหน้าทีม</h2>
@@ -328,17 +336,21 @@
           </div>
           <div class="settings-body">
             <div class="settings-hint">
-              💡 PM Bot แต่ละทีมจะใช้ Token นี้ในการรับคำสั่งและส่งรายงานกลับท่าน Owner ทาง Telegram 1-on-1
+              💡 กรอก Bot Token ของ PM แต่ละทีม แล้วกด <strong>บันทึก</strong> — PM จะรับคำสั่งและส่งรายงานกลับทาง Telegram 1-on-1
             </div>
             <div id="pm-tokens-container">
               <div class="loading-text">กำลังโหลดทีม...</div>
             </div>
           </div>
+          <div class="section-save-bar">
+            <button class="btn btn-primary" onclick="savePmTokens()" id="btn-save-pm">💾 บันทึก PM Bot Tokens</button>
+            <span class="save-status" id="save-status-pm"></span>
+          </div>
         </section>
 
-        <!-- Save Button -->
+        <!-- Save All + Test -->
         <div class="settings-save-bar">
-          <button class="btn btn-primary btn-lg" id="btn-save" onclick="saveSettings()">💾 บันทึกการตั้งค่าทั้งหมด</button>
+          <button class="btn btn-primary btn-lg" id="btn-save" onclick="saveSettings()">💾 บันทึกทั้งหมด</button>
           <button class="btn btn-lg" onclick="testAllConnections()">🧪 ทดสอบการเชื่อมต่อ</button>
           <span class="save-status" id="save-status"></span>
         </div>

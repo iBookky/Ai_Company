@@ -1,10 +1,12 @@
 {
   "name": "การตลาด AI",
-  "role": "agent",
+  "role": "pm_02_การตลาด_ai",
   "model": "gemini-1.5-flash",
   "temperature": 0.5,
   "department": "02_การตลาด_ai",
   "parent_department": null,
   "ops_chat_id": "8745724456",
-  "created_at": "2026-08-06T08:26:34.641725"
+  "created_at": "2026-08-06T08:26:34.641725",
+  "pm_name": "PM การตลาด AI",
+  "bot_token": "8745724456:AAHnD7kkHO6I3Hz4o1YsgJlgXhs4oWRQZ7k"
 }
