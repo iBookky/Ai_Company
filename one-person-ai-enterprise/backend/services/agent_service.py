@@ -125,7 +125,7 @@ def create_agent(data: AgentCreate) -> AgentRead:
     config = {
         "name": data.name,
         "role": data.role or "agent",
-        "model": data.model.value,
+        "model": data.model,
         "temperature": data.temperature,
         "department": dept_id,
         "parent_department": data.parent_department,
@@ -153,7 +153,7 @@ def update_agent(agent_id: str, data: AgentUpdate) -> Optional[AgentRead]:
     if data.name is not None:
         config["name"] = data.name
     if data.model is not None:
-        config["model"] = data.model.value
+        config["model"] = data.model
     if data.temperature is not None:
         config["temperature"] = data.temperature
     if data.ops_chat_id is not None:
