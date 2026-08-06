@@ -65,9 +65,9 @@ def clean_telegram_html(text: str) -> str:
     return text
 
 
-async def send_telegram_message(chat_id: str, text: str) -> bool:
-    """ส่งข้อความไปยัง Telegram Chat"""
-    token = get_bot_token()
+async def send_telegram_message(chat_id: str, text: str, bot_token: Optional[str] = None) -> bool:
+    """ส่งข้อความไปยัง Telegram Chat (ระบุ bot_token สำหรับ PM บอทเฉพาะแผนก)"""
+    token = bot_token or get_bot_token()
     if not token or not chat_id:
         logger.warning(f"Telegram Bot Token หรือ Chat ID ({chat_id}) ไม่ถูกตั้งค่า")
         return False
@@ -78,7 +78,6 @@ async def send_telegram_message(chat_id: str, text: str) -> bool:
         "text": clean_telegram_html(text),
         "parse_mode": "HTML",
     }
-
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -111,7 +110,13 @@ async def send_to_department_room(dept_id: str, text: str) -> bool:
     if not chat_id:
         logger.warning(f"ไม่พบ Ops Chat ID สำหรับแผนก {dept_id}")
         return False
-    return await send_telegram_message(chat_id, text)
+    
+    # ดึง Token ของ PM แผนกนั้นๆ เพื่อใช้ส่งเข้าห้องทำงาน
+    dept_rooms = get_all_department_rooms()
+    dept_info = dept_rooms.get(dept_id, {})
+    pm_bot_token = dept_info.get("bot_token", "")
+    
+    return await send_telegram_message(chat_id, text, bot_token=pm_bot_token)
 
 
 def get_ops_chat_id_for_department(dept_id: str) -> str:
@@ -275,9 +280,6 @@ def get_all_department_rooms() -> Dict[str, dict]:
     return rooms
 
 
-    return rooms
-
-
 # ─── Smart Intent Classifier & Webhook Handler ───────────────────────────────
 
 async def classify_intent(text: str) -> str:
@@ -324,7 +326,7 @@ async def classify_intent(text: str) -> str:
     return "CHAT"
 
 
-async def handle_webhook(payload: dict) -> dict:
+async def handle_webhook(payload: dict, bot_token: Optional[str] = None) -> dict:
     """ประมวลผล Incoming Webhook Update จาก Telegram"""
     message = payload.get("message", {}) or payload.get("channel_post", {})
     if not message:
@@ -338,11 +340,21 @@ async def handle_webhook(payload: dict) -> dict:
     if not text:
         return {"status": "ignored", "reason": "empty_text"}
 
+    ctx = resolve_room_context(chat_id)
+    
+    # หากระบุ bot_token (คุยส่วนตัวหา PM บอท) ให้ปรับปรุงชื่อผู้รับการบันทึก Log ให้ถูกต้อง
+    if bot_token:
+        dept_rooms = get_all_department_rooms()
+        matching_pm = next((info for info in dept_rooms.values() if info.get("bot_token") == bot_token), None)
+        if matching_pm:
+            ctx["agent_name"] = matching_pm.get("pm_name") or f"PM {matching_pm['name']}"
+            ctx["dept_id"] = matching_pm["id"]
+
     write_log(LogCreate(
-        agent_id="secretary_ai",
-        agent_name="เลขา AI",
+        agent_id=ctx.get("dept_id", "secretary_ai"),
+        agent_name=ctx["agent_name"],
         level=LogLevel.INFO,
-        message=f"ได้รับข้อความจาก Telegram ({sender_name}): {text[:50]}...",
+        message=f"ได้รับข้อความจาก Telegram ({sender_name}) หา {ctx['agent_name']}: {text[:50]}...",
     ))
 
     # 1. เช็คคำยืนยันสำหรับคำสั่งที่รอยืนยันอยู่
@@ -356,7 +368,7 @@ async def handle_webhook(payload: dict) -> dict:
     intent = await classify_intent(text)
 
     if intent == "CHAT":
-        return await _handle_personal_chat(chat_id, sender_name, text)
+        return await _handle_personal_chat(chat_id, sender_name, text, bot_token=bot_token)
     else:
         return await _initiate_verification(chat_id, sender_name, text)
 
@@ -368,9 +380,10 @@ def resolve_room_context(chat_id: str) -> dict:
 
     dept_rooms = get_all_department_rooms()
 
-    # 1. เช็คว่าเป็นห้องทำงานแผนกใดหรือไม่
+    # 1. เช็คว่าเป็นห้องทำงานแผนกใดหรือไม่ หรือคุย Direct 1-on-1 กับ PM Bot ตัวใดอยู่
     for dept_id, info in dept_rooms.items():
-        if info.get("ops_chat_id") and str(info["ops_chat_id"]) == str(chat_id):
+        # เช็คทั้งห้องแชทแผนก (ops_chat_id) หรือหาก Owner ทักแชท 1-on-1 หาบอท PM ของแผนกนั้น (ซึ่ง chat_id จะเท่ากับ owner_direct_chat_id)
+        if (info.get("ops_chat_id") and str(info["ops_chat_id"]) == str(chat_id)):
             return {
                 "type": "department",
                 "dept_id": dept_id,
@@ -382,6 +395,96 @@ def resolve_room_context(chat_id: str) -> dict:
                     f"ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงาน {info.get('name')}' หรือ '{info.get('pm_name')}' รายงานความพร้อม เสนอความช่วยเหลือในส่วนงานประจำแผนกอย่างสุภาพและมืออาชีพ"
                 )
             }
+        
+    # 2. เช็คว่าเป็นห้องประชุมผู้บริหาร (Executive Boardroom)
+    admin_chat = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
+    if str(chat_id) in [str(exec_chat), str(admin_chat)] and str(chat_id) != "":
+        return {
+            "type": "executive",
+            "agent_name": "คณะผู้บริหาร & PM Boardroom",
+            "system_instruction": (
+                "คุณคือ 'คณะผู้บริหารและทีม PM หัวหน้าทุกแผนก' ในห้องประชุมผู้บริหารของ One-Person AI Enterprise\n"
+                "บทบาท: โต้ตอบทักทายกับ Owner ในฐานะทีมงานบริหารระดับสูง พร้อมเปิดประชุม สรุป วางแผน วางกลยุทธ์ และรับฟังนโยบายจาก Owner\n"
+                "ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงานผู้บริหาร / คณะ PM' ด้วยความเคารพ สุภาพ ตรงประเด็น และเน้นย้ำความพร้อมในการประชุมและดำเนินนโยบายองค์กร"
+            )
+        }
+
+    # 3. เช็คว่าเป็นห้องกลุ่มประชุม/ห้องปฏิบัติการอื่นๆ (Group Room)
+    if str(chat_id).startswith("-"):
+        return {
+            "type": "group_meeting",
+            "agent_name": "ทีมงาน & คณะ PM ประจำห้องประชุม",
+            "system_instruction": (
+                "คุณคือ 'ทีมงานและคณะ PM ประจำห้องประชุม' ของบริษัท One-Person AI Enterprise\n"
+                "บทบาท: โต้ตอบในนามทีมงานและหัวหน้าทีมประจำห้องประชุม รับฟังคำสั่ง เปิดวาระประชุม และเสนอความเห็นเชิงปฏิบัติการให้ Owner\n"
+                "ข้อแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ มืออาชีพ กระตือรือร้น พร้อมเปิดการประชุมและสรุปสั่งงานให้แก่แผนกที่เกี่ยวข้องทันที"
+            )
+        }
+
+    # 4. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI อิงฟ้า — เพื่อนคู่คิด & ที่ปรึกษาบริหาร)
+    return {
+        "type": "direct",
+        "agent_name": "เลขา AI (อิงฟ้า - เพื่อนคู่คิดบริหาร)",
+        "system_instruction": (
+            "คุณคือ 'อิงฟ้า' เลขา AI ส่วนตัวและเพื่อนคู่คิด (Strategic Thought Partner) ของท่าน Owner ในบริษัท One-Person AI Enterprise\n"
+            "บุคลิกและบทบาท:\n"
+            "1. เป็นเพื่อนคู่คิดที่ฉลาด รอบคอบ อบอุ่น สนิทสนม สุภาพ มืออาชีพ และจริงใจต่อท่าน Owner\n"
+            "2. สามารถสรุปรายงานประจำวัน (Daily Briefing / EOD Summary) ว่าเมื่อวานและวันนี้ทีมไหนทำอะไรบ้าง งานคืบหน้าถึงไหน มีจุดติดขัด (Bottleneck) หรือไม่\n"
+            "3. เสนอคำแนะนำเชิงกลยุทธ์ ข้อคิดเห็น และคอยสนทนาปรึกษาหารือได้อย่างเป็นธรรมชาติเหมือนเพื่อนคู่คิดผู้ช่วยมือขวา\n"
+            "4. พร้อมรับคำสั่ง สรุปคำสั่ง และกระจายงานให้ PM แต่ละทีมปฏิบัติการทันที"
+        )
+    }
+
+
+async def _handle_personal_chat(chat_id: str, sender_name: str, text: str, bot_token: Optional[str] = None) -> dict:
+    """ตอบสนองการพูดคุย/ทักทายกับ Owner ในฐานะทีมงานประจำห้องนั้นๆ"""
+    try:
+        from backend.services.llm_service import LLMService
+        ctx = resolve_room_context(chat_id)
+        
+        # ปรับปรุง: หากเป็นการทักส่วนตัว 1-on-1 หา PM Bot (ไม่ใช่เลขาอิงฟ้า) ให้ใช้ Persona ของ PM คนนั้นตอบแทน
+        if ctx["type"] == "direct" and bot_token:
+            dept_rooms = get_all_department_rooms()
+            matching_pm = next((info for info in dept_rooms.values() if info.get("bot_token") == bot_token), None)
+            if matching_pm:
+                ctx["agent_name"] = matching_pm.get("pm_name", matching_pm["name"])
+                ctx["system_instruction"] = (
+                    f"คุณคือ '{matching_pm.get('pm_name')}' หัวหน้าทีมแผนก {matching_pm['name']} ของบริษัท One-Person AI Enterprise\n"
+                    f"บทบาท: สนทนาโต้ตอบแบบ 1-on-1 ใน Telegram กับคุณ Owner อย่างกระตือรือร้น สุภาพ พร้อมรายงานสถานะงาน รับฟังคำสั่งตรง และช่วยเหลืองานตามขอบเขตความรับผิดชอบของแผนกตนเอง"
+                )
+
+        llm = LLMService(model="gemini-1.5-flash", temperature=0.7)
+
+        history = _chat_histories.get(chat_id, [])
+        reply = await llm.generate(
+            system_instruction=ctx["system_instruction"],
+            user_message=text,
+            history=history
+        )
+
+        # บันทึกประวัติการสนทนา
+        history.append({"role": "user", "content": text})
+        history.append({"role": "model", "content": reply})
+        if len(history) > 10:
+            history = history[-10:]
+        _chat_histories[chat_id] = history
+
+        await send_telegram_message(chat_id, reply, bot_token=bot_token)
+
+        write_log(LogCreate(
+            agent_id="secretary_ai" if not bot_token else "pm_bot",
+            agent_name=ctx["agent_name"],
+            level=LogLevel.SUCCESS,
+            message=f"{ctx['agent_name']} โต้ตอบแชทกับ Owner: {reply[:50]}...",
+            thought_process=f"บริบทห้อง: {ctx['type']}\nถาม: {text}\nตอบ: {reply}",
+        ))
+
+        return {"status": "chat_replied", "reply": reply, "room_type": ctx["type"], "agent_name": ctx["agent_name"]}
+    except Exception as e:
+        ctx = resolve_room_context(chat_id)
+        err_msg = f"สวัสดีครับท่าน Owner ทีมงาน {ctx['agent_name']} พร้อมปฏิบัติงานและดูแลท่านเสมอครับ มีอะไรให้ทีมงานช่วยดูแลไหมครับ?"
+        await send_telegram_message(chat_id, err_msg, bot_token=bot_token)
+        return {"status": "chat_replied_fallback", "reply": err_msg}
 
     # 2. เช็คว่าเป็นห้องประชุมผู้บริหาร (Executive Boardroom)
     admin_chat = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
@@ -625,7 +728,8 @@ def get_room_status() -> dict:
 
 # ─── Telegram Background Polling Service ────────────────────────────────────
 
-_polling_task = None
+_polling_tasks = []
+_active_polling_tokens = {}  # {token: task}
 _polling_running = False
 
 
@@ -635,30 +739,49 @@ def get_bot_token() -> str:
 
 
 async def start_telegram_polling():
-    """เริ่มระบบ Telegram Background Listener เพื่อคอยรับและตอบกลับข้อความจาก Owner บน Telegram เรียลไทม์ 24/7"""
-    global _polling_task, _polling_running
-    if _polling_running:
-        return
-
-    token = get_bot_token()
-    if not token:
-        print("⚠️ [Telegram Worker] ไม่พบ TELEGRAM_BOT_TOKEN ไม่สามารถเริ่ม Telegram Polling ได้")
-        return
-
+    """เริ่มระบบ Telegram Background Listener คอยรับและตอบกลับข้อความจาก Owner ทาง Telegram ของ PM บอททุกแผนกและเลขา AI แบบ Dynamic"""
+    global _polling_tasks, _polling_running, _active_polling_tokens
     _polling_running = True
-    print(f"🚀 [Telegram Worker] เริ่มทำงาน Telegram Background Listener เรียลไทม์ (Token: {token[:10]}...)...")
 
-    async def _polling_loop():
-        global _polling_running
-        last_offset = 0
-        print("🚀 [Telegram Worker] Polling loop running and waiting for Telegram updates...")
-        while _polling_running:
+    # รวบรวม Tokens ที่ต้องทำ Polling (บอทเลขาหลัก + PM บอทแผนกต่างๆ)
+    tokens_to_poll = {}
+    main_token = get_bot_token()
+    if main_token:
+        tokens_to_poll["secretary_ai"] = main_token
+
+    try:
+        dept_rooms = get_all_department_rooms()
+        for dept_id, info in dept_rooms.items():
+            t = info.get("bot_token", "")
+            if t:
+                tokens_to_poll[f"pm_{dept_id}"] = t
+    except Exception as e:
+        logger.warning(f"ไม่สามารถสแกนบอทของ PM แผนกได้: {e}")
+
+    # 1. หยุดบอทที่ไม่มีอยู่ในรายการแล้ว (เช่น ถูกลบแผนกออก)
+    active_tokens = list(_active_polling_tokens.keys())
+    for t in active_tokens:
+        if t not in tokens_to_poll.values():
+            print(f"🛑 [Telegram Worker] หยุด Polling สำหรับบอทที่ถูกลบ/เปลี่ยน Token")
             try:
-                curr_token = get_bot_token()
-                if curr_token:
-                    url = f"https://api.telegram.org/bot{curr_token}/getUpdates"
-                    params = {"offset": last_offset + 1, "timeout": 10}
-                    async with httpx.AsyncClient(timeout=15.0) as client:
+                _active_polling_tokens[t].cancel()
+            except Exception:
+                pass
+            del _active_polling_tokens[t]
+
+    # 2. เริ่ม Polling สำหรับ Token ใหม่ๆ
+    for name, token in tokens_to_poll.items():
+        if token in _active_polling_tokens:
+            continue  # รันอยู่แล้ว ไม่สร้างทับ
+
+        async def _individual_polling_loop(bot_name: str, bot_tok: str):
+            last_offset = 0
+            print(f"📡 [Telegram Worker] เริ่มรัน Polling สำหรับบอท {bot_name} (Token: {bot_tok[:10]}...)")
+            while _polling_running:
+                try:
+                    url = f"https://api.telegram.org/bot{bot_tok}/getUpdates"
+                    params = {"offset": last_offset + 1, "timeout": 8}
+                    async with httpx.AsyncClient(timeout=12.0) as client:
                         resp = await client.get(url, params=params)
                         if resp.status_code == 200:
                             data = resp.json()
@@ -668,34 +791,37 @@ async def start_telegram_polling():
                                     msg = update.get("message", {}) or update.get("channel_post", {})
                                     msg_text = msg.get("text", "")
                                     chat_id = msg.get("chat", {}).get("id", "")
-                                    print(f"📥 [Telegram Worker] ได้รับข้อความใหม่ ({chat_id}): '{msg_text[:40]}...' (Update ID: {update['update_id']})")
-                                    res = await handle_webhook(update)
-                                    print(f"✅ [Telegram Worker] ประมวลผลสำเร็จ: {res}")
+                                    print(f"📥 [{bot_name}] ได้รับข้อความใหม่ ({chat_id}): '{msg_text[:40]}...'")
+                                    # ส่ง token ของบอทตัวที่รับเข้าไปประมวลผล เพื่อตอบกลับออกทางบอทตัวเดิม
+                                    res = await handle_webhook(update, bot_token=bot_tok)
+                                    print(f"✅ [{bot_name}] ประมวลผลและตอบกลับสำเร็จ: {res}")
                         elif resp.status_code == 409:
-                            print("⚠️ [Telegram Worker] 409 Conflict: Waiting 3s for previous polling connection to release...")
-                            await asyncio.sleep(3)
+                            # 409 Conflict (บอทเปิดทับกัน) - รอการหลุดของ Connection
+                            await asyncio.sleep(4)
                             continue
                         else:
-                            print(f"⚠️ [Telegram Worker] HTTP Error {resp.status_code}: {resp.text}")
-                            await asyncio.sleep(2)
-            except Exception as e:
-                print(f"⚠️ [Telegram Worker] Loop Exception: {e}")
-                await asyncio.sleep(2)
-            await asyncio.sleep(0.5)
+                            await asyncio.sleep(3)
+                except Exception as e:
+                    logger.debug(f"Loop error on {bot_name}: {e}")
+                    await asyncio.sleep(2)
+                await asyncio.sleep(0.5)
 
-    _polling_task = asyncio.create_task(_polling_loop())
-
-
-
+        task = asyncio.create_task(_individual_polling_loop(name, token))
+        _active_polling_tokens[token] = task
+        _polling_tasks.append(task)
 
 
 def stop_telegram_polling():
-    """หยุดทำงาน Telegram Background Listener Worker"""
-    global _polling_running, _polling_task
+    """หยุดทำงาน Telegram Background Listener Worker ทั้งหมด"""
+    global _polling_running, _polling_tasks, _active_polling_tokens
     _polling_running = False
-    if _polling_task:
-        _polling_task.cancel()
-        _polling_task = None
+    for task in _polling_tasks:
+        try:
+            task.cancel()
+        except Exception:
+            pass
+    _polling_tasks = []
+    _active_polling_tokens = {}
 
 
 async def simulate_owner_message(text: str, is_private_dm: bool = True) -> dict:

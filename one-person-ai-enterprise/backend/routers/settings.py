@@ -161,6 +161,9 @@ async def update_settings(data: SettingsUpdate):
     if data.telegram_ops_chat_ids is not None:
         tg_svc.TELEGRAM_OPS_CHAT_IDS = data.telegram_ops_chat_ids
 
+    # สั่งอัปเดต / เพิ่ม Polling สำหรับบอทที่เพิ่งตั้งค่าใหม่โดยอัตโนมัติ
+    await tg_svc.start_telegram_polling()
+
     return ApiResponse(
         success=True,
         message=f"บันทึกการตั้งค่าสำเร็จ ({len(updated)} รายการ)",

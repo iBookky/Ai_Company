@@ -694,14 +694,24 @@ async function loadLogs() {
 
   // Load initial logs from API
   try {
-    const logs = await apiGet('/api/logs?limit=200');
+    const [logs, agents] = await Promise.all([
+      apiGet('/api/logs?limit=200'),
+      apiGet('/api/agents')
+    ]);
     allLogs = logs;
+    allAgents = agents;
     renderLogStream(logs);
 
-    // Populate agent filter
-    const agents = [...new Set(logs.map(l => l.agent_name))];
+    // Populate agent filter (ใช้เฉพาะ Agent ที่ผู้ใช้สร้างจริง + System / Boardroom)
+    const agentNames = new Set(agents.map(a => a.name));
+    agentNames.add('System');
+    agentNames.add('เลขา AI');
+    agentNames.add('เลขา AI (อิงฟ้า - เพื่อนคู่คิดบริหาร)');
+    agentNames.add('คณะผู้บริหาร & PM Boardroom');
+
+    const sortedAgents = Array.from(agentNames).sort();
     const sel = document.getElementById('log-agent-filter');
-    sel.innerHTML = `<option value="">ทุก Agent</option>` + agents.map(a => `<option value="${a}">${a}</option>`).join('');
+    sel.innerHTML = `<option value="">ทุก Agent</option>` + sortedAgents.map(a => `<option value="${a}">${a}</option>`).join('');
   } catch {
     container.innerHTML = `<div class="empty-state">❌ โหลด Logs ไม่สำเร็จ</div>`;
   }
@@ -756,7 +766,12 @@ function filterLogs() {
 
   const filtered = allLogs.filter(l => {
     if (level  && l.level !== level) return false;
-    if (agent  && l.agent_name !== agent) return false;
+    if (agent) {
+      // ให้ match ค่อนข้างยืดหยุ่น เช่น "การตลาด AI" จะตรงกับ "PM การตลาด AI" ด้วย
+      const aName = agent.toLowerCase();
+      const logName = l.agent_name.toLowerCase();
+      if (!logName.includes(aName) && !aName.includes(logName)) return false;
+    }
     if (search && !l.message.toLowerCase().includes(search) && !l.agent_name.toLowerCase().includes(search)) return false;
     return true;
   });
