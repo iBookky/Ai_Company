@@ -11,12 +11,12 @@ let wsReconnectTimer = null;
 // Use lazy function references to avoid "not defined" errors at parse time
 const PAGES = {
   dashboard: { title: 'ภาพรวมระบบ',       subtitle: 'One-Person AI Enterprise Platform',   onEnter: () => typeof loadDashboard !== 'undefined' && loadDashboard() },
-  director:  { title: '🏛️ ห้องประชุมผู้บริหาร (Executive Director Boardroom)', subtitle: 'วาระประชุมผู้บริหารและมติที่ประชุม', onEnter: () => typeof loadDirectorPage !== 'undefined' && loadDirectorPage() },
-  agents:    { title: '🏢 ทีมปฏิบัติการ & PM Bots', subtitle: 'จัดการทีมงาน สั่งงานตรง และตั้งค่า PM Bot ของแต่ละแผนก', onEnter: () => typeof loadAgents !== 'undefined' && loadAgents() },
-  logs:      { title: 'Logs การทำงาน',     subtitle: 'ติดตาม Thought Process ของ Agents ทุกตำแหน่งงาน', onEnter: () => typeof loadLogs !== 'undefined' && loadLogs() },
-  drafts:    { title: 'Draft Repository',  subtitle: 'เอกสารร่างและผลงานย่อย',            onEnter: () => typeof loadDrafts !== 'undefined' && loadDrafts() },
-  settings:  { title: 'ตั้งค่าระบบ',      subtitle: 'API Keys และ Telegram 1-on-1 Credentials', onEnter: () => typeof loadSettings !== 'undefined' && loadSettings() },
+  director:  { title: '🏛️ ห้องประชุมผู้บริหาร', subtitle: 'ประชุมวางแผนนโยบาย ติดตามงาน และกำหนด KPI ร่วมกับ PM และเลขา AI', onEnter: () => typeof loadDirectorPage !== 'undefined' && loadDirectorPage() },
+  agents:    { title: '🏢 ทีมปฏิบัติการ & ติดตามงาน', subtitle: 'จัดการทีมงาน สั่งงานตรง และส่องดูการทำงานของลูกทีมย่อยเรียลไทม์', onEnter: () => typeof loadAgents !== 'undefined' && loadAgents() },
+  logs:      { title: '📋 Logs การทำงาน', subtitle: 'สตรีมมิ่งติดตาม Thought Process และการปฏิบัติงานของ Agents ทุกตำแหน่ง', onEnter: () => typeof loadLogs !== 'undefined' && loadLogs() },
+  settings:  { title: '⚙️ ตั้งค่าระบบ',      subtitle: 'จัดการ API Keys, เลขาอิงฟ้า 1-on-1, และ Telegram Bot Tokens ของ PM ทุกทีม', onEnter: () => typeof loadSettings !== 'undefined' && loadSettings() },
 };
+
 
 
 function navigateTo(page) {
