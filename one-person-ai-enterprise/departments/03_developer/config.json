@@ -2,11 +2,11 @@
   "name": "Developer",
   "role": "pm_03_developer",
   "pm_name": "PM อมี",
-  "model": "gemini-1.5-flash",
-  "temperature": 0.5,
+  "model": "gemini-2.5-flash",
+  "temperature": 0.7,
   "department": "03_developer",
   "ops_chat_id": "",
   "bot_token": "8887135570:AAHc0j-LW3EFjMSzg2A75dfZxPkHYc6NprI",
   "created_at": "2026-08-06T11:09:26.757487",
-  "updated_at": "2026-08-06T11:17:20.660604"
+  "updated_at": "2026-08-06T12:42:06.109079"
 }

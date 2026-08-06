@@ -52,27 +52,40 @@ class LLMService:
 
 
             raw_model = self.model
-            # ปรับปรุงให้ลองโมเดลที่เสถียรและรองรับจริงใน SDK ปัจจุบันก่อน
             model_candidates = []
-            if raw_model:
-                if not raw_model.startswith("models/"):
-                    model_candidates.append(f"models/{raw_model}")
-                model_candidates.append(raw_model)
             
-            # Fallback candidates โหลดโดยตรงจากไฟล์ .env (GEMINI_FALLBACK_MODELS)
+            # โหลด fallback models
             env_fallbacks = os.getenv("GEMINI_FALLBACK_MODELS", "")
             if env_fallbacks:
                 fallback_models = [m.strip() for m in env_fallbacks.split(",") if m.strip()]
             else:
-                fallback_models = ["models/gemini-1.5-flash", "gemini-1.5-flash", "models/gemini-1.5-pro", "gemini-1.5-pro"]
+                fallback_models = ["gemini-1.5-flash", "gemini-1.5-pro"]
 
+            # สร้างรายการโมเดลที่จะทดลองรัน โดยให้เริ่มจากโมเดลหลักที่เลือก
+            temp_list = []
+            if raw_model:
+                temp_list.append(raw_model)
             for m in fallback_models:
-                if m not in model_candidates:
-                    model_candidates.append(m)
+                if m not in temp_list:
+                    temp_list.append(m)
+
+            # สำหรับทุกโมเดลในรายการ ให้ทดลองรันทั้งแบบมี models/ และไม่มี models/ เพื่อความเข้ากันได้ 100%
+            for m in temp_list:
+                clean_name = m.replace("models/", "")
+                with_prefix = f"models/{clean_name}"
+                # ใส่แบบมี prefix นำหน้าก่อน
+                if with_prefix not in model_candidates:
+                    model_candidates.append(with_prefix)
+                # ใส่แบบไม่มี prefix ตามหลัง
+                if clean_name not in model_candidates:
+                    model_candidates.append(clean_name)
 
             last_error = None
             for target_model in model_candidates:
                 try:
+                    # พิมพ์ลง Log เพื่อตรวจสอบการทำงานใน server logs จริง
+                    print(f"🔮 [LLMService] กำลังทดลองใช้โมเดล: {target_model}")
+                    
                     model = genai.GenerativeModel(
                         model_name=target_model,
                         system_instruction=system_instruction,
@@ -91,8 +104,10 @@ class LLMService:
 
                     chat = model.start_chat(history=chat_history)
                     response = await chat.send_message_async(user_message)
+                    print(f"✅ [LLMService] รันโมเดล {target_model} สำเร็จ!")
                     return response.text
                 except Exception as inner_e:
+                    print(f"❌ [LLMService] โมเดล {target_model} เกิดข้อผิดพลาด: {inner_e}")
                     last_error = inner_e
                     continue
 
