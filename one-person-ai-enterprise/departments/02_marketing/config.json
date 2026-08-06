@@ -1,9 +1,0 @@
-{
-  "name": "การตลาด AI",
-  "role": "pm_02_marketing",
-  "pm_name": "PM ลิซ่า",
-  "model": "gemini-1.5-flash",
-  "temperature": 0.5,
-  "department": "02_marketing",
-  "bot_token": ""
-}

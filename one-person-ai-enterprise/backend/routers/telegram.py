@@ -45,11 +45,11 @@ async def create_department_room(req: DepartmentRoomCreate):
 
     room = telegram_service.create_department_room(
         name=req.name.strip(),
-        chat_id=req.chat_id.strip() if req.chat_id else "",
         pm_name=req.pm_name.strip() if req.pm_name else "",
         dept_id=req.id.strip() if req.id else None,
         bot_token=req.bot_token.strip() if req.bot_token else ""
     )
+
     await telegram_service.start_telegram_polling()
     return {"status": "success", "message": f"ตั้งค่าห้องทำงานแผนก '{req.name}' และ PM Bot เรียบร้อย", "room": room}
 

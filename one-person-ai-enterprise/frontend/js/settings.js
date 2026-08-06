@@ -5,13 +5,15 @@
 // ─── Load Settings ────────────────────────────────────────
 async function loadSettings() {
   try {
-    const settings = await apiFetch('/api/settings');
+    const [settings, roomData] = await Promise.all([
+      apiFetch('/api/settings'),
+      apiFetch('/api/telegram/rooms').catch(() => ({ department_rooms: {} })),
+    ]);
 
     // LLM Keys
     const geminiInput = document.getElementById('gemini-key');
     if (geminiInput) {
       geminiInput.value = settings.gemini_configured ? (settings.gemini_api_key || '••••••••') : '';
-      geminiInput.placeholder = 'AIzaSy...';
     }
     const geminiStatus = document.getElementById('gemini-status');
     if (geminiStatus) {
@@ -22,30 +24,20 @@ async function loadSettings() {
     const claudeInput = document.getElementById('claude-key');
     if (claudeInput) {
       claudeInput.value = settings.anthropic_configured ? (settings.anthropic_api_key || '••••••••') : '';
-      claudeInput.placeholder = 'sk-ant-...';
-    }
-    const claudeStatus = document.getElementById('claude-status');
-    if (claudeStatus) {
-      claudeStatus.textContent = settings.anthropic_configured ? '✅ ตั้งค่าแล้ว' : '❌ ยังไม่ตั้งค่า';
-      claudeStatus.className = `config-badge${settings.anthropic_configured ? ' ok' : ''}`;
     }
 
-    // Telegram Bot Token
+    // Telegram Bot Token (Main Secretary Bot)
     const tgInput = document.getElementById('telegram-bot-token');
     if (tgInput) {
       tgInput.value = settings.telegram_configured ? (settings.telegram_bot_token || '••••••••') : '';
-      tgInput.placeholder = '123456789:ABCdefGHIjklMNO...';
     }
 
-    const tgStatus = document.getElementById('telegram-overall-status');
-    if (tgStatus) {
-      tgStatus.textContent = settings.telegram_configured ? '✅ ตั้งค่าแล้ว' : '❌ ยังไม่ตั้งค่า';
-      tgStatus.className = `config-badge${settings.telegram_configured ? ' ok' : ''}`;
-    }
-
-    // Chat IDs
+    // Direct Chat ID
     const directInput = document.getElementById('telegram-direct-chat');
     if (directInput) directInput.value = settings.telegram_owner_direct_chat_id || '';
+
+    // Render PM Bot Tokens Section (Step 3)
+    renderPmBotTokensSection(roomData.department_rooms || {});
 
     // Default Model
     const modelSelect = document.getElementById('default-model');
@@ -56,6 +48,36 @@ async function loadSettings() {
     console.error('loadSettings error:', e);
   }
 }
+
+function renderPmBotTokensSection(departmentRooms) {
+  const container = document.getElementById('pm-bot-tokens-container');
+  if (!container) return;
+
+  const entries = Object.entries(departmentRooms);
+  if (!entries.length) {
+    container.innerHTML = `<div style="font-size:12px; color:var(--color-text-muted);">⚠️ ยังไม่มี PM/แผนกในระบบ (สร้างทีมใหม่บนหน้าเว็บเพื่อกำหนด Token ของ PM)</div>`;
+    return;
+  }
+
+  container.innerHTML = entries.map(([deptId, info]) => {
+    const pmName = info.pm_name || `PM ${info.name}`;
+    const token = info.bot_token || '';
+    const statusText = token ? '✅ เชื่อมต่อแล้ว' : '⚠️ ยังไม่ใส่ Token';
+    const statusClass = token ? 'color:var(--color-success)' : 'color:var(--color-warning)';
+
+    return `
+      <div class="form-group" style="background:rgba(255,255,255,0.02); border:1px solid var(--color-border); border-radius:8px; padding:0.75rem;">
+        <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>🤖 PM Bot Token: <strong>${esc(pmName)}</strong> <code style="font-size:11px; color:var(--brand-400);">(${esc(info.name)})</code></span>
+          <span style="font-size:11px; ${statusClass}">${statusText}</span>
+        </label>
+        <input type="text" class="form-input font-mono pm-bot-token-input" data-dept-id="${esc(deptId)}" data-dept-name="${esc(info.name)}" data-pm-name="${esc(pmName)}"
+          value="${esc(token)}" placeholder="8776309955:AAxxx... (ใส่ Telegram Bot Token ของ ${esc(pmName)})" />
+      </div>
+    `;
+  }).join('');
+}
+
 
 
     // Webhook URL
@@ -192,6 +214,21 @@ async function saveSettings() {
       body: JSON.stringify(payload),
     });
 
+    // Save PM Bot Tokens
+    const pmInputs = document.querySelectorAll('.pm-bot-token-input');
+    for (const input of pmInputs) {
+      const deptId = input.getAttribute('data-dept-id');
+      const deptName = input.getAttribute('data-dept-name');
+      const pmName = input.getAttribute('data-pm-name');
+      const token = input.value.trim();
+      if (deptId && deptName) {
+        await apiFetch('/api/telegram/rooms', {
+          method: 'POST',
+          body: JSON.stringify({ id: deptId, name: deptName, pm_name: pmName, bot_token: token })
+        }).catch(err => console.error(`Error saving PM bot token for ${deptId}:`, err));
+      }
+    }
+
     showToast('✅ บันทึกการตั้งค่าเรียบร้อย', 'success');
     await loadSettings();
   } catch (e) {
@@ -201,6 +238,7 @@ async function saveSettings() {
     btn.innerHTML = '💾 บันทึกการตั้งค่า';
   }
 }
+
 
 
 

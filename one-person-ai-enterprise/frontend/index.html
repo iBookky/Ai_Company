@@ -398,8 +398,20 @@
               </div>
             </div>
 
+            <!-- Step 3: Dynamic PM Bot Tokens -->
+            <div class="settings-step">
+              <div class="step-label">Step 3 — Telegram Bot Tokens สำหรับหัวหน้าทีม (PM Bots)</div>
+              <div class="form-hint" style="margin-bottom:0.75rem; color:var(--color-text-muted);">
+                💡 เมื่อสร้างทีมหรือแต่งตั้ง PM ในระบบ Token ของ PM แต่ละท่านจะปรากฏที่นี่ เพื่อให้ท่าน Owner กรอก Bot Token สั่งงาน 1-on-1
+              </div>
+              <div id="pm-bot-tokens-container" style="display:flex; flex-direction:column; gap:1rem;">
+                <!-- Loaded dynamically by settings.js -->
+              </div>
+            </div>
+
           </div>
         </div>
+
 
 
 
@@ -543,10 +555,7 @@
             <label class="form-label">ชื่อ PM หัวหน้าทีม</label>
             <input type="text" class="form-input" id="new-room-pm" placeholder="เช่น PM ลิซ่า (หากไม่ระบุจะตั้งให้อัตโนมัติ)" />
           </div>
-          <div class="form-group">
-            <label class="form-label">🤖 PM Telegram Bot Token (สั่งงานตรงกับ PM ทาง Telegram 1-on-1)</label>
-            <input type="text" class="form-input font-mono" id="new-room-bot-token" placeholder="8776309955:AAxxx... (ใส่ Token จาก @BotFather)" />
-          </div>
+
 
           <button type="button" class="btn btn-secondary btn-sm" onclick="requestTeamProposal()" style="margin: 0.5rem 0;">
             💡 ให้นำเสนอโครงสร้างทีมและ KPI (AI Propose)
