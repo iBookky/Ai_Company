@@ -836,8 +836,6 @@ async function loadSettings() {
 
     // Plain text fields — fill directly
     document.getElementById('s-direct-chat').value = s.telegram_owner_direct_chat_id || '';
-    document.getElementById('s-gemini-fallbacks').value = s.gemini_fallback_models || '';
-    document.getElementById('s-available-models').value = s.available_models || '';
 
     // เก็บรายชื่อโมเดลทั้งหมดไว้สร้าง Dropdown
     const rawModels = s.available_models || '';
@@ -977,8 +975,6 @@ async function saveLLMSection() {
     gemini_api_key:         document.getElementById('s-gemini-key').value.trim() || null,
     anthropic_api_key:      document.getElementById('s-claude-key').value.trim() || null,
     default_model:          document.getElementById('s-default-model').value || null,
-    gemini_fallback_models: document.getElementById('s-gemini-fallbacks').value.trim() || null,
-    available_models:       document.getElementById('s-available-models').value.trim() || null,
   };
   // Remove nulls
   Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
@@ -1049,8 +1045,6 @@ async function saveSettings() {
     gemini_api_key:                document.getElementById('s-gemini-key').value.trim() || null,
     anthropic_api_key:             document.getElementById('s-claude-key').value.trim() || null,
     default_model:                 document.getElementById('s-default-model').value || null,
-    gemini_fallback_models:        document.getElementById('s-gemini-fallbacks').value.trim() || null,
-    available_models:              document.getElementById('s-available-models').value.trim() || null,
     telegram_bot_token:            document.getElementById('s-tg-token').value.trim() || null,
     telegram_owner_direct_chat_id: document.getElementById('s-direct-chat').value.trim() || null,
   };

@@ -278,11 +278,6 @@
               </div>
             </div>
             <div class="form-group">
-              <label class="form-label">โมเดล AI ทั้งหมดในระบบ (Available Models)</label>
-              <input type="text" class="form-input mono" id="s-available-models" placeholder="gemini-1.5-flash, gemini-1.5-pro, claude-3-5-sonnet-20241022..." />
-              <span class="form-hint">ระบุชื่อโมเดลคั่นด้วยเครื่องหมายจุลภาค (,) รายการนี้จะแสดงเป็นตัวเลือกในการตั้งค่า Agent และทีมงานทั้งหมดในระบบ</span>
-            </div>
-            <div class="form-group">
               <label class="form-label">โมเดล AI เริ่มต้น</label>
               <select class="form-select" id="s-default-model">
                 <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash (เร็ว / ประหยัด)</option>
@@ -291,11 +286,6 @@
                 <option value="claude-3-5-sonnet-20241022">🎭 Claude 3.5 Sonnet (Premium)</option>
                 <option value="claude-3-haiku-20240307">⚡ Claude 3 Haiku (เร็ว)</option>
               </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">ลำดับโมเดลสำรอง (Gemini Fallback Models)</label>
-              <input type="text" class="form-input mono" id="s-gemini-fallbacks" placeholder="models/gemini-1.5-flash, gemini-1.5-flash..." />
-              <span class="form-hint">ระบุชื่อโมเดลเรียงลำดับคั่นด้วยจุลภาค (,) ระบบจะทดลองใช้ตัวอื่นทันทีหากเกิดข้อผิดพลาด 404</span>
             </div>
           </div>
           <div class="section-save-bar">

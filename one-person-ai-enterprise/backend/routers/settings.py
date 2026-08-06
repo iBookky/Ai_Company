@@ -114,8 +114,6 @@ async def update_settings(data: SettingsUpdate):
         "telegram_admin_chat_id": "TELEGRAM_ADMIN_CHAT_ID",
         "telegram_ops_chat_id": "TELEGRAM_OPS_CHAT_ID",
         "default_model": "DEFAULT_MODEL",
-        "gemini_fallback_models": "GEMINI_FALLBACK_MODELS",
-        "available_models": "AVAILABLE_MODELS",
     }
 
     updated = []
