@@ -83,9 +83,9 @@ class LLMService:
             last_error = None
             for target_model in model_candidates:
                 try:
-                    # พิมพ์ลง Log เพื่อตรวจสอบการทำงานใน server logs จริง
                     print(f"🔮 [LLMService] กำลังทดลองใช้โมเดล: {target_model}")
                     
+                    # ปรับแต่ง: หากโมเดลขึ้นต้นด้วย models/ ให้ส่งไปตามนั้น แต่ถ้าเป็นโมเดลปกติให้สร้างตรงๆ
                     model = genai.GenerativeModel(
                         model_name=target_model,
                         system_instruction=system_instruction,
@@ -107,7 +107,14 @@ class LLMService:
                     print(f"✅ [LLMService] รันโมเดล {target_model} สำเร็จ!")
                     return response.text
                 except Exception as inner_e:
-                    print(f"❌ [LLMService] โมเดล {target_model} เกิดข้อผิดพลาด: {inner_e}")
+                    err_str = str(inner_e)
+                    print(f"❌ [LLMService] โมเดล {target_model} เกิดข้อผิดพลาด: {err_str}")
+                    
+                    # ปรับปรุง: หากเป็น Error 429 (โควตาฟรี 20 ครั้งต่อวันของโมเดลนั้นๆ เต็ม)
+                    # ไม่ควรหล่นไปโมเดลถัดไปแบบเงียบๆ แต่ควรแจ้งให้ผู้ใช้ทราบว่าโควตาโมเดลนี้เต็มแล้วจริง
+                    if "429" in err_str or "quota" in err_str.lower():
+                        return f"[Gemini Quota Limit] โมเดล {target_model} โควตาฟรีรายวันเต็มแล้ว (หรือเรียกบ่อยเกินไป) กรุณารอสักครู่หรือปรับใช้โมเดลอื่นใน .env ค่ะ"
+                        
                     last_error = inner_e
                     continue
 
