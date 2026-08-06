@@ -557,60 +557,7 @@ async def _handle_personal_chat(chat_id: str, sender_name: str, text: str, bot_t
         }
 
     # 4. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI อิงฟ้า — เพื่อนคู่คิด & ที่ปรึกษาบริหาร)
-    return {
-        "type": "direct",
-        "agent_name": "เลขา AI (อิงฟ้า - เพื่อนคู่คิดบริหาร)",
-        "system_instruction": (
-            "คุณคือ 'อิงฟ้า' เลขา AI ส่วนตัวและเพื่อนคู่คิด (Strategic Thought Partner) ของท่าน Owner ในบริษัท One-Person AI Enterprise\n"
-            "บุคลิกและบทบาท:\n"
-            "1. เป็นเพื่อนคู่คิดที่ฉลาด รอบคอบ อบอุ่น สนิทสนม สุภาพ มืออาชีพ และจริงใจต่อท่าน Owner\n"
-            "2. สามารถสรุปรายงานประจำวัน (Daily Briefing / EOD Summary) ว่าเมื่อวานและวันนี้ทีมไหนทำอะไรบ้าง งานคืบหน้าถึงไหน มีจุดติดขัด (Bottleneck) หรือไม่\n"
-            "3. เสนอคำแนะนำเชิงกลยุทธ์ ข้อคิดเห็น และคอยสนทนาปรึกษาหารือได้อย่างเป็นธรรมชาติเหมือนเพื่อนคู่คิดผู้ช่วยมือขวา\n"
-            "4. พร้อมรับคำสั่ง สรุปคำสั่ง และกระจายงานให้ PM แต่ละทีมปฏิบัติการทันที"
-        )
-    }
 
-
-
-
-async def _handle_personal_chat(chat_id: str, sender_name: str, text: str) -> dict:
-    """ตอบสนองการพูดคุย/ทักทายกับ Owner ในฐานะทีมงานประจำห้องนั้นๆ"""
-    try:
-        from backend.services.llm_service import LLMService
-        ctx = resolve_room_context(chat_id)
-
-        llm = LLMService(model="gemini-1.5-flash", temperature=0.7)
-
-        history = _chat_histories.get(chat_id, [])
-        reply = await llm.generate(
-            system_instruction=ctx["system_instruction"],
-            user_message=text,
-            history=history
-        )
-
-        # บันทึกประวัติการสนทนา
-        history.append({"role": "user", "content": text})
-        history.append({"role": "model", "content": reply})
-        if len(history) > 10:
-            history = history[-10:]
-        _chat_histories[chat_id] = history
-
-        await send_telegram_message(chat_id, reply)
-
-        write_log(LogCreate(
-            agent_id="secretary_ai",
-            agent_name=ctx["agent_name"],
-            level=LogLevel.SUCCESS,
-            message=f"{ctx['agent_name']} โต้ตอบแชทกับ Owner: {reply[:50]}...",
-            thought_process=f"บริบทห้อง: {ctx['type']}\nถาม: {text}\nตอบ: {reply}",
-        ))
-
-        return {"status": "chat_replied", "reply": reply, "room_type": ctx["type"], "agent_name": ctx["agent_name"]}
-    except Exception as e:
-        ctx = resolve_room_context(chat_id)
-        err_msg = f"สวัสดีครับท่าน Owner ทีมงาน {ctx['agent_name']} พร้อมปฏิบัติงานและดูแลท่านเสมอครับ มีอะไรให้ทีมงานช่วยดูแลไหมครับ?"
-        await send_telegram_message(chat_id, err_msg)
-        return {"status": "chat_replied_fallback", "reply": err_msg}
 
 
 
