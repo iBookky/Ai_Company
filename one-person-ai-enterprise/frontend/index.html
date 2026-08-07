@@ -348,6 +348,32 @@
           </div>
         </section>
 
+        <!-- Section 4: Owner Profile -->
+        <section class="settings-section card" id="section-owner-profile">
+          <div class="card-header">
+            <span class="card-icon">👤</span>
+            <h2>ข้อมูลประวัติท่าน Owner</h2>
+          </div>
+          <div class="settings-body">
+            <div class="form-group">
+              <label class="form-label">ชื่อจริงของท่าน Owner</label>
+              <input type="text" class="form-input" id="s-owner-name" placeholder="เช่น คุณบุ๊ค" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Identity (บทบาทและตัวตนของ Owner)</label>
+              <textarea class="form-textarea" id="s-owner-identity" rows="3" placeholder="เช่น เจ้าของบริษัท เป็นคนใจดี ชอบงานรวดเร็วและมีประสิทธิภาพสูงสุด"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Skills (ความรู้และทักษะความเชี่ยวชาญของ Owner)</label>
+              <textarea class="form-textarea" id="s-owner-skill" rows="3" placeholder="เช่น การเขียนโค้ดภาษา Python, การวางแผนกลยุทธ์การตลาด, การขาย"></textarea>
+            </div>
+          </div>
+          <div class="section-save-bar">
+            <button class="btn btn-primary" onclick="saveOwnerSection()" id="btn-save-owner">💾 บันทึก Owner Profile</button>
+            <span class="save-status" id="save-status-owner"></span>
+          </div>
+        </section>
+
         <!-- Save All + Test -->
         <div class="settings-save-bar">
           <button class="btn btn-primary btn-lg" id="btn-save" onclick="saveSettings()">💾 บันทึกทั้งหมด</button>
@@ -448,6 +474,13 @@
             <!-- Loaded dynamically -->
           </select>
         </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ชื่อ PM (หัวหน้าแผนก)</label>
+          <input type="text" class="form-input" id="ca-pm-name" placeholder="เช่น PM อมี, PM การตลาด AI" />
+        </div>
+        <div class="form-group"></div>
       </div>
       <div class="form-row">
         <div class="form-group">

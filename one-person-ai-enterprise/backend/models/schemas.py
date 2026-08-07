@@ -47,6 +47,7 @@ class AgentCreate(BaseModel):
     skill: str = Field(..., min_length=10, description="Skills และ Instructions")
     role: Optional[str] = Field(None, description="Role identifier")
     ops_chat_id: Optional[str] = Field("", description="Telegram Ops Chat ID ประจำแผนก")
+    pm_name: Optional[str] = Field(None, description="ชื่อ PM (หัวหน้าแผนก)")
 
 
 class AgentRead(BaseModel):
@@ -57,6 +58,7 @@ class AgentRead(BaseModel):
     temperature: float
     department: str
     ops_chat_id: str = ""
+    pm_name: str = ""
     has_identity: bool
     has_skill: bool
     identity_preview: str
@@ -72,6 +74,7 @@ class AgentUpdate(BaseModel):
     identity: Optional[str] = None
     skill: Optional[str] = None
     ops_chat_id: Optional[str] = None
+    pm_name: Optional[str] = None
 
 
 class AgentDetail(AgentRead):
@@ -193,6 +196,9 @@ class AppSettings(BaseModel):
     gemini_configured: bool = False
     anthropic_configured: bool = False
     telegram_configured: bool = False
+    owner_name: str = "Owner"
+    owner_identity: str = ""
+    owner_skill: str = ""
 
 
 class SettingsUpdate(BaseModel):
@@ -208,6 +214,9 @@ class SettingsUpdate(BaseModel):
     default_model: Optional[str] = None
     gemini_fallback_models: Optional[str] = None
     available_models: Optional[str] = None
+    owner_name: Optional[str] = None
+    owner_identity: Optional[str] = None
+    owner_skill: Optional[str] = None
 
 
 

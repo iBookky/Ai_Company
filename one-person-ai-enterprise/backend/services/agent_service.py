@@ -59,6 +59,7 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
         temperature=config.get("temperature", 0.5),
         department=dept_dir.name,
         ops_chat_id=config.get("ops_chat_id", ""),
+        pm_name=config.get("pm_name", ""),
         has_identity=identity_file.exists(),
         has_skill=skill_file.exists(),
         identity_preview=(
@@ -125,6 +126,7 @@ def create_agent(data: AgentCreate) -> AgentRead:
     config = {
         "name": data.name,
         "role": data.role or "agent",
+        "pm_name": data.pm_name or f"PM {data.name}",
         "model": data.model,
         "temperature": data.temperature,
         "department": dept_id,
@@ -158,6 +160,8 @@ def update_agent(agent_id: str, data: AgentUpdate) -> Optional[AgentRead]:
         config["temperature"] = data.temperature
     if data.ops_chat_id is not None:
         config["ops_chat_id"] = data.ops_chat_id
+    if data.pm_name is not None:
+        config["pm_name"] = data.pm_name
 
     config["updated_at"] = datetime.now().isoformat()
     config_file.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")

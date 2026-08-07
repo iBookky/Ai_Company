@@ -53,6 +53,19 @@ _pending_verifications: Dict[str, dict] = {}
 _chat_histories: Dict[str, List[dict]] = {}
 
 
+def _get_owner_prompt_context() -> str:
+    owner_name = os.getenv("OWNER_NAME", "Owner")
+    owner_identity = os.getenv("OWNER_IDENTITY", "เจ้าของและผู้บริหารสูงสุดของบริษัท")
+    owner_skill = os.getenv("OWNER_SKILL", "การตัดสินใจเชิงกลยุทธ์และการบริหารองค์กร")
+    return (
+        f"\n\n--- ข้อมูลเกี่ยวกับ Owner (คู่สนทนาและผู้บริหารของคุณ) ---\n"
+        f"ชื่อ: {owner_name}\n"
+        f"ตัวตน/บทบาท: {owner_identity}\n"
+        f"ทักษะ/ความเชี่ยวชาญ: {owner_skill}\n"
+        f"คำแนะนำ: ให้คุณเรียกชื่อจริงของ Owner คือ '{owner_name}' หรือทักทายอย่างสุภาพและเป็นกันเองด้วยความสนิทสนม เช่น 'คุณ {owner_name}' หรือ 'ท่าน {owner_name}' แทนคำว่า 'Owner' เฉยๆ เพื่อความเป็นกันเองในบริษัท\n"
+    )
+
+
 # ─── Telegram Messaging Helpers ───────────────────────────────────────────────
 
 def clean_telegram_html(text: str) -> str:
@@ -384,6 +397,7 @@ def resolve_room_context(chat_id: str, bot_token: Optional[str] = None) -> dict:
     exec_chat = TELEGRAM_EXEC_CHAT_ID or os.getenv("TELEGRAM_EXEC_CHAT_ID", "") or os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
 
     dept_rooms = get_all_department_rooms()
+    res_ctx = None
 
     # 1. ปรับปรุง: หากระบุ bot_token ให้เจาะจงเลยว่าเป็น PM แผนกนั้นๆ กำลังคุยกับคุณ (ไม่ว่าจะคุยผ่านห้องแชทใด)
     if bot_token:
@@ -399,7 +413,7 @@ def resolve_room_context(chat_id: str, bot_token: Optional[str] = None) -> dict:
                     if (dept_dir / "skill.md").exists():
                         skill_content = (dept_dir / "skill.md").read_text(encoding="utf-8")
 
-                return {
+                res_ctx = {
                     "type": "direct_pm",
                     "dept_id": dept_id,
                     "dept_name": info.get("name", dept_id),
@@ -411,60 +425,69 @@ def resolve_room_context(chat_id: str, bot_token: Optional[str] = None) -> dict:
                         f"บทบาท: สนทนาโต้ตอบแบบ 1-on-1 ใน Telegram กับคุณ Owner อย่างฉลาด สุภาพ มีไหวพริบ กระตือรือร้น รายงานสถานะงานและพร้อมรับคำสั่งตรงปฏิบัติงานทันที"
                     )
                 }
+                break
 
     # 2. เช็คห้องทำงานแผนก (ops_chat_id)
-    for dept_id, info in dept_rooms.items():
-        if info.get("ops_chat_id") and str(info["ops_chat_id"]) == str(chat_id):
-            return {
-                "type": "department",
-                "dept_id": dept_id,
-                "dept_name": info.get("name", dept_id),
-                "agent_name": f"ทีมงาน {info.get('name')}",
-                "system_instruction": (
-                    f"คุณคือ 'ทีมงานและ {info.get('pm_name', 'PMประจำแผนก')}' ประจำแผนก {info.get('name')} ของบริษัท One-Person AI Enterprise\n"
-                    f"บทบาท: โต้ตอบทักทายหรือสนทนากับ Owner ในฐานะทีมงานปฏิบัติการประจำแผนก {info.get('name')} ที่มีความพร้อม เชี่ยวชาญ สุภาพ กระตือรือร้น และพร้อมปฏิบัติงาน\n"
-                    f"ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงาน {info.get('name')}' หรือ '{info.get('pm_name')}' รายงานความพร้อม เสนอความช่วยเหลือในส่วนงานประจำแผนกอย่างสุภาพและมืออาชีพ"
-                )
-            }
+    if not res_ctx:
+        for dept_id, info in dept_rooms.items():
+            if info.get("ops_chat_id") and str(info["ops_chat_id"]) == str(chat_id):
+                res_ctx = {
+                    "type": "department",
+                    "dept_id": dept_id,
+                    "dept_name": info.get("name", dept_id),
+                    "agent_name": f"ทีมงาน {info.get('name')}",
+                    "system_instruction": (
+                        f"คุณคือ 'ทีมงานและ {info.get('pm_name', 'PMประจำแผนก')}' ประจำแผนก {info.get('name')} ของบริษัท One-Person AI Enterprise\n"
+                        f"บทบาท: โต้ตอบทักทายหรือสนทนากับ Owner ในฐานะทีมงานปฏิบัติการประจำแผนก {info.get('name')} ที่มีความพร้อม เชี่ยวชาญ สุภาพ กระตือรือร้น และพร้อมปฏิบัติงาน\n"
+                        f"ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงาน {info.get('name')}' หรือ '{info.get('pm_name')}' รายงานความพร้อม เสนอความช่วยเหลือในส่วนงานประจำแผนกอย่างสุภาพและมืออาชีพ"
+                    )
+                }
+                break
         
     # 3. เช็คว่าเป็นห้องประชุมผู้บริหาร (Executive Boardroom)
-    admin_chat = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
-    if str(chat_id) in [str(exec_chat), str(admin_chat)] and str(chat_id) != "":
-        return {
-            "type": "executive",
-            "agent_name": "คณะผู้บริหาร & PM Boardroom",
-            "system_instruction": (
-                "คุณคือ 'คณะผู้บริหารและทีม PM หัวหน้าทุกแผนก' ในห้องประชุมผู้บริหารของ One-Person AI Enterprise\n"
-                "บทบาท: โต้ตอบทักทายกับ Owner ในฐานะทีมงานบริหารระดับสูง พร้อมเปิดประชุม สรุป วางแผน วางกลยุทธ์ และรับฟังนโยบายจาก Owner\n"
-                "ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงานผู้บริหาร / คณะ PM' ด้วยความเคารพ สุภาพ ตรงประเด็น และเน้นย้ำความพร้อมในการประชุมและดำเนินนโยบายองค์กร"
-            )
-        }
+    if not res_ctx:
+        admin_chat = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
+        if str(chat_id) in [str(exec_chat), str(admin_chat)] and str(chat_id) != "":
+            res_ctx = {
+                "type": "executive",
+                "agent_name": "คณะผู้บริหาร & PM Boardroom",
+                "system_instruction": (
+                    "คุณคือ 'คณะผู้บริหารและทีม PM หัวหน้าทุกแผนก' ในห้องประชุมผู้บริหารของ One-Person AI Enterprise\n"
+                    "บทบาท: โต้ตอบทักทายกับ Owner ในฐานะทีมงานบริหารระดับสูง พร้อมเปิดประชุม สรุป วางแผน วางกลยุทธ์ และรับฟังนโยบายจาก Owner\n"
+                    "ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงานผู้บริหาร / คณะ PM' ด้วยความเคารพ สุภาพ ตรงประเด็น และเน้นย้ำความพร้อมในการประชุมและดำเนินนโยบายองค์กร"
+                )
+            }
 
     # 4. เช็คว่าเป็นห้องกลุ่มประชุม/ห้องปฏิบัติการอื่นๆ (Group Room)
-    if str(chat_id).startswith("-"):
-        return {
-            "type": "group_meeting",
-            "agent_name": "ทีมงาน & คณะ PM ประจำห้องประชุม",
+    if not res_ctx:
+        if str(chat_id).startswith("-"):
+            res_ctx = {
+                "type": "group_meeting",
+                "agent_name": "ทีมงาน & คณะ PM ประจำห้องประชุม",
+                "system_instruction": (
+                    "คุณคือ 'ทีมงานและคณะ PM ประจำห้องประชุม' ของบริษัท One-Person AI Enterprise\n"
+                    "บทบาท: โต้ตอบในนามทีมงานและหัวหน้าทีมประจำห้องประชุม รับฟังคำสั่ง เปิดวาระประชุม และเสนอความเห็นเชิงปฏิบัติการให้ Owner\n"
+                    "ข้อแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ มืออาชีพ กระตือรือร้น พร้อมเปิดการประชุมและสรุปสั่งงานให้แก่แผนกที่เกี่ยวข้องทันที"
+                )
+            }
+
+    # 5. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI อิงฟ้า — เพื่อนคู่คิด & ที่ปรึกษาบริหาร)
+    if not res_ctx:
+        res_ctx = {
+            "type": "direct",
+            "agent_name": "เลขา AI (อิงฟ้า - เพื่อนคู่คิดบริหาร)",
             "system_instruction": (
-                "คุณคือ 'ทีมงานและคณะ PM ประจำห้องประชุม' ของบริษัท One-Person AI Enterprise\n"
-                "บทบาท: โต้ตอบในนามทีมงานและหัวหน้าทีมประจำห้องประชุม รับฟังคำสั่ง เปิดวาระประชุม และเสนอความเห็นเชิงปฏิบัติการให้ Owner\n"
-                "ข้อแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ มืออาชีพ กระตือรือร้น พร้อมเปิดการประชุมและสรุปสั่งงานให้แก่แผนกที่เกี่ยวข้องทันที"
+                "คุณคือ 'อิงฟ้า' เลขา AI ส่วนตัวและเพื่อนคู่คิด (Strategic Thought Partner) ของท่าน Owner ในบริษัท One-Person AI Enterprise\n"
+                "บุคลิกและบทบาท:\n"
+                "1. เป็นเพื่อนคู่คิดที่ฉลาด รอบคอบ อบอุ่น สนิทสนม สุภาพ มืออาชีพ และจริงใจต่อท่าน Owner\n"
+                "2. สามารถสรุปรายงานประจำวัน (Daily Briefing / EOD Summary) ว่าเมื่อวานและวันนี้ทีมไหนทำอะไรบ้าง งานคืบหน้าถึงไหน มีจุดติดขัด (Bottleneck) หรือไม่\n"
+                "3. เสนอคำแนะนำเชิงกลยุทธ์ ข้อคิดเห็น และคอยสนทนาปรึกษาหารือได้อย่างเป็นธรรมชาติเหมือนเพื่อนคู่คิดผู้ช่วยมือขวา\n"
+                "4. พร้อมรับคำสั่ง สรุปคำสั่ง และกระจายงานให้ PM แต่ละทีมปฏิบัติการทันที"
             )
         }
 
-    # 5. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI อิงฟ้า — เพื่อนคู่คิด & ที่ปรึกษาบริหาร)
-    return {
-        "type": "direct",
-        "agent_name": "เลขา AI (อิงฟ้า - เพื่อนคู่คิดบริหาร)",
-        "system_instruction": (
-            "คุณคือ 'อิงฟ้า' เลขา AI ส่วนตัวและเพื่อนคู่คิด (Strategic Thought Partner) ของท่าน Owner ในบริษัท One-Person AI Enterprise\n"
-            "บุคลิกและบทบาท:\n"
-            "1. เป็นเพื่อนคู่คิดที่ฉลาด รอบคอบ อบอุ่น สนิทสนม สุภาพ มืออาชีพ และจริงใจต่อท่าน Owner\n"
-            "2. สามารถสรุปรายงานประจำวัน (Daily Briefing / EOD Summary) ว่าเมื่อวานและวันนี้ทีมไหนทำอะไรบ้าง งานคืบหน้าถึงไหน มีจุดติดขัด (Bottleneck) หรือไม่\n"
-            "3. เสนอคำแนะนำเชิงกลยุทธ์ ข้อคิดเห็น และคอยสนทนาปรึกษาหารือได้อย่างเป็นธรรมชาติเหมือนเพื่อนคู่คิดผู้ช่วยมือขวา\n"
-            "4. พร้อมรับคำสั่ง สรุปคำสั่ง และกระจายงานให้ PM แต่ละทีมปฏิบัติการทันที"
-        )
-    }
+    res_ctx["system_instruction"] += _get_owner_prompt_context()
+    return res_ctx
 
 
 async def _handle_personal_chat(chat_id: str, sender_name: str, text: str, bot_token: Optional[str] = None) -> dict:
@@ -627,7 +650,7 @@ async def _process_confirmation(chat_id: str, sender_name: str) -> dict:
         from backend.services.llm_service import LLMService
         llm = LLMService(model="gemini-1.5-flash", temperature=0.5)
         pm_plan = await llm.generate(
-            system_instruction="คุณคือหัวหน้าทีม PM ในห้องประชุมผู้บริหาร วางแผนการทำงาน ระบุ Timeline และระบุชื่อแผนกที่จะต้องรับงานไปทำ (เช่น การตลาด/marketing)",
+            system_instruction="คุณคือหัวหน้าทีม PM ในห้องประชุมผู้บริหาร วางแผนการทำงาน ระบุ Timeline และระบุชื่อแผนกที่จะต้องรับงานไปทำ (เช่น การตลาด/marketing)" + _get_owner_prompt_context(),
             user_message=f"คำสั่งที่ได้รับอนุมัติจาก Owner: '{pending['summary']}'"
         )
     except Exception as e:
@@ -857,7 +880,7 @@ async def run_director_meeting(message: str) -> dict:
         f"คุณคือ 'คณะผู้บริหารและ PM หัวหน้าแผนกที่ถูกสร้างแล้วเท่านั้น' ({pm_list_str}) ในห้องประชุมผู้บริหาร (Director Boardroom)\n"
         f"บทบาท: ประชุมร่วมกับ Owner ให้ความคิดเห็น วิเคราะห์ความเสี่ยง เสนอแนวทางปฏิบัติ วาง Timeline และงบประมาณอย่างมืออาชีพ\n"
         f"คำแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ กระชับ สรุปวาระประชุมและวาง Action Plan ชัดเจนสำหรับส่งต่อให้แต่ละทีมปฏิบัติการทันที"
-    )
+    ) + _get_owner_prompt_context()
 
     reply = await llm.generate(system_instruction=system_instruction, user_message=message)
 
@@ -948,7 +971,7 @@ async def run_department_direct_command(dept_id: str, message: str) -> dict:
         f"คุณคือ '{pm_name}' และทีมงานประจำแผนก {dept_name} ของบริษัท One-Person AI Enterprise\n"
         f"บทบาท: รับคำสั่งตรงจาก Owner วิเคราะห์งานของแผนกตนเอง วาง Deliverables และเริ่มปฏิบัติงานทันที\n"
         f"ข้อแนะนำ: ตอบในนาม '{pm_name}' อย่างกระตือรือร้น สุภาพ สรุปงานที่จะทำให้ Owner ทราบสั้นๆ พร้อมแจ้งว่าจะเริ่มดำเนินการทันที"
-    )
+    ) + _get_owner_prompt_context()
 
     reply = await llm.generate(system_instruction=system_instruction, user_message=message)
 

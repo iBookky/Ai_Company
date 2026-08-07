@@ -571,6 +571,7 @@ function openCreateAgentModal() {
   document.getElementById('ca-edit-id').value = '';
   document.getElementById('agent-modal-title').textContent = '🤖 สร้าง Agent ใหม่';
   document.getElementById('ca-name').value = '';
+  document.getElementById('ca-pm-name').value = '';
   document.getElementById('ca-identity').value = '';
   document.getElementById('ca-skill').value = '';
   document.getElementById('ca-temp').value = 0.5;
@@ -595,6 +596,7 @@ async function editAgent(agentId) {
     document.getElementById('ca-edit-id').value = a.id;
     document.getElementById('agent-modal-title').textContent = `✏️ แก้ไข Agent: ${a.name}`;
     document.getElementById('ca-name').value = a.name;
+    document.getElementById('ca-pm-name').value = a.pm_name || '';
     
     // เรียกใช้ dynamic model list
     renderModelSelect('ca-model', a.model);
@@ -615,6 +617,7 @@ async function submitAgent() {
   const editId = document.getElementById('ca-edit-id').value;
   const data = {
     name:       document.getElementById('ca-name').value.trim(),
+    pm_name:    document.getElementById('ca-pm-name').value.trim(),
     department: document.getElementById('ca-dept').value,
     model:      document.getElementById('ca-model').value,
     temperature: parseFloat(document.getElementById('ca-temp').value),
@@ -836,6 +839,9 @@ async function loadSettings() {
 
     // Plain text fields — fill directly
     document.getElementById('s-direct-chat').value = s.telegram_owner_direct_chat_id || '';
+    document.getElementById('s-owner-name').value = s.owner_name || '';
+    document.getElementById('s-owner-identity').value = s.owner_identity || '';
+    document.getElementById('s-owner-skill').value = s.owner_skill || '';
 
     // เก็บรายชื่อโมเดลทั้งหมดไว้สร้าง Dropdown
     const rawModels = s.available_models || '';
@@ -990,6 +996,16 @@ async function saveTelegramSection() {
   await _doSaveSettings(body, 'btn-save-tg', 'save-status-tg', '💾 บันทึก Telegram Settings');
 }
 
+async function saveOwnerSection() {
+  const body = {
+    owner_name:     document.getElementById('s-owner-name').value.trim() || null,
+    owner_identity: document.getElementById('s-owner-identity').value.trim() || null,
+    owner_skill:    document.getElementById('s-owner-skill').value.trim() || null,
+  };
+  Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
+  await _doSaveSettings(body, 'btn-save-owner', 'save-status-owner', '💾 บันทึก Owner Profile');
+}
+
 async function savePmTokens() {
   const btn    = document.getElementById('btn-save-pm');
   const status = document.getElementById('save-status-pm');
@@ -1047,6 +1063,9 @@ async function saveSettings() {
     default_model:                 document.getElementById('s-default-model').value || null,
     telegram_bot_token:            document.getElementById('s-tg-token').value.trim() || null,
     telegram_owner_direct_chat_id: document.getElementById('s-direct-chat').value.trim() || null,
+    owner_name:                    document.getElementById('s-owner-name').value.trim() || null,
+    owner_identity:                document.getElementById('s-owner-identity').value.trim() || null,
+    owner_skill:                   document.getElementById('s-owner-skill').value.trim() || null,
   };
   // Remove nulls (only send fields user actually typed)
   Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });

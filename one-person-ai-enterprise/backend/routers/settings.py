@@ -64,6 +64,9 @@ def _load_settings() -> AppSettings:
         gemini_configured=bool(os.getenv("GEMINI_API_KEY")),
         anthropic_configured=bool(os.getenv("ANTHROPIC_API_KEY")),
         telegram_configured=bool(os.getenv("TELEGRAM_BOT_TOKEN")),
+        owner_name=os.getenv("OWNER_NAME", "Owner"),
+        owner_identity=os.getenv("OWNER_IDENTITY", ""),
+        owner_skill=os.getenv("OWNER_SKILL", ""),
     )
 
 
@@ -94,6 +97,9 @@ async def get_settings():
         "default_model": settings.default_model,
         "gemini_fallback_models": settings.gemini_fallback_models,
         "available_models": settings.available_models,
+        "owner_name": settings.owner_name,
+        "owner_identity": settings.owner_identity,
+        "owner_skill": settings.owner_skill,
     }
 
 
@@ -114,6 +120,9 @@ async def update_settings(data: SettingsUpdate):
         "telegram_admin_chat_id": "TELEGRAM_ADMIN_CHAT_ID",
         "telegram_ops_chat_id": "TELEGRAM_OPS_CHAT_ID",
         "default_model": "DEFAULT_MODEL",
+        "owner_name": "OWNER_NAME",
+        "owner_identity": "OWNER_IDENTITY",
+        "owner_skill": "OWNER_SKILL",
     }
 
     updated = []

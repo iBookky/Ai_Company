@@ -1,0 +1,12 @@
+{
+  "name": "Accounting",
+  "role": "pm_05_accounting",
+  "pm_name": "พลอย",
+  "model": "gemini-1.5-flash",
+  "temperature": 0.5,
+  "department": "05_accounting",
+  "ops_chat_id": "",
+  "bot_token": "8999661395:AAGMuIUlp0WU4rq5nk_WQs6cOblkB38D270",
+  "created_at": "2026-08-07T11:03:29.749580",
+  "updated_at": "2026-08-07T11:15:15.654665"
+}

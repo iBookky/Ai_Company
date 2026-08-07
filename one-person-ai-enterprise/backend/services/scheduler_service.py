@@ -41,25 +41,27 @@ async def generate_morning_briefing() -> str:
 
     summary_str = "\n".join(dept_summary_list) if dept_summary_list else "• ยังไม่มีทีมปฏิบัติการที่ถูกสร้าง"
 
+    owner_name = os.getenv("OWNER_NAME", "Owner")
     prompt = (
         f"รายงานประจำเช้า เวลา 08:30 น.\n"
-        f"กรุณาสวมบทบาท 'อิงฟ้า' เลขา AI ส่วนตัวและเพื่อนคู่คิด ทักทายท่าน Owner ในยามเช้าอย่างอบอุ่น สดใส และมืออาชีพ\n"
-        f"สรุปวาระงานและรายการที่ต้องเร่งดำเนินการในวันนี้ให้ Owner ทราบสั้นๆ กระชับ เพื่อให้ Owner เริ่มต้นสั่งงานแต่ละทีมได้ทันที\n\n"
+        f"กรุณาสวมบทบาท 'อิงฟ้า' เลขา AI ส่วนตัวและเพื่อนคู่คิด ทักทายคุณ {owner_name} ในยามเช้าอย่างอบอุ่น สดใส และมืออาชีพ\n"
+        f"สรุปวาระงานและรายการที่ต้องเร่งดำเนินการในวันนี้ให้คุณ {owner_name} ทราบสั้นๆ กระชับ เพื่อให้คุณ {owner_name} เริ่มต้นสั่งงานแต่ละทีมได้ทันที\n\n"
         f"ข้อมูลทีมปฏิบัติการในองค์กรขณะนี้:\n{summary_str}"
     )
 
     try:
         from backend.services.llm_service import LLMService
+        from backend.services.telegram_service import _get_owner_prompt_context
         llm = LLMService(model="gemini-1.5-flash", temperature=0.7)
         briefing_text = await llm.generate(
             system_instruction=(
-                "คุณคือ 'อิงฟ้า' เลขา AI และเพื่อนคู่คิดบริหาร สรุปรายงานยามเช้า 08:30 น. ให้แก่ท่าน Owner "
+                f"คุณคือ 'อิงฟ้า' เลขา AI และเพื่อนคู่คิดบริหาร สรุปรายงานยามเช้า 08:30 น. ให้แก่คุณ {owner_name} "
                 "เน้นความสุภาพ อบอุ่น กระชับ จัดรูปแบบด้วยสัญลักษณ์ข้อความอ่านง่าย"
-            ),
+            ) + _get_owner_prompt_context(),
             user_message=prompt,
         )
     except Exception as e:
-        briefing_text = f"สวัสดีค่ะคุณผู้บริหาร อิงฟ้าสรุปวาระงานประจำเช้า 08:30 น. ค่ะ\n\n{summary_str}"
+        briefing_text = f"สวัสดีค่ะคุณ {owner_name} อิงฟ้าสรุปวาระงานประจำเช้า 08:30 น. ค่ะ\n\n{summary_str}"
 
     return briefing_text
 
@@ -76,25 +78,27 @@ async def generate_evening_summary() -> str:
 
     summary_str = "\n".join(dept_summary_list) if dept_summary_list else "• ยังไม่มีทีมงานปฏิบัติการ"
 
+    owner_name = os.getenv("OWNER_NAME", "Owner")
     prompt = (
         f"รายงานประจำเย็น เวลา 18:00 น. (End-of-Day Summary)\n"
-        f"กรุณาสวมบทบาท 'อิงฟ้า' เลขา AI และเพื่อนคู่คิด สรุปภาพรวมการทำงานของทุกทีมประจำวันนี้ให้ท่าน Owner ทราบ\n"
+        f"กรุณาสวมบทบาท 'อิงฟ้า' เลขา AI และเพื่อนคู่คิด สรุปภาพรวมการทำงานของทุกทีมประจำวันนี้ให้คุณ {owner_name} ทราบ\n"
         f"ระบุสิ่งที่สำเร็จ ความคืบหน้า จุดติดขัด (Bottleneck) ถ้ามี และให้คำแนะนำเชิงกลยุทธ์สำหรับวันพรุ่งนี้\n\n"
         f"ข้อมูลทีมปฏิบัติการ:\n{summary_str}"
     )
 
     try:
         from backend.services.llm_service import LLMService
+        from backend.services.telegram_service import _get_owner_prompt_context
         llm = LLMService(model="gemini-1.5-flash", temperature=0.6)
         summary_text = await llm.generate(
             system_instruction=(
-                "คุณคือ 'อิงฟ้า' เลขา AI สรุปรายงานการทำงานประจำวัน 18:00 น. (EOD Summary) "
+                f"คุณคือ 'อิงฟ้า' เลขา AI สรุปรายงานการทำงานประจำวัน 18:00 น. (EOD Summary) แก่คุณ {owner_name} "
                 "สุภาพ มืออาชีพ จริงใจ ให้คำแนะนำประเสริฐแก่องค์กร"
-            ),
+            ) + _get_owner_prompt_context(),
             user_message=prompt,
         )
     except Exception as e:
-        summary_text = f"เรียนท่าน Owner อิงฟ้าสรุปภาพรวมการทำงานของทุกทีมประจำวันนี้ 18:00 น. ค่ะ\n\n{summary_str}"
+        summary_text = f"เรียนคุณ {owner_name} อิงฟ้าสรุปภาพรวมการทำงานของทุกทีมประจำวันนี้ 18:00 น. ค่ะ\n\n{summary_str}"
 
     return summary_text
 
