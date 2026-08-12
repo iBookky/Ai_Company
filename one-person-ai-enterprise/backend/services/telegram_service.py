@@ -51,18 +51,77 @@ if _env_ops_json:
 # In-memory storage for active verifications & conversation history
 _pending_verifications: Dict[str, dict] = {}
 _chat_histories: Dict[str, List[dict]] = {}
+_current_session_messages: List[Dict[str, str]] = []
+
+async def summarize_and_save_session(session_msgs: List[dict]) -> str:
+    """รวบรวมข้อสรุปจากประวัติใน session แล้วกรองคัดแยกบันทึกลงไฟล์ company_memory.md"""
+    if not session_msgs:
+        return "*ไม่มีข้อความในเซสชัน*"
+
+    from backend.services.llm_service import LLMService
+    llm = LLMService(model="gemini-1.5-flash", temperature=0.3)
+    
+    history_str = ""
+    for msg in session_msgs:
+        history_str += f"{msg['sender']}: {msg['content']}\n\n"
+        
+    prompt = (
+        "คุณคือ Chief Knowledge Officer (CKO) มีหน้าที่รวบรวมข้อสรุป บทเรียนองค์กร และคอขวดที่ทีมแก้ไขร่วมกัน รวมถึงจุดคอขวดและสูตรสำเร็จการตลาด (Winner Campaign) จากประวัติการคุยการประชุมต่อไปนี้:\n\n"
+        f"--- ประวัติการประชุม ---\n{history_str}\n\n"
+        "กรุณาสรุปข้อมูลและตอบกลับเป็น Markdown ใน 2 ส่วนนี้เท่านั้น (ถ้าส่วนไหนไม่มีข้อมูลในประวัติ ไม่ต้องสรุปส่วนนั้น หรือสรุปสั้นๆ เท่าที่มี):\n\n"
+        "1. สำหรับ [คลังปัญญาการตลาด] (หากมีข้อมูลความสำเร็จการตลาด, Winner Campaign หรือคอขวดช่องทางขาย):\n"
+        "### [คลังปัญญาการตลาด] - อัปเดตวันที่ [วันที่ปัจจุบัน]\n"
+        "- **จุดคอขวด/ปัญหาสำคัญ**: [จุดหลุดหรือคอขวดในการตลาด/การขายที่วิเคราะห์พบ]\n"
+        "- **สูตรสำเร็จ (Winner Campaign)**: [แคมเปญหรือการตั้งค่าการตลาดที่ทำสำเร็จ]\n"
+        "- **แนวทางแนะนำสำหรับแคมเปญใหม่**: [คำแนะนำเพื่อพัฒนาต่อยอด]\n\n"
+        "2. สำหรับ [บันทึกการประชุมและบทเรียนองค์กรประจำวัน] (บันทึกสรุปทั่วไป):\n"
+        "### [บันทึกการประชุมและบทเรียนองค์กรประจำวัน] - วันที่ [วันที่ปัจจุบัน]\n"
+        "- **ข้อสรุปการประชุม**: [สรุปสิ่งที่ทีมตกลงร่วมกัน]\n"
+        "- **บทเรียนองค์กร**: [สิ่งที่เรียนรู้และพัฒนาขึ้น]\n"
+        "- **คอขวดที่แก้ไขร่วมกัน**: [ปัญหาหลักและแนวทางที่แก้สำเร็จ]\n\n"
+        "ตอบเฉพาะหัวข้อ Markdown ที่สรุปได้ตามเทมเพลตข้างบนนี้เท่านั้น เพื่อให้นำไปต่อท้าย (Append) ในไฟล์ระบบได้เลย ไม่ต้องมีคำเกริ่นใดๆ ทั้งสิ้น"
+    )
+    
+    summary = await llm.generate(
+        system_instruction="คุณคือ CKO สรุปรายงานการประชุมสั้น กระชับ ตรงประเด็น เป็น Markdown เท่านั้น",
+        user_message=prompt
+    )
+    
+    memory_path = Path(__file__).parent.parent.parent / "company_memory.md"
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    clean_summary = summary.strip().replace("[วันที่ปัจจุบัน]", current_date)
+    
+    if memory_path.exists():
+        try:
+            content = memory_path.read_text(encoding="utf-8")
+            new_content = content + "\n\n" + clean_summary
+            memory_path.write_text(new_content, encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Failed to write to company_memory.md: {e}")
+            
+    return clean_summary
 
 
 def _get_owner_prompt_context() -> str:
     owner_name = os.getenv("OWNER_NAME", "Owner")
     owner_identity = os.getenv("OWNER_IDENTITY", "เจ้าของและผู้บริหารสูงสุดของบริษัท")
     owner_skill = os.getenv("OWNER_SKILL", "การตัดสินใจเชิงกลยุทธ์และการบริหารองค์กร")
+    
+    company_memory = ""
+    memory_path = Path(__file__).parent.parent.parent / "company_memory.md"
+    if memory_path.exists():
+        try:
+            company_memory = f"\n\n--- ข้อมูลหน่วยความจำบริษัท (Company Memory) ---\n{memory_path.read_text(encoding='utf-8')}\n"
+        except Exception:
+            pass
+
     return (
         f"\n\n--- ข้อมูลเกี่ยวกับ Owner (คู่สนทนาและผู้บริหารของคุณ) ---\n"
         f"ชื่อ: {owner_name}\n"
         f"ตัวตน/บทบาท: {owner_identity}\n"
         f"ทักษะ/ความเชี่ยวชาญ: {owner_skill}\n"
         f"คำแนะนำ: ให้คุณเรียกชื่อจริงของ Owner คือ '{owner_name}' หรือทักทายอย่างสุภาพและเป็นกันเองด้วยความสนิทสนม เช่น 'คุณ {owner_name}' หรือ 'ท่าน {owner_name}' แทนคำว่า 'Owner' เฉยๆ เพื่อความเป็นกันเองในบริษัท\n"
+        f"{company_memory}"
     )
 
 
@@ -537,6 +596,17 @@ async def _handle_personal_chat(chat_id: str, sender_name: str, text: str, bot_t
             history = history[-10:]
         _chat_histories[chat_id] = history
 
+        # บันทึกและคัดกรองลง session ป้องกันข้อมูลหลุดหล่น
+        _current_session_messages.append({"sender": sender_name, "content": text})
+        _current_session_messages.append({"sender": ctx["agent_name"], "content": reply})
+
+        # เช็คการสั่งปิดเซสชัน / ปิดวาระการประชุม
+        is_closing = any(kw in text.lower() for kw in ["ปิดวาระ", "จบประชุม", "จบการประชุม", "สิ้นสุดการประชุม", "close session"])
+        if is_closing:
+            session_summary = await summarize_and_save_session(_current_session_messages)
+            _current_session_messages.clear()
+            reply += f"\n\n📝 <b>[CKO อิงฟ้า] บันทึก Session เรียบร้อย:</b>\n{session_summary}"
+
         await send_telegram_message(chat_id, reply, bot_token=bot_token)
 
         write_log(LogCreate(
@@ -943,6 +1013,17 @@ async def run_director_meeting(message: str) -> dict:
     else:
         responder_name = "อิงฟ้า (เลขา AI)"
         responder_avatar = "🗂️"
+
+    # บันทึกและคัดกรองลง session ป้องกันข้อมูลหลุดหล่น
+    _current_session_messages.append({"sender": "Owner", "content": message})
+    _current_session_messages.append({"sender": responder_name, "content": reply})
+
+    # เช็คการสั่งปิดเซสชัน / ปิดวาระการประชุม
+    is_closing = any(kw in message.lower() for kw in ["ปิดวาระ", "จบประชุม", "จบการประชุม", "สิ้นสุดการประชุม", "close session"])
+    if is_closing:
+        session_summary = await summarize_and_save_session(_current_session_messages)
+        _current_session_messages.clear()
+        reply += f"\n\n📝 **[CKO อิงฟ้า] บันทึก Session เรียบร้อย:**\n{session_summary}"
 
     return {
         "status": "success",
