@@ -465,12 +465,15 @@ def resolve_room_context(chat_id: str, bot_token: Optional[str] = None) -> dict:
                 # โหลดข้อมูลจริงจากแผนก
                 identity_content = ""
                 skill_content = ""
+                job_description_content = ""
                 dept_dir = DEPARTMENTS_DIR / dept_id
                 if dept_dir.exists():
                     if (dept_dir / "identity.md").exists():
                         identity_content = (dept_dir / "identity.md").read_text(encoding="utf-8")
                     if (dept_dir / "skill.md").exists():
                         skill_content = (dept_dir / "skill.md").read_text(encoding="utf-8")
+                    if (dept_dir / "job_description.md").exists():
+                        job_description_content = (dept_dir / "job_description.md").read_text(encoding="utf-8")
 
                 res_ctx = {
                     "type": "direct_pm",
@@ -480,6 +483,7 @@ def resolve_room_context(chat_id: str, bot_token: Optional[str] = None) -> dict:
                     "system_instruction": (
                         f"คุณคือ '{info.get('pm_name')}' PM หัวหน้าทีมแผนก {info['name']} ของบริษัท One-Person AI Enterprise\n\n"
                         f"--- ข้อมูลเอกลักษณ์ตัวตนของคุณ (Identity) ---\n{identity_content}\n\n"
+                        f"--- รายละเอียดหน้าที่ของคุณ (Job Description) ---\n{job_description_content}\n\n"
                         f"--- ทักษะและขั้นตอนการทำงานของคุณ (Skills) ---\n{skill_content}\n\n"
                         f"บทบาท: สนทนาโต้ตอบแบบ 1-on-1 ใน Telegram กับคุณ Owner อย่างฉลาด สุภาพ มีไหวพริบ กระตือรือร้น รายงานสถานะงานและพร้อมรับคำสั่งตรงปฏิบัติงานทันที"
                     )
@@ -566,16 +570,20 @@ async def _handle_personal_chat(chat_id: str, sender_name: str, text: str, bot_t
                 # โหลดข้อมูล identity และ skill จริงจากแผนก
                 identity_content = ""
                 skill_content = ""
+                job_description_content = ""
                 dept_dir = DEPARTMENTS_DIR / dept_id
                 if dept_dir.exists():
                     if (dept_dir / "identity.md").exists():
                         identity_content = (dept_dir / "identity.md").read_text(encoding="utf-8")
                     if (dept_dir / "skill.md").exists():
                         skill_content = (dept_dir / "skill.md").read_text(encoding="utf-8")
+                    if (dept_dir / "job_description.md").exists():
+                        job_description_content = (dept_dir / "job_description.md").read_text(encoding="utf-8")
 
                 ctx["system_instruction"] = (
                     f"คุณคือ '{matching_pm.get('pm_name')}' PM หัวหน้าทีมแผนก {matching_pm['name']} ของบริษัท One-Person AI Enterprise\n\n"
                     f"--- ข้อมูลเอกลักษณ์ตัวตนของคุณ (Identity) ---\n{identity_content}\n\n"
+                    f"--- รายละเอียดหน้าที่ของคุณ (Job Description) ---\n{job_description_content}\n\n"
                     f"--- ทักษะและขั้นตอนการทำงานของคุณ (Skills) ---\n{skill_content}\n\n"
                     f"บทบาท: สนทนาโต้ตอบแบบ 1-on-1 ใน Telegram กับคุณ Owner อย่างฉลาด สุภาพ มีไหวพริบ กระตือรือร้น รายงานสถานะงานและพร้อมรับคำสั่งตรงปฏิบัติงานทันที"
                 )

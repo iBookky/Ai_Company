@@ -573,6 +573,7 @@ function openCreateAgentModal() {
   document.getElementById('ca-name').value = '';
   document.getElementById('ca-pm-name').value = '';
   document.getElementById('ca-identity').value = '';
+  document.getElementById('ca-job-desc').value = '';
   document.getElementById('ca-skill').value = '';
   document.getElementById('ca-temp').value = 0.5;
   document.getElementById('ca-temp-val').textContent = '0.5';
@@ -581,6 +582,8 @@ function openCreateAgentModal() {
   renderModelSelect('ca-model', 'gemini-1.5-flash');
   
   updateAgentDeptSelect(allRooms);
+  const deptSelect = document.getElementById('ca-dept');
+  if (deptSelect) deptSelect.disabled = false;
   openModal('modal-create-agent');
 }
 
@@ -604,9 +607,14 @@ async function editAgent(agentId) {
     document.getElementById('ca-temp').value = a.temperature;
     document.getElementById('ca-temp-val').textContent = a.temperature;
     document.getElementById('ca-identity').value = a.identity || '';
+    document.getElementById('ca-job-desc').value = a.job_description || '';
     document.getElementById('ca-skill').value    = a.skill    || '';
     updateAgentDeptSelect(allRooms);
-    document.getElementById('ca-dept').value = a.department;
+    const deptSelect = document.getElementById('ca-dept');
+    if (deptSelect) {
+      deptSelect.value = a.department;
+      deptSelect.disabled = true;
+    }
     openModal('modal-create-agent');
   } catch (err) {
     toast('โหลดข้อมูล Agent ไม่สำเร็จ', 'error');
@@ -616,16 +624,17 @@ async function editAgent(agentId) {
 async function submitAgent() {
   const editId = document.getElementById('ca-edit-id').value;
   const data = {
-    name:       document.getElementById('ca-name').value.trim(),
-    pm_name:    document.getElementById('ca-pm-name').value.trim(),
-    department: document.getElementById('ca-dept').value,
-    model:      document.getElementById('ca-model').value,
-    temperature: parseFloat(document.getElementById('ca-temp').value),
-    identity:   document.getElementById('ca-identity').value.trim(),
-    skill:      document.getElementById('ca-skill').value.trim(),
+    name:            document.getElementById('ca-name').value.trim(),
+    pm_name:         document.getElementById('ca-pm-name').value.trim(),
+    department:      document.getElementById('ca-dept').value,
+    model:           document.getElementById('ca-model').value,
+    temperature:     parseFloat(document.getElementById('ca-temp').value),
+    identity:        document.getElementById('ca-identity').value.trim(),
+    job_description: document.getElementById('ca-job-desc').value.trim(),
+    skill:           document.getElementById('ca-skill').value.trim(),
   };
 
-  if (!data.name || !data.identity || !data.skill) {
+  if (!data.name || !data.identity || !data.skill || !data.job_description) {
     toast('กรุณากรอกข้อมูลให้ครบทุกช่อง (*)', 'warning'); return;
   }
 
@@ -634,7 +643,15 @@ async function submitAgent() {
 
   try {
     if (editId) {
-      await apiPut(`/api/agents/${editId}`, data);
+      await apiPut(`/api/agents/${editId}`, {
+        name: data.name,
+        pm_name: data.pm_name,
+        model: data.model,
+        temperature: data.temperature,
+        identity: data.identity,
+        job_description: data.job_description,
+        skill: data.skill,
+      });
       toast(`✅ แก้ไข Agent "${data.name}" สำเร็จ!`, 'success');
     } else {
       await apiPost('/api/agents', data);

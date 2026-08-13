@@ -43,6 +43,7 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
     config_file = dept_dir / "config.json"
     identity_file = dept_dir / "identity.md"
     skill_file = dept_dir / "skill.md"
+    job_description_file = dept_dir / "job_description.md"
 
     config = {}
     if config_file.exists():
@@ -62,6 +63,7 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
         pm_name=config.get("pm_name", ""),
         has_identity=identity_file.exists(),
         has_skill=skill_file.exists(),
+        has_job_description=job_description_file.exists(),
         identity_preview=(
             identity_file.read_text(encoding="utf-8")[:300]
             if identity_file.exists() else ""
@@ -69,6 +71,10 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
         skill_preview=(
             skill_file.read_text(encoding="utf-8")[:300]
             if skill_file.exists() else ""
+        ),
+        job_description_preview=(
+            job_description_file.read_text(encoding="utf-8")[:300]
+            if job_description_file.exists() else ""
         ),
         created_at=config.get("created_at", ""),
         path=str(dept_dir),
@@ -88,7 +94,7 @@ def list_agents() -> list[AgentRead]:
 
 
 def get_agent(agent_id: str) -> Optional[AgentDetail]:
-    """ดึงข้อมูล Agent พร้อม identity และ skill เต็ม"""
+    """ดึงข้อมูล Agent พร้อม identity, skill และ job_description เต็ม"""
     dept_dir = DEPARTMENTS_DIR / agent_id
     if not dept_dir.exists():
         return None
@@ -99,11 +105,13 @@ def get_agent(agent_id: str) -> Optional[AgentDetail]:
 
     identity_file = dept_dir / "identity.md"
     skill_file = dept_dir / "skill.md"
+    job_description_file = dept_dir / "job_description.md"
 
     return AgentDetail(
         **base.model_dump(),
         identity=identity_file.read_text(encoding="utf-8") if identity_file.exists() else "",
         skill=skill_file.read_text(encoding="utf-8") if skill_file.exists() else "",
+        job_description=job_description_file.read_text(encoding="utf-8") if job_description_file.exists() else "",
     )
 
 
@@ -122,6 +130,7 @@ def create_agent(data: AgentCreate) -> AgentRead:
     # เขียนไฟล์
     (dept_dir / "identity.md").write_text(data.identity, encoding="utf-8")
     (dept_dir / "skill.md").write_text(data.skill, encoding="utf-8")
+    (dept_dir / "job_description.md").write_text(data.job_description, encoding="utf-8")
 
     config = {
         "name": data.name,
@@ -166,11 +175,12 @@ def update_agent(agent_id: str, data: AgentUpdate) -> Optional[AgentRead]:
     config["updated_at"] = datetime.now().isoformat()
     config_file.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
 
-
     if data.identity is not None:
         (dept_dir / "identity.md").write_text(data.identity, encoding="utf-8")
     if data.skill is not None:
         (dept_dir / "skill.md").write_text(data.skill, encoding="utf-8")
+    if data.job_description is not None:
+        (dept_dir / "job_description.md").write_text(data.job_description, encoding="utf-8")
 
     return _read_agent_dir(dept_dir)
 
@@ -182,3 +192,26 @@ def delete_agent(agent_id: str) -> bool:
         return False
     shutil.rmtree(dept_dir)
     return True
+
+
+def rename_department_id(old_id: str, new_id: str) -> bool:
+    """เปลี่ยนชื่อโฟลเดอร์ ID ของแผนก/ทีมบนดิสก์ และอัปเดตไฟล์คอนฟิกด้านใน"""
+    old_dir = DEPARTMENTS_DIR / old_id
+    new_dir = DEPARTMENTS_DIR / new_id
+    if not old_dir.exists() or new_dir.exists():
+        return False
+
+    try:
+        # ย้าย/เปลี่ยนชื่อโฟลเดอร์
+        old_dir.rename(new_dir)
+
+        # อัปเดตไฟล์ config.json ด้านใน
+        config_file = new_dir / "config.json"
+        if config_file.exists():
+            config = json.loads(config_file.read_text(encoding="utf-8"))
+            config["department"] = new_id
+            config["updated_at"] = datetime.now().isoformat()
+            config_file.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+        return True
+    except Exception:
+        return False

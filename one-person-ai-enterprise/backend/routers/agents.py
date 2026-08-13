@@ -70,3 +70,18 @@ async def delete_agent(agent_id: str):
         message=f"ลบ Agent: {agent_id}",
     ))
     return ApiResponse(success=True, message=f"ลบ Agent {agent_id} เรียบร้อยแล้ว")
+
+
+@router.post("/{agent_id}/rename", response_model=ApiResponse)
+async def rename_agent_id(agent_id: str, new_id: str):
+    """เปลี่ยนชื่อ Folder ID ของแผนก/ทีม"""
+    success = agent_service.rename_department_id(agent_id, new_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="ไม่สามารถเปลี่ยนชื่อแผนกได้ (อาจไม่พบแผนกเดิม หรือชื่อใหม่มีผู้ใช้งานแล้ว)")
+    write_log(LogCreate(
+        agent_id=agent_id,
+        agent_name=agent_id,
+        level=LogLevel.INFO,
+        message=f"เปลี่ยน ID แผนกจาก {agent_id} เป็น {new_id} สำเร็จ",
+    ))
+    return ApiResponse(success=True, message=f"เปลี่ยน ID แผนกจาก {agent_id} เป็น {new_id} เรียบร้อยแล้ว")

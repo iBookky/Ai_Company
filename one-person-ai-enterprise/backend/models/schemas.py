@@ -45,6 +45,7 @@ class AgentCreate(BaseModel):
     temperature: float = Field(0.5, ge=0.0, le=1.0, description="ค่า Temperature")
     identity: str = Field(..., min_length=10, description="System Identity/Role")
     skill: str = Field(..., min_length=10, description="Skills และ Instructions")
+    job_description: str = Field(..., min_length=10, description="รายละเอียดคำอธิบายลักษณะงาน (Job Description)")
     role: Optional[str] = Field(None, description="Role identifier")
     ops_chat_id: Optional[str] = Field("", description="Telegram Ops Chat ID ประจำแผนก")
     pm_name: Optional[str] = Field(None, description="ชื่อ PM (หัวหน้าแผนก)")
@@ -61,8 +62,10 @@ class AgentRead(BaseModel):
     pm_name: str = ""
     has_identity: bool
     has_skill: bool
+    has_job_description: bool
     identity_preview: str
     skill_preview: str
+    job_description_preview: str
     created_at: str
     path: str
 
@@ -73,6 +76,7 @@ class AgentUpdate(BaseModel):
     temperature: Optional[float] = Field(None, ge=0.0, le=1.0)
     identity: Optional[str] = None
     skill: Optional[str] = None
+    job_description: Optional[str] = None
     ops_chat_id: Optional[str] = None
     pm_name: Optional[str] = None
 
@@ -80,6 +84,7 @@ class AgentUpdate(BaseModel):
 class AgentDetail(AgentRead):
     identity: str
     skill: str
+    job_description: str
 
 
 # ─── Log Schemas ──────────────────────────────────────────────────────────────

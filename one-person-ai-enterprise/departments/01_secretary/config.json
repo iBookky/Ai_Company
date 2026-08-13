@@ -1,5 +1,5 @@
 {
-  "name": "เลขานุการ AI",
+  "name": "Business Development and Strategy",
   "role": "pm_01_secretary",
   "pm_name": "อิงฟ้า",
   "model": "gemini-1.5-flash",
@@ -8,5 +8,5 @@
   "bot_token": "8776309955:AA_test_success",
   "ops_chat_id": "",
   "created_at": "2026-08-06T08:41:49.975725",
-  "updated_at": "2026-08-07T10:48:24.164267"
+  "updated_at": "2026-08-13T08:14:58.184716"
 }
