@@ -17,6 +17,13 @@ async def list_agents():
     return agent_service.list_agents()
 
 
+@router.get("/status/all")
+async def get_all_agent_statuses():
+    """ดึงสถานะประมวลผล (idle/processing) ของ Agent ทั้งหมด"""
+    from backend.services.status_service import get_all_statuses
+    return get_all_statuses()
+
+
 @router.get("/{agent_id}", response_model=AgentDetail)
 async def get_agent(agent_id: str):
     """ดึงข้อมูล Agent พร้อม identity + skill เต็ม"""

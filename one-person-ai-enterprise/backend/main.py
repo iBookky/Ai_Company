@@ -18,7 +18,7 @@ BASE_DIR = Path(__file__).parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 # Import routers
-from backend.routers import agents, logs, drafts, skype, telegram, settings
+from backend.routers import agents, logs, drafts, skype, telegram, settings, usage
 from backend.services import log_service
 from backend.models.schemas import LogCreate, LogLevel
 
@@ -82,6 +82,7 @@ app.include_router(drafts.router)
 app.include_router(skype.router)
 app.include_router(telegram.router)
 app.include_router(settings.router)
+app.include_router(usage.router)
 
 @app.get("/api/health")
 async def health():

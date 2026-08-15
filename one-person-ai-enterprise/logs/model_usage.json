@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2026-08-14",
+    "month": "2026-08",
+    "model": "gemini-2.5-flash",
+    "input_tokens": 27408,
+    "output_tokens": 5234,
+    "total_tokens": 32642,
+    "cost": 0.0072516,
+    "requests": 14
+  },
+  {
+    "date": "2026-08-15",
+    "month": "2026-08",
+    "model": "gemini-2.5-flash",
+    "input_tokens": 3982,
+    "output_tokens": 880,
+    "total_tokens": 4862,
+    "cost": 0.0011253,
+    "requests": 2
+  }
+]

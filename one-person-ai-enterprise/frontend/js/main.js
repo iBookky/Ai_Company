@@ -228,6 +228,9 @@ async function loadDashboard() {
 
     // Log preview
     updateDashboardLogPreview();
+    
+    // Load Model Usage Stats
+    loadUsageStats();
   } catch (err) {
     console.error(err);
   }
@@ -460,7 +463,10 @@ function renderTeams(agents, rooms, filter = '') {
         <div class="team-card-head">
           <div class="team-avatar">${avatarEmoji}</div>
           <div class="team-info">
-            <div class="team-name">${escHtml(name)}</div>
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <div class="team-name">${escHtml(name)}</div>
+              <span class="badge badge-online" id="status-badge-${deptId}" style="padding:1px 6px; font-size:10px;">Online</span>
+            </div>
             <div class="team-pm">PM: ${escHtml(pmName)}</div>
             <div class="team-id">${deptId}</div>
           </div>
@@ -1212,3 +1218,153 @@ function escHtml(s) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+// ══════════════════════════════════════════════════════════════
+//  AI Model Usage Tracking
+// ══════════════════════════════════════════════════════════════
+let currentUsageLimits = { monthly_token_limit: 10000000, monthly_cost_limit: 50.0 };
+
+async function loadUsageStats() {
+  try {
+    const summary = await apiGet('/api/usage');
+    
+    // Save current limits to memory
+    currentUsageLimits.monthly_token_limit = summary.monthly_limit_tokens;
+    currentUsageLimits.monthly_cost_limit = summary.monthly_limit_cost;
+    
+    // 1. Tokens progress bar
+    const tokenRatio = `${summary.month_used_tokens.toLocaleString()} / ${summary.monthly_limit_tokens.toLocaleString()} Tokens`;
+    const tokensRatioEl = document.getElementById('usage-tokens-ratio');
+    if (tokensRatioEl) tokensRatioEl.textContent = tokenRatio;
+    
+    const tokenPercentVal = Math.min(100, Math.round((summary.month_used_tokens / summary.monthly_limit_tokens) * 100));
+    const tokensPercentEl = document.getElementById('usage-tokens-percent');
+    if (tokensPercentEl) tokensPercentEl.textContent = `${tokenPercentVal}%`;
+    
+    const tokensFillEl = document.getElementById('usage-tokens-fill');
+    if (tokensFillEl) tokensFillEl.style.width = `${tokenPercentVal}%`;
+    
+    const tokensRemainingEl = document.getElementById('usage-tokens-remaining');
+    if (tokensRemainingEl) tokensRemainingEl.textContent = `เหลือ ${summary.month_remaining_tokens.toLocaleString()} Tokens`;
+    
+    // 2. Cost progress bar
+    const costRatio = `$${summary.month_used_cost.toFixed(4)} / $${summary.monthly_limit_cost.toFixed(2)} USD`;
+    const costRatioEl = document.getElementById('usage-cost-ratio');
+    if (costRatioEl) costRatioEl.textContent = costRatio;
+    
+    const costPercentVal = Math.min(100, Math.round((summary.month_used_cost / summary.monthly_limit_cost) * 100));
+    const costPercentEl = document.getElementById('usage-cost-percent');
+    if (costPercentEl) costPercentEl.textContent = `${costPercentVal}%`;
+    
+    const costFillEl = document.getElementById('usage-cost-fill');
+    if (costFillEl) costFillEl.style.width = `${costPercentVal}%`;
+    
+    const costRemainingEl = document.getElementById('usage-cost-remaining');
+    if (costRemainingEl) costRemainingEl.textContent = `เหลือ $${summary.month_remaining_cost.toFixed(4)} USD`;
+    
+    // 3. Mini Stats
+    const todayTokensEl = document.getElementById('usage-today-tokens');
+    if (todayTokensEl) todayTokensEl.textContent = summary.today_used_tokens.toLocaleString();
+    
+    const todayCostEl = document.getElementById('usage-today-cost');
+    if (todayCostEl) todayCostEl.textContent = `$${summary.today_used_cost.toFixed(4)}`;
+    
+    const monthRequestsEl = document.getElementById('usage-month-requests');
+    if (monthRequestsEl) monthRequestsEl.textContent = summary.month_requests.toLocaleString();
+    
+    // 4. Usage history rows
+    const tbody = document.getElementById('usage-history-rows');
+    if (tbody) {
+      if (summary.history && summary.history.length > 0) {
+        tbody.innerHTML = summary.history.map(row => `
+          <tr>
+            <td><strong>${row.date}</strong></td>
+            <td>${row.requests.toLocaleString()} ครั้ง</td>
+            <td>${row.tokens.toLocaleString()} Tokens</td>
+            <td><span style="color:var(--brand-400); font-weight:500;">$${row.cost.toFixed(4)}</span></td>
+          </tr>
+        `).join('');
+      } else {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; opacity:0.5;">ยังไม่มีประวัติการใช้งาน</td></tr>`;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load usage stats:', err);
+  }
+}
+
+function openLimitsModal() {
+  const limTokensEl = document.getElementById('lim-tokens');
+  if (limTokensEl) limTokensEl.value = currentUsageLimits.monthly_token_limit;
+  
+  const limCostEl = document.getElementById('lim-cost');
+  if (limCostEl) limCostEl.value = currentUsageLimits.monthly_cost_limit;
+  
+  openModal('modal-limits-config');
+}
+
+async function submitLimitsConfig() {
+  const tokenLimit = parseInt(document.getElementById('lim-tokens').value, 10);
+  const costLimit = parseFloat(document.getElementById('lim-cost').value);
+  
+  if (isNaN(tokenLimit) || isNaN(costLimit) || tokenLimit <= 0 || costLimit <= 0) {
+    toast('กรุณากรอกข้อมูลตัวเลขที่ถูกต้อง', 'warning');
+    return;
+  }
+  
+  try {
+    await apiPut('/api/usage/limits', {
+      monthly_token_limit: tokenLimit,
+      monthly_cost_limit: costLimit
+    });
+    toast('✅ บันทึกตั้งค่าลิมิตความปลอดภัยเรียบร้อย', 'success');
+    closeModal('modal-limits-config');
+    await loadUsageStats();
+  } catch (err) {
+    toast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Agent Processing Status Poller
+// ══════════════════════════════════════════════════════════════
+async function updateAgentStatuses() {
+  try {
+    const statuses = await apiGet('/api/agents/status/all');
+    
+    // Update all team cards
+    if (allRooms && allRooms.department_rooms) {
+      Object.keys(allRooms.department_rooms).forEach(deptId => {
+        const badge = document.getElementById(`status-badge-${deptId}`);
+        if (badge) {
+          const state = statuses[deptId] || 'idle';
+          if (state === 'processing') {
+            badge.textContent = '⏳ กำลังทำงาน...';
+            badge.className = 'badge badge-processing';
+          } else {
+            badge.textContent = 'Online';
+            badge.className = 'badge badge-online';
+          }
+        }
+      });
+    }
+    
+    // Update secretary status on dashboard
+    const secBadge = document.getElementById('status-badge-secretary');
+    if (secBadge) {
+      const state = statuses['01_secretary'] || 'idle';
+      if (state === 'processing') {
+        secBadge.textContent = '⏳ กำลังทำงาน...';
+        secBadge.className = 'badge badge-processing';
+      } else {
+        secBadge.textContent = 'Online';
+        secBadge.className = 'badge badge-online';
+      }
+    }
+  } catch (err) {
+    console.error('Failed to update agent statuses:', err);
+  }
+}
+
+// Start polling for agent status every 1.5 seconds
+setInterval(updateAgentStatuses, 1500);

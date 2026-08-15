@@ -105,6 +105,19 @@ class LLMService:
                     chat = model.start_chat(history=chat_history)
                     response = await chat.send_message_async(user_message)
                     print(f"✅ [LLMService] รันโมเดล {target_model} สำเร็จ!")
+                    
+                    # บันทึกปริมาณการใช้งาน AI
+                    try:
+                        from backend.services.usage_service import record_usage
+                        meta = response.usage_metadata
+                        record_usage(
+                            model=target_model,
+                            input_tokens=meta.prompt_token_count,
+                            output_tokens=meta.candidates_token_count
+                        )
+                    except Exception as e_usage:
+                        print(f"⚠️ [UsageService] ไม่สามารถบันทึกการใช้งาน: {e_usage}")
+
                     return response.text
                 except Exception as inner_e:
                     err_str = str(inner_e)
@@ -150,6 +163,18 @@ class LLMService:
                 messages=messages,
                 temperature=self.temperature,
             )
+            
+            # บันทึกปริมาณการใช้งาน AI
+            try:
+                from backend.services.usage_service import record_usage
+                record_usage(
+                    model=self.model,
+                    input_tokens=response.usage.input_tokens,
+                    output_tokens=response.usage.output_tokens
+                )
+            except Exception as e_usage:
+                print(f"⚠️ [UsageService] ไม่สามารถบันทึกการใช้งาน: {e_usage}")
+
             return response.content[0].text
         except Exception as e:
             return f"[Claude Error] {str(e)}"

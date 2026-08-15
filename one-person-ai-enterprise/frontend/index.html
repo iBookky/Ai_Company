@@ -116,7 +116,7 @@
           <div class="card-header">
             <span class="card-icon">🗂️</span>
             <h2>เลขา AI (อิงฟ้า)</h2>
-            <span class="badge badge-online">Online</span>
+            <span class="badge badge-online" id="status-badge-secretary">Online</span>
           </div>
           <p class="card-desc">คุยปรึกษา ถามความเห็น รายงานประจำวันอัตโนมัติ<br/>08:30 น. & 18:00 น. เวลาไทย</p>
           <div class="card-actions">
@@ -132,6 +132,81 @@
           </div>
           <div class="quick-teams-list" id="quick-teams-list">
             <div class="loading-text">กำลังโหลดทีม...</div>
+          </div>
+        </div>
+
+        <!-- AI Usage Summary Card -->
+        <div class="card card-wide">
+          <div class="card-header">
+            <span class="card-icon">📊</span>
+            <h2>ปริมาณการใช้งานโมเดล AI (โควตาและสถิติ)</h2>
+            <button class="btn btn-sm" onclick="openLimitsModal()">⚙️ ตั้งค่าลิมิตความปลอดภัย</button>
+          </div>
+          
+          <div class="usage-summary-container">
+            <div class="usage-progress-box">
+              <div class="usage-progress-item">
+                <div class="usage-progress-header">
+                  <span>Tokens ที่ใช้ประจำเดือน:</span>
+                  <strong id="usage-tokens-ratio">0 / 10,000,000 Tokens</strong>
+                </div>
+                <div class="progress-bar-container">
+                  <div class="progress-bar-fill" id="usage-tokens-fill" style="width: 0%"></div>
+                </div>
+                <div class="usage-progress-footer">
+                  <span id="usage-tokens-percent">0%</span>
+                  <span id="usage-tokens-remaining">เหลือ 10,000,000 Tokens</span>
+                </div>
+              </div>
+              
+              <div class="usage-progress-item">
+                <div class="usage-progress-header">
+                  <span>ประมาณการค่าใช้จ่าย:</span>
+                  <strong id="usage-cost-ratio">$0.00 / $50.00 USD</strong>
+                </div>
+                <div class="progress-bar-container">
+                  <div class="progress-bar-fill" id="usage-cost-fill" style="width: 0%; background: var(--color-success)"></div>
+                </div>
+                <div class="usage-progress-footer">
+                  <span id="usage-cost-percent">0%</span>
+                  <span id="usage-cost-remaining">เหลือ $50.00 USD</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="usage-stats-subgrid">
+              <div class="usage-stat-mini">
+                <div class="val" id="usage-today-tokens">0</div>
+                <div class="lbl">ใช้ไปวันนี้ (Tokens)</div>
+              </div>
+              <div class="usage-stat-mini">
+                <div class="val" id="usage-today-cost">$0.00</div>
+                <div class="lbl">ค่าใช้จ่ายวันนี้ (USD)</div>
+              </div>
+              <div class="usage-stat-mini">
+                <div class="val" id="usage-month-requests">0</div>
+                <div class="lbl">จำนวนครั้งที่เรียก (เดือนนี้)</div>
+              </div>
+            </div>
+            
+            <div style="margin-top: 1rem;">
+              <h3 style="margin-bottom: 0.5rem; font-size: 0.95rem; opacity: 0.9;">ประวัติการใช้งานย้อนหลัง</h3>
+              <div class="usage-history-table-container">
+                <table class="usage-table">
+                  <thead>
+                    <tr>
+                      <th>วันที่</th>
+                      <th>จำนวนครั้ง (Requests)</th>
+                      <th>Tokens รวม</th>
+                      <th>ค่าใช้จ่ายประมาณการ (USD)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="usage-history-rows">
+                    <tr><td colspan="4" style="text-align:center; opacity:0.5;">ยังไม่มีประวัติการใช้งาน</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -537,6 +612,33 @@
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-direct-cmd')">ยกเลิก</button>
       <button class="btn btn-primary" id="btn-dc-send" onclick="sendDirectCommand()">📨 ส่งคำสั่ง</button>
+    </div>
+  </div>
+</div>
+
+<!-- Limits Config Modal -->
+<div class="modal" id="modal-limits-config">
+  <div class="modal-backdrop" onclick="closeModal('modal-limits-config')"></div>
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>⚙️ ตั้งค่าลิมิตความปลอดภัยของโมเดล AI</h2>
+      <button class="modal-close" onclick="closeModal('modal-limits-config')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label required">โควตา Tokens สูงสุดต่อเดือน</label>
+        <input type="number" class="form-input" id="lim-tokens" min="1000" step="1000" placeholder="เช่น 10000000" required />
+        <small style="opacity: 0.6; display: block; margin-top: 4px;">ลิมิตปริมาณการใช้งาน Token สูงสุดต่อเดือนเพื่อควบคุมค่าใช้จ่าย</small>
+      </div>
+      <div class="form-group" style="margin-top: 1rem;">
+        <label class="form-label required">งบประมาณสูงสุดต่อเดือน (USD)</label>
+        <input type="number" class="form-input" id="lim-cost" min="1" step="0.5" placeholder="เช่น 50.00" required />
+        <small style="opacity: 0.6; display: block; margin-top: 4px;">งบประมาณการเรียกใช้งานสูงสุดรายเดือน (อิงตามเรตราคา API)</small>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-limits-config')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="submitLimitsConfig()">💾 บันทึกการตั้งค่า</button>
     </div>
   </div>
 </div>

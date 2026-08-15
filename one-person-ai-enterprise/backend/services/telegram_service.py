@@ -64,10 +64,30 @@ async def summarize_and_save_session(session_msgs: List[dict]) -> str:
     history_str = ""
     for msg in session_msgs:
         history_str += f"{msg['sender']}: {msg['content']}\n\n"
+
+    # ดึง Log การทำงานจริงจากระบบล่าสุดมาร่วมพิจารณา
+    logs_str = ""
+    try:
+        from backend.services.log_service import get_logs
+        # ดึง 30 log ล่าสุดเพื่อมาวิเคราะห์เหตุการณ์ที่ทำสำเร็จจริง
+        recent_logs = get_logs(limit=30)
+        recent_logs.reverse() # ลำดับตามเวลาจริง
+        log_lines = []
+        for l in recent_logs:
+            ts = l.timestamp.split("T")[1][:5] if "T" in l.timestamp else l.timestamp[:5]
+            log_lines.append(f"[{ts}] {l.agent_name} ({l.level.name}): {l.message}")
+        if log_lines:
+            logs_str = "\n\n--- บันทึกกิจกรรมและเหตุการณ์จริงจากระบบ (System Logs) ---\n" + "\n".join(log_lines) + "\n"
+    except Exception as e_log:
+        logger.warning(f"Failed to fetch logs for session summary: {e_log}")
         
     prompt = (
-        "คุณคือ Chief Knowledge Officer (CKO) มีหน้าที่รวบรวมข้อสรุป บทเรียนองค์กร และคอขวดที่ทีมแก้ไขร่วมกัน รวมถึงจุดคอขวดและสูตรสำเร็จการตลาด (Winner Campaign) จากประวัติการคุยการประชุมต่อไปนี้:\n\n"
-        f"--- ประวัติการประชุม ---\n{history_str}\n\n"
+        "คุณคือ Chief Knowledge Officer (CKO) มีหน้าที่รวบรวมข้อสรุป บทเรียนองค์กร และคอขวดที่ทีมแก้ไขร่วมกัน รวมถึงจุดคอขวดและสูตรสำเร็จการตลาด (Winner Campaign)\n"
+        "โดยให้คุณพิจารณาเปรียบเทียบและวิเคราะห์ร่วมกันจาก 2 แหล่งข้อมูลนี้:\n"
+        "1. ประวัติการแชทพูดคุยการประชุมในรอบนี้ (Chat Messages)\n"
+        "2. บันทึกประวัติการทำงานจริงและการทำคำสั่งสำเร็จจากระบบ (System Logs)\n\n"
+        f"--- ประวัติการแชท (Chat History) ---\n{history_str}\n"
+        f"{logs_str}\n\n"
         "กรุณาสรุปข้อมูลและตอบกลับเป็น Markdown ใน 2 ส่วนนี้เท่านั้น (ถ้าส่วนไหนไม่มีข้อมูลในประวัติ ไม่ต้องสรุปส่วนนั้น หรือสรุปสั้นๆ เท่าที่มี):\n\n"
         "1. สำหรับ [คลังปัญญาการตลาด] (หากมีข้อมูลความสำเร็จการตลาด, Winner Campaign หรือคอขวดช่องทางขาย):\n"
         "### [คลังปัญญาการตลาด] - อัปเดตวันที่ [วันที่ปัจจุบัน]\n"
@@ -79,13 +99,22 @@ async def summarize_and_save_session(session_msgs: List[dict]) -> str:
         "- **ข้อสรุปการประชุม**: [สรุปสิ่งที่ทีมตกลงร่วมกัน]\n"
         "- **บทเรียนองค์กร**: [สิ่งที่เรียนรู้และพัฒนาขึ้น]\n"
         "- **คอขวดที่แก้ไขร่วมกัน**: [ปัญหาหลักและแนวทางที่แก้สำเร็จ]\n\n"
-        "ตอบเฉพาะหัวข้อ Markdown ที่สรุปได้ตามเทมเพลตข้างบนนี้เท่านั้น เพื่อให้นำไปต่อท้าย (Append) ในไฟล์ระบบได้เลย ไม่ต้องมีคำเกริ่นใดๆ ทั้งสิ้น"
+        "ตอบเฉพาะหัวข้อ Markdown ที่สรุปได้ตามเทมเพลตข้างบนนี้เท่านั้น เพื่อให้นำไปต่อยอดประมวลผลต่อ ไม่ต้องมีคำเกริ่นใดๆ ทั้งสิ้น"
     )
     
-    summary = await llm.generate(
-        system_instruction="คุณคือ CKO สรุปรายงานการประชุมสั้น กระชับ ตรงประเด็น เป็น Markdown เท่านั้น",
-        user_message=prompt
-    )
+    from backend.services.status_service import set_agent_status
+    set_agent_status("01_secretary", "processing")
+    try:
+        summary = await llm.generate(
+            system_instruction="คุณคือ CKO สรุปรายงานการประชุมสั้น กระชับ ตรงประเด็น เป็น Markdown เท่านั้น",
+            user_message=prompt
+        )
+    finally:
+        set_agent_status("01_secretary", "idle")
+    
+    memory_path = Path(__file__).parent.parent.parent / "company_memory.md"
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    clean_summary = summary.strip().replace("[วันที่ปัจจุบัน]", current_date)
     
     memory_path = Path(__file__).parent.parent.parent / "company_memory.md"
     current_date = datetime.now().strftime("%Y-%m-%d")
@@ -93,11 +122,41 @@ async def summarize_and_save_session(session_msgs: List[dict]) -> str:
     
     if memory_path.exists():
         try:
-            content = memory_path.read_text(encoding="utf-8")
-            new_content = content + "\n\n" + clean_summary
-            memory_path.write_text(new_content, encoding="utf-8")
+            existing_content = memory_path.read_text(encoding="utf-8")
+            
+            merge_prompt = (
+                "คุณคือ CKO (Chief Knowledge Officer) ผู้ดูแลคลังปัญญาของบริษัท\n"
+                "คุณมีหน้าที่อ่านคลังปัญญาเดิมของบริษัท (Company Memory) และนำข้อมูลสรุปการประชุมครั้งใหม่ไปปรับปรุงรวมกัน (Merge & Update) "
+                "เพื่อให้เนื้อหาเป็นปัจจุบันที่สุด กระชับ ชัดเจน และไม่เกิดการบันทึกข้อมูลซ้ำซ้อนในหัวข้อเดียวกัน\n\n"
+                "--- ข้อกำหนดในการควบรวม ---\n"
+                "1. ส่วนของ [ข้อมูลโปรไฟล์ธุรกิจและเป้าหมายองค์กร] (ช่วงบนสุด) ให้คงไว้ตามเดิม ห้ามลบหรือแก้ไข เว้นแต่จะมีข้อมูลอัปเดตสำคัญขัดแย้ง\n"
+                "2. สำหรับหัวข้อ [คลังปัญญาการตลาด] และ [บันทึกการประชุมและบทเรียนองค์กรประจำวัน]:\n"
+                "   - ตรวจสอบประวัติการบันทึก หากเป็นการประชุมของวันใหม่ ให้เพิ่มหัวข้อใหม่ตามลำดับวันที่ล่าสุดอยู่บนสุด\n"
+                "   - หากหัวข้อใหม่มีการแก้ไขรายละเอียดงานหรืออัปเดตความคืบหน้าของหัวข้อเดิมที่มีอยู่แล้วในประวัติ ให้ยุบรวม/อัปเดตหัวข้อเก่าให้เป็นเนื้อหาปัจจุบันและลบข้อมูลที่ล้าสมัยออก\n"
+                "   - ลบประโยคประเภท '*ยังไม่มีการบันทึกข้อมูลล่าสุด*' ออกหากมีข้อมูลจริงแล้ว\n\n"
+                f"--- คลังปัญญาเดิม (Existing Company Memory) ---\n{existing_content}\n\n"
+                f"--- ข้อมูลสรุปใหม่ที่ต้องการอัปเดต (New Summary to Update) ---\n{clean_summary}\n\n"
+                "ตอบกลับเฉพาะเนื้อหา Markdown ของ Company Memory ฉบับสมบูรณ์ใหม่ล่าสุดที่ควบรวมและปรับปรุงเสร็จเรียบร้อยแล้วเท่านั้น ห้ามมีคำอธิบายเพิ่มเติมใดๆ นอกเหนือจากตัวไฟล์"
+            )
+            
+            set_agent_status("01_secretary", "processing")
+            try:
+                merged_content = await llm.generate(
+                    system_instruction="คุณคือ CKO ผู้มีหน้าที่ควบรวมและอัปเดตเอกสาร Company Memory ให้เป็นระเบียบและเป็นปัจจุบันที่สุด ตอบเฉพาะไฟล์ Markdown เท่านั้น",
+                    user_message=merge_prompt
+                )
+            finally:
+                set_agent_status("01_secretary", "idle")
+                
+            clean_merged = merged_content.strip()
+            # ป้องกันข้อผิดพลาดกรณี LLM ตอบกลับว่างเปล่า หรือหลุดหัวข้อ
+            if clean_merged and "# Company Memory" in clean_merged:
+                memory_path.write_text(clean_merged, encoding="utf-8")
+            else:
+                new_content = existing_content + "\n\n" + clean_summary
+                memory_path.write_text(new_content, encoding="utf-8")
         except Exception as e:
-            logger.error(f"Failed to write to company_memory.md: {e}")
+            logger.error(f"Failed to merge and write to company_memory.md: {e}")
             
     return clean_summary
 
@@ -115,6 +174,22 @@ def _get_owner_prompt_context() -> str:
         except Exception:
             pass
 
+    # ดึง Log ล่าสุดมาใช้งานร่วมเพื่อความต่อเนื่องของการพูดคุยและการทำงาน
+    recent_activities = ""
+    try:
+        from backend.services.log_service import get_logs
+        logs = get_logs(limit=15)
+        # เรียงจากเก่าไปใหม่ เพื่อให้โมเดลอ่านตามลำดับเวลาที่เกิดขึ้นจริง
+        logs.reverse()
+        log_lines = []
+        for l in logs:
+            ts = l.timestamp.split("T")[1][:5] if "T" in l.timestamp else l.timestamp[:5]
+            log_lines.append(f"[{ts}] {l.agent_name}: {l.message}")
+        if log_lines:
+            recent_activities = "\n\n--- ประวัติการประชุมและการทำงานล่าสุด (Recent Meeting & Execution Logs) ---\n" + "\n".join(log_lines) + "\n"
+    except Exception:
+        pass
+
     return (
         f"\n\n--- ข้อมูลเกี่ยวกับ Owner (คู่สนทนาและผู้บริหารของคุณ) ---\n"
         f"ชื่อ: {owner_name}\n"
@@ -122,6 +197,7 @@ def _get_owner_prompt_context() -> str:
         f"ทักษะ/ความเชี่ยวชาญ: {owner_skill}\n"
         f"คำแนะนำ: ให้คุณเรียกชื่อจริงของ Owner คือ '{owner_name}' หรือทักทายอย่างสุภาพและเป็นกันเองด้วยความสนิทสนม เช่น 'คุณ {owner_name}' หรือ 'ท่าน {owner_name}' แทนคำว่า 'Owner' เฉยๆ เพื่อความเป็นกันเองในบริษัท\n"
         f"{company_memory}"
+        f"{recent_activities}"
     )
 
 
@@ -591,11 +667,16 @@ async def _handle_personal_chat(chat_id: str, sender_name: str, text: str, bot_t
         llm = LLMService(model="gemini-1.5-flash", temperature=0.7)
 
         history = _chat_histories.get(chat_id, [])
-        reply = await llm.generate(
-            system_instruction=ctx["system_instruction"],
-            user_message=text,
-            history=history
-        )
+        from backend.services.status_service import set_agent_status
+        set_agent_status(dept_id, "processing")
+        try:
+            reply = await llm.generate(
+                system_instruction=ctx["system_instruction"],
+                user_message=text,
+                history=history
+            )
+        finally:
+            set_agent_status(dept_id, "idle")
 
         # บันทึกประวัติการสนทนา
         history.append({"role": "user", "content": text})
@@ -960,7 +1041,14 @@ async def run_director_meeting(message: str) -> dict:
         f"คำแนะนำ: ตอบเป็นภาษาไทยด้วยสำนวนที่เป็นธรรมชาติและกึ่งกันเองเหมือนเป็นการคุยระดมสมองของคนในทีมที่เป็นกันเอง (สุภาพแต่ไม่เป็นทางการเกินไป เข้าถึงง่าย) กระชับ ตรงประเด็น สรุปวาระประชุมและวาง Action Plan ชัดเจนสำหรับส่งต่อให้แต่ละทีมปฏิบัติการทันที"
     ) + _get_owner_prompt_context()
 
-    reply = await llm.generate(system_instruction=system_instruction, user_message=message)
+    from backend.services.status_service import set_agent_status
+    for d_id in dept_rooms.keys():
+        set_agent_status(d_id, "processing")
+    try:
+        reply = await llm.generate(system_instruction=system_instruction, user_message=message)
+    finally:
+        for d_id in dept_rooms.keys():
+            set_agent_status(d_id, "idle")
 
     write_log(LogCreate(
         agent_id="pm_ai",
@@ -1062,7 +1150,12 @@ async def run_department_direct_command(dept_id: str, message: str) -> dict:
         f"ข้อแนะนำ: ตอบในนาม '{pm_name}' อย่างกระตือรือร้น สุภาพ สรุปงานที่จะทำให้ Owner ทราบสั้นๆ พร้อมแจ้งว่าจะเริ่มดำเนินการทันที"
     ) + _get_owner_prompt_context()
 
-    reply = await llm.generate(system_instruction=system_instruction, user_message=message)
+    from backend.services.status_service import set_agent_status
+    set_agent_status(dept_id, "processing")
+    try:
+        reply = await llm.generate(system_instruction=system_instruction, user_message=message)
+    finally:
+        set_agent_status(dept_id, "idle")
 
     # 1. Log หัวหน้าทีม PM รับคำสั่ง
     write_log(LogCreate(
