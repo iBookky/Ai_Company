@@ -16,6 +16,16 @@ let _pendingProposal = null;
 
 // ─── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const page = el.dataset.page;
+      if (page) {
+        e.preventDefault();
+        navigateTo(page);
+      }
+    });
+  });
+
   routeFromHash();
   startClock();
   fetchHealthCheck();
@@ -29,21 +39,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ─── Routing ──────────────────────────────────────────────────
 const PAGES = {
-  dashboard: { title: 'ภาพรวมระบบ', sub: 'One-Person AI Enterprise Platform', load: loadDashboard },
+  dashboard: {
+    title: 'บอร์ดสั่งการ (Visual Kanban)',
+    sub: 'One-Person AI Enterprise Command Center — สั่งงาน ติดตาม และอนุมัติปิดงาน (HITL)',
+    load: () => {
+      loadDashboard();
+      if (typeof fetchSimulationState === 'function') fetchSimulationState();
+    }
+  },
+  office3d: {
+    title: 'ออฟฟิศเสมือนจริง 3D (Virtual AI Office)',
+    sub: 'ติดตามชีวิตและการปฏิบัติงานสดของทีมงาน AI ทั้ง 6 แผนกในสำนักงาน 3D แบบเรียลไทม์',
+    load: () => {
+      if (typeof initOffice3D === 'function') {
+        setTimeout(initOffice3D, 50);
+      }
+    }
+  },
+  workstations: {
+    title: 'โต๊ะทำงานพนักงาน AI (Virtual Cockpit)',
+    sub: 'ติดตามสถานะการทำงานสด, Task งาน, และประวัติผลงานย้อนหลังของพนักงาน AI แต่ละคน',
+    load: () => { if (typeof loadWorkstations === 'function') loadWorkstations(); }
+  },
   boardroom: { title: 'ห้องประชุมผู้บริหาร', sub: 'กำหนดนโยบาย สั่งงาน ประชุม Director', load: loadBoardroom },
-  teams:     { title: 'ทีมปฏิบัติการ', sub: 'จัดการทีม Agent และ PM Bots', load: loadTeams },
+  simulation: {
+    title: 'บอร์ดสั่งการ (Visual Kanban)',
+    sub: 'One-Person AI Enterprise Command Center',
+    load: () => { navigateTo('dashboard'); }
+  },
+  kanban: {
+    title: 'บอร์ดสั่งการ (Visual Kanban)',
+    sub: 'One-Person AI Enterprise Command Center',
+    load: () => { navigateTo('dashboard'); }
+  },
+  teams:     { title: 'ทีมปฏิบัติการ AI', sub: 'จัดการทีม Agent และ PM Bots', load: loadTeams },
   logs:      { title: 'Logs การทำงาน', sub: 'ติดตาม Log ระบบ Real-time', load: loadLogs },
   settings:  { title: 'ตั้งค่าระบบ', sub: 'API Keys, Bot Token, การเชื่อมต่อ', load: loadSettings },
 };
 
 function routeFromHash() {
-  const hash = location.hash.replace('#/', '') || 'dashboard';
-  const page = PAGES[hash] ? hash : 'dashboard';
+  const raw = location.hash.replace('#/', '') || 'dashboard';
+  const pagePart = raw.split('?')[0].split('/')[0];
+  const page = PAGES[pagePart] ? pagePart : 'dashboard';
   activatePage(page);
 }
 
 function navigateTo(page) {
-  location.hash = '#/' + page;
+  if (location.hash === '#/' + page) {
+    activatePage(page);
+  } else {
+    location.hash = '#/' + page;
+  }
 }
 
 function activatePage(page) {
@@ -204,35 +250,45 @@ function connectLogWS() {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  PAGE: DASHBOARD
+//  PAGE: DASHBOARD (Visual Kanban & Stats)
 // ══════════════════════════════════════════════════════════════
 async function loadDashboard() {
   try {
     const [agents, rooms] = await Promise.all([
-      apiGet('/api/agents'),
-      apiGet('/api/telegram/rooms'),
+      apiGet('/api/agents').catch(() => []),
+      apiGet('/api/telegram/rooms').catch(() => ({})),
     ]);
-    allAgents = agents;
-    allRooms  = rooms;
+    allAgents = agents || [];
+    allRooms  = rooms || {};
 
     // Stats
-    const depts = new Set(agents.map(a => a.department)).size;
-    document.getElementById('stat-agents').textContent = agents.length;
-    document.getElementById('stat-depts').textContent  = depts;
-    document.getElementById('stat-logs').textContent   = allLogs.length;
-    document.getElementById('stat-telegram').textContent = rooms.bot_configured ? '✓ เชื่อมต่อ' : '✗ ยังไม่ตั้งค่า';
-    document.getElementById('badge-teams').textContent = depts;
+    const depts = new Set((agents || []).map(a => a.department)).size;
+    const statAgents = document.getElementById('stat-agents');
+    if (statAgents) statAgents.textContent = (agents || []).length;
+    const statDepts = document.getElementById('stat-depts');
+    if (statDepts) statDepts.textContent = depts;
+    const statLogs = document.getElementById('stat-logs');
+    if (statLogs) statLogs.textContent = allLogs.length;
+    const statTg = document.getElementById('stat-telegram');
+    if (statTg) statTg.textContent = rooms?.bot_configured ? '✓ เชื่อมต่อ' : '✗ ยังไม่ตั้งค่า';
+    const badgeTeams = document.getElementById('badge-teams');
+    if (badgeTeams) badgeTeams.textContent = depts || 6;
 
     // Quick teams
-    renderQuickTeams(rooms);
+    renderQuickTeams(rooms || {});
 
     // Log preview
     updateDashboardLogPreview();
     
     // Load Model Usage Stats
-    loadUsageStats();
+    if (typeof loadUsageStats === 'function') loadUsageStats();
+
+    // Fetch and render Kanban Simulation state
+    if (typeof fetchSimulationState === 'function') {
+      fetchSimulationState();
+    }
   } catch (err) {
-    console.error(err);
+    console.warn('Dashboard load warning:', err);
   }
 }
 
@@ -449,19 +505,27 @@ function renderTeams(agents, rooms, filter = '') {
       </div>`).join('');
 
     const footer = isSecretary ? `
-      <button class="btn btn-sm btn-primary" onclick="openSecretaryChat()">💬 คุยกับอิงฟ้า</button>
+      <button class="btn btn-sm btn-primary" onclick="openDeptDispatchModal('${deptId}')">🚀 สั่งงานเลขาอิงฟ้า</button>
+      <button class="btn btn-sm" onclick="openEmployeeWorkstation('${deptId}')">👤 โต๊ะทำงาน</button>
+      <button class="btn btn-sm" onclick="openAvatarModal('${deptId}')" title="เปลี่ยนรูป AI">📷 เปลี่ยนรูป</button>
+      <button class="btn btn-sm" onclick="openSecretaryChat()">💬 คุยกับอิงฟ้า</button>
       <button class="btn btn-sm" onclick="openCreateAgentForDept('${deptId}')">＋ Agent</button>
     ` : `
-      <button class="btn btn-sm btn-primary" onclick="openDirectCommandModal('${deptId}', '${escHtml(name)}')">💬 สั่งงาน</button>
+      <button class="btn btn-sm btn-primary" onclick="openDeptDispatchModal('${deptId}')">🚀 สั่งงานแผนกนี้</button>
+      <button class="btn btn-sm" onclick="openEmployeeWorkstation('${deptId}')">👤 โต๊ะทำงาน</button>
+      <button class="btn btn-sm" onclick="openAvatarModal('${deptId}')" title="เปลี่ยนรูป AI">📷 เปลี่ยนรูป</button>
+      <button class="btn btn-sm" onclick="openDirectCommandModal('${deptId}', '${escHtml(name)}')">💬 สั่งตรง</button>
       <button class="btn btn-sm" onclick="openCreateAgentForDept('${deptId}')">＋ Agent</button>
-      ${!token ? `<button class="btn btn-sm" onclick="setTokenForTeam('${deptId}', '${escHtml(name)}')">🔑 ตั้งค่า Token</button>` : ''}
+      ${!token ? `<button class="btn btn-sm" onclick="setTokenForTeam('${deptId}', '${escHtml(name)}')">🔑 Token</button>` : ''}
       <button class="btn btn-sm btn-danger" onclick="deleteTeam('${deptId}', '${escHtml(name)}')">🗑️</button>
     `;
 
     return `
       <div class="team-card" id="tc-${deptId}">
         <div class="team-card-head">
-          <div class="team-avatar">${avatarEmoji}</div>
+          <div class="team-avatar" style="cursor:pointer; overflow:hidden; padding:0; display:flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:50%; border:2px solid var(--border);" onclick="openEmployeeWorkstation('${deptId}')" title="คลิกเพื่อดูโต๊ะทำงาน">
+            <img src="/static/img/avatars/${deptId}.jpg" alt="${escHtml(name)}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.parentElement.innerHTML='${avatarEmoji}';" />
+          </div>
           <div class="team-info">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <div class="team-name">${escHtml(name)}</div>

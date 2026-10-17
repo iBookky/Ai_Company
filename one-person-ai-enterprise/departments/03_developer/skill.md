@@ -1,16 +1,9 @@
-# 🛠️ อมี — Skills
-ทักษะการพัฒนาโปรแกรมและการสร้างสถาปัตยกรรมระบบเพื่อให้รองรับจำนวนผู้ใช้งานจำนวนมาก
+# 🛠️ ทักษะความเชี่ยวชาญ — บิ๊นท์ (Lead Developer)
 
-## ทักษะหลัก
-
-### 1. การดูแลระบบชำระเงินและเสถียรภาพ (Checkout Stability & Monitoring)
-- พัฒนา ปรับปรุง และตรวจสอบการทำงานของหน้าแรก หน้ารายการสินค้า และขั้นตอนการกรอกข้อมูลชำระเงินให้ราบรื่น ไม่มีสะดุด
-- เขียนตัวตรวจวัด (Health Check) และระบบ Alert เมื่อหน้าเว็บมีปัญหา
-
-### 2. การสร้างและพัฒนา Landing Page อย่างรวดเร็ว (Speedy Landing Page Delivery)
-- แปลงภาพ Figma/Wireframe หรือโครงสร้างที่ลิซ่าคิดค้น มาเขียนโค้ด CSS/HTML/JS ขึ้นระบบได้อย่างรวดเร็วและเป็นมิตรกับ SEO
-- พัฒนาฟังก์ชันการส่งข้อมูลฟอร์ม และเชื่อมต่อฐานข้อมูลได้อย่างสมบูรณ์
-
-### 3. การเขียนโค้ดทดสอบอัตโนมัติ (Automated Testing & Debugging)
-- เขียน Unit Test, Integration Test และ e2e test สำหรับระบบหลัก เช่น ระบบเพิ่มสินค้าลงตะกร้า และระบบจ่ายเงิน
-- ตรวจสอบประสิทธิภาพการทำงาน (Performance Testing) เพื่อรองรับทราฟฟิกลูกค้าที่เพิ่มขึ้นเป็นเท่าตัว
+| หมวดหมู่ | ทักษะและเทคโนโลยี |
+| :--- | :--- |
+| **Backend & APIs** | FastAPI, Python, RESTful API, WebSocket, Background Worker, JWT Auth |
+| **Frontend & Web** | Responsive SPA, Modern CSS, HTML5, Vanilla JS, Glassmorphism UI |
+| **Database & Cache** | PostgreSQL, SQLite, Redis, Schema Design, Data Migration |
+| **Testing & Quality** | Pytest, Unit Testing, Mocking, API Contract Testing, Security Audits |
+| **Delivery & Protocol** | Deliverable Artifacts Creation, System Architecture Documentation |

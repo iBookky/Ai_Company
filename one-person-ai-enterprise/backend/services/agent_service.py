@@ -52,6 +52,20 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
         except json.JSONDecodeError:
             pass
 
+    # Avatar URL
+    avatar_url = config.get("avatar_url", "")
+    if not avatar_url:
+        default_avatars = {
+            "01_secretary": "/static/img/avatars/01_secretary.jpg",
+            "02_การตลาด_ai": "/static/img/avatars/02_marketing.jpg",
+            "02_marketing": "/static/img/avatars/02_marketing.jpg",
+            "03_developer": "/static/img/avatars/03_developer.jpg",
+            "04_data_analyst": "/static/img/avatars/04_data_analyst.jpg",
+            "05_accounting": "/static/img/avatars/05_accounting.jpg",
+            "06_devops": "/static/img/avatars/06_devops.jpg",
+        }
+        avatar_url = default_avatars.get(dept_dir.name, "/static/img/avatars/01_secretary.jpg")
+
     return AgentRead(
         id=dept_dir.name,
         name=config.get("name", dept_dir.name),
@@ -61,6 +75,7 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
         department=dept_dir.name,
         ops_chat_id=config.get("ops_chat_id", ""),
         pm_name=config.get("pm_name", ""),
+        avatar_url=avatar_url,
         has_identity=identity_file.exists(),
         has_skill=skill_file.exists(),
         has_job_description=job_description_file.exists(),
@@ -95,8 +110,10 @@ def list_agents() -> list[AgentRead]:
 
 def get_agent(agent_id: str) -> Optional[AgentDetail]:
     """ดึงข้อมูล Agent พร้อม identity, skill และ job_description เต็ม"""
-    dept_dir = DEPARTMENTS_DIR / agent_id
-    if not dept_dir.exists():
+    if not agent_id or ".." in agent_id or "/" in agent_id or "\\" in agent_id:
+        return None
+    dept_dir = (DEPARTMENTS_DIR / agent_id).resolve()
+    if not dept_dir.is_relative_to(DEPARTMENTS_DIR) or not dept_dir.exists():
         return None
 
     base = _read_agent_dir(dept_dir)
@@ -116,15 +133,21 @@ def get_agent(agent_id: str) -> Optional[AgentDetail]:
 
 
 def create_agent(data: AgentCreate) -> AgentRead:
-    """สร้าง Agent ใหม่พร้อมโฟลเดอร์และไฟล์"""
+    """สร้าง Agent ใหม่พร้อมโฟลเดอร์และไฟล์อย่างปลอดภัย"""
     # สร้างชื่อโฟลเดอร์
     dept_id = data.department.strip()
     if not re.match(r"^\d+_", dept_id):
         idx = _get_next_dept_index()
         safe_name = _sanitize_dir_name(data.name)
         dept_id = f"{idx}_{safe_name}"
+    else:
+        # Enforce safe directory name chars ป้องกัน Path Traversal
+        if not re.match(r"^[a-zA-Z0-9_\-\u0E00-\u0E7F]+$", dept_id):
+            raise ValueError("รหัสแผนกไม่ถูกต้อง มีอักขระที่ไม่ปลอดภัย")
 
-    dept_dir = DEPARTMENTS_DIR / dept_id
+    dept_dir = (DEPARTMENTS_DIR / dept_id).resolve()
+    if not dept_dir.is_relative_to(DEPARTMENTS_DIR):
+        raise ValueError("Invalid department path")
     dept_dir.mkdir(parents=True, exist_ok=True)
 
     # เขียนไฟล์
@@ -141,6 +164,7 @@ def create_agent(data: AgentCreate) -> AgentRead:
         "department": dept_id,
         "parent_department": data.parent_department,
         "ops_chat_id": data.ops_chat_id or "",
+        "avatar_url": data.avatar_url or "",
         "created_at": datetime.now().isoformat(),
     }
     (dept_dir / "config.json").write_text(
@@ -152,14 +176,19 @@ def create_agent(data: AgentCreate) -> AgentRead:
 
 def update_agent(agent_id: str, data: AgentUpdate) -> Optional[AgentRead]:
     """อัปเดตข้อมูล Agent"""
-    dept_dir = DEPARTMENTS_DIR / agent_id
-    if not dept_dir.exists():
+    if not agent_id or not re.match(r"^[a-zA-Z0-9_\-\u0E00-\u0E7F]+$", agent_id):
+        return None
+    dept_dir = (DEPARTMENTS_DIR / agent_id).resolve()
+    if not dept_dir.is_relative_to(DEPARTMENTS_DIR) or not dept_dir.exists():
         return None
 
     config_file = dept_dir / "config.json"
     config = {}
     if config_file.exists():
-        config = json.loads(config_file.read_text(encoding="utf-8"))
+        try:
+            config = json.loads(config_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
 
     if data.name is not None:
         config["name"] = data.name
@@ -171,6 +200,13 @@ def update_agent(agent_id: str, data: AgentUpdate) -> Optional[AgentRead]:
         config["ops_chat_id"] = data.ops_chat_id
     if data.pm_name is not None:
         config["pm_name"] = data.pm_name
+    if data.avatar_url is not None:
+        config["avatar_url"] = data.avatar_url
+        try:
+            from backend.services import simulation_service
+            simulation_service.EMPLOYEE_AVATARS_MAP[agent_id] = data.avatar_url
+        except Exception:
+            pass
 
     config["updated_at"] = datetime.now().isoformat()
     config_file.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -186,26 +222,42 @@ def update_agent(agent_id: str, data: AgentUpdate) -> Optional[AgentRead]:
 
 
 def delete_agent(agent_id: str) -> bool:
-    """ลบ Agent และโฟลเดอร์ทั้งหมด"""
-    dept_dir = DEPARTMENTS_DIR / agent_id
-    if not dept_dir.exists():
+    """ลบ Agent และโฟลเดอร์อย่างปลอดภัย (ป้องกันการลบแผนกหลักและ Path Traversal)"""
+    # ป้องกันการลบแผนกหลัก 6 แผนก
+    CORE_DEPTS = {"01_secretary", "02_การตลาด_ai", "03_developer", "04_data_analyst", "05_accounting", "06_devops"}
+    if agent_id in CORE_DEPTS:
         return False
-    shutil.rmtree(dept_dir)
-    return True
+
+    if not re.match(r"^[a-zA-Z0-9_\-\u0E00-\u0E7F]+$", agent_id):
+        return False
+
+    dept_dir = (DEPARTMENTS_DIR / agent_id).resolve()
+    if not dept_dir.is_relative_to(DEPARTMENTS_DIR.resolve()) or not dept_dir.exists():
+        return False
+
+    try:
+        shutil.rmtree(dept_dir)
+        return True
+    except Exception:
+        return False
 
 
 def rename_department_id(old_id: str, new_id: str) -> bool:
-    """เปลี่ยนชื่อโฟลเดอร์ ID ของแผนก/ทีมบนดิสก์ และอัปเดตไฟล์คอนฟิกด้านใน"""
-    old_dir = DEPARTMENTS_DIR / old_id
-    new_dir = DEPARTMENTS_DIR / new_id
+    """เปลี่ยนชื่อโฟลเดอร์ ID ของแผนก/ทีมบนดิสก์อย่างปลอดภัย"""
+    if not re.match(r"^[a-zA-Z0-9_\-\u0E00-\u0E7F]+$", old_id) or not re.match(r"^[a-zA-Z0-9_\-\u0E00-\u0E7F]+$", new_id):
+        return False
+
+    old_dir = (DEPARTMENTS_DIR / old_id).resolve()
+    new_dir = (DEPARTMENTS_DIR / new_id).resolve()
+
+    if not old_dir.is_relative_to(DEPARTMENTS_DIR.resolve()) or not new_dir.is_relative_to(DEPARTMENTS_DIR.resolve()):
+        return False
+
     if not old_dir.exists() or new_dir.exists():
         return False
 
     try:
-        # ย้าย/เปลี่ยนชื่อโฟลเดอร์
         old_dir.rename(new_dir)
-
-        # อัปเดตไฟล์ config.json ด้านใน
         config_file = new_dir / "config.json"
         if config_file.exists():
             config = json.loads(config_file.read_text(encoding="utf-8"))

@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -18,7 +18,7 @@ BASE_DIR = Path(__file__).parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 # Import routers
-from backend.routers import agents, logs, drafts, skype, telegram, settings, usage
+from backend.routers import agents, logs, drafts, skype, telegram, settings, usage, simulation
 from backend.services import log_service
 from backend.models.schemas import LogCreate, LogLevel
 
@@ -66,12 +66,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Security Middleware
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -83,6 +93,7 @@ app.include_router(skype.router)
 app.include_router(telegram.router)
 app.include_router(settings.router)
 app.include_router(usage.router)
+app.include_router(simulation.router)
 
 @app.get("/api/health")
 async def health():
@@ -94,7 +105,7 @@ async def health():
 
 
 # Serve frontend static files
-FRONTEND_DIR = BASE_DIR / "frontend"
+FRONTEND_DIR = (BASE_DIR / "frontend").resolve()
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
@@ -104,8 +115,20 @@ if FRONTEND_DIR.exists():
 
     @app.get("/{path:path}")
     async def serve_spa(path: str):
-        """Serve SPA — fallback to index.html"""
-        file_path = FRONTEND_DIR / path
+        """Serve SPA — fallback to index.html with strict path traversal checks"""
+        # Block arbitrary api calls falling through
+        if path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+
+        file_path = (FRONTEND_DIR / path).resolve()
+        # ป้องกัน Path Traversal
+        if not file_path.is_relative_to(FRONTEND_DIR):
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # ป้องกันการเข้าถึงไฟล์ซ่อน (.env, .git)
+        if file_path.name.startswith("."):
+            raise HTTPException(status_code=403, detail="Access denied")
+
         if file_path.exists() and file_path.is_file():
             return FileResponse(str(file_path))
         return FileResponse(str(FRONTEND_DIR / "index.html"))

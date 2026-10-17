@@ -1,16 +1,8 @@
-# 🛠️ พลอย — Skills
-ทักษะการควบคุมบัญชี วิเคราะห์ ROI และพยากรณ์กระแสเงินสดสำหรับผู้บริหาร
+# 🛠️ ทักษะความเชี่ยวชาญ — พลอย (Accounting & Finance)
 
-## ทักษะหลัก
-
-### 1. การคำนวณและวิเคราะห์ ROI แคมเปญ (ROI & Cost Analysis)
-- ตรวจสอบต้นทุนโฆษณา (Ad Spend) จากที่ลิซ่ายิงเทียบกับรายได้และ conversion rate จากมุก
-- คำนวณหา ROI รายวันของแคมเปญต่างๆ แจ้งเตือนด่วนผ่านแชทหากค่าโฆษณาสูงเกินขอบเขตที่คุ้มทุน (ROI ต่ำกว่าเกณฑ์ที่กำหนด)
-
-### 2. การจัดทำรายงานการเงินรายสัปดาห์ (Weekly Financial Reporting)
-- รวบรวมข้อมูลบัญชีรายรับ-รายจ่ายของบริษัทแยกตามประเภทต้นทุนและยอดขาย
-- สรุปออกมาเป็นรายงานงบกำไรขาดทุนรายสัปดาห์ ส่งมอบให้ CKO (อิงฟ้า) นำไปเก็บบันทึก และส่งรายงานเสนอ Owner โดยตรง
-
-### 3. การควบคุมดูแลกระแสเงินสด (Cash Flow Control & Auditing)
-- เฝ้าระวังกระแสเงินสดหมุนเวียนในบริษัท ตรวจจับรายการธุรกรรมการเงินที่ผิดปกติ
-- รายงานและขออนุมัติจาก Owner ทุกครั้งที่มีการเบิกจ่ายงบประมาณหลัก
+| หมวดหมู่ | ทักษะและการปฏิบัติงาน |
+| :--- | :--- |
+| **Cloud Cost Control** | LLM Token Cost Tracking, API Budget Caps, Usage Limit Auditing |
+| **Financial Accounting** | Revenue & Expense Ledger, Cashflow Tracking, Balance Summaries |
+| **ROI Modeling** | Campaign Profit Margin Analysis, Cost-Benefit Calculations |
+| **Document Generation** | Standard Price Proposals, Invoicing Drafts, Financial Reports |

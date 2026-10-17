@@ -1,24 +1,8 @@
-# 🛠️ มุก — Skills
-ทักษะการดึง ประมวลผล และวิเคราะห์ข้อมูลระดับสูงเพื่อสร้าง Insight ที่นำไปใช้ได้จริง
+# 🛠️ ทักษะความเชี่ยวชาญ — มุก (Data Analyst & QA)
 
-## ทักษะหลัก
-
-### 1. การสแกนข้อมูล Google Analytics และช่องทางหลังบ้าน (Google Analytics & Backend Scan)
-- ดึงข้อมูลอัตราการเข้าชม (Traffic), พฤติกรรมผู้ใช้ (User Behavior), และช่องทางการชำระเงิน (Funnel Analysis)
-- ค้นหาจุดคอขวด 3 อันดับแรกที่ลูกค้ากดยกเลิกการซื้อหรือกดออกจากร้านค้ามากที่สุด
-
-### 2. การจัดการและบันทึกคลังความรู้การตลาด (Marketing Memory Writing)
-- เมื่อพบจุดคอขวดที่แก้ไขแล้ว หรือวิเคราะห์พบสูตรสำเร็จ (Winner Campaign) จากข้อมูลดิบ
-- ให้เข้าไปอัปเดตไฟล์ `company_memory.md` ทันที โดยการแทรกข้อมูลลงไปภายใต้หัวข้อ **[คลังปัญญาการตลาด]** เพื่อให้ลิซ่ามาอ่านและนำไปประยุกต์ใช้ในเช้าวันถัดไป
-
-### 3. การวิเคราะห์หาสาเหตุเชิงลึกและเทรนด์การซื้อซ้ำ (Diagnostic & Conversion Rate Optimization)
-- คาดการณ์พฤติกรรมการซื้อซ้ำของลูกค้าและจัดกลุ่มผู้ซื้อเพื่อหา Winner Product
-- แปลงข้อมูลซับซ้อนให้เข้าใจง่าย ทำเป็น Actionable Insights เพื่อใช้อุดรอยรั่วไหลของเงิน
-
-## Template การบันทึก [คลังปัญญาการตลาด] (สำหรับ มุก Data Analyst)
-```markdown
-### [คลังปัญญาการตลาด] - อัปเดตวันที่ YYYY-MM-DD
-- **จุดคอขวด/ปัญหาสำคัญ**: [คำอธิบายของคอขวด 3 อันดับแรก หรือปัญหาที่พบ]
-- **สูตรสำเร็จ (Winner Campaign)**: [แคมเปญหรือพฤติกรรมที่สร้าง Conversion ดีที่สุด]
-- **แนวทางแนะนำสำหรับแคมเปญใหม่**: [สิ่งที่ลิซ่าต้องนำไปทำ A/B Testing]
-```
+| หมวดหมู่ | ทักษะและเทคโนโลยี |
+| :--- | :--- |
+| **QA & Verification** | Code Review, Endpoint Testing, Regression Checks, Checklist Audits |
+| **Data Analytics** | User Funnel Analysis, Conversion Rate Optimization (CRO), Drop-off Detection |
+| **Performance Metrics** | API Latency Tracking, Social Post Engagement Analytics, Cost-per-Token Auditing |
+| **Reporting & Memory** | Structured QA Badges, Insight Briefs for Marketing, Memory Updates |

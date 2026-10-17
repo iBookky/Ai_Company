@@ -50,8 +50,12 @@ def write_log(data: LogCreate) -> LogEntry:
     # เก็บใน memory
     _log_cache.append(entry)
 
-    # broadcast ไปยัง WebSocket subscribers
-    asyncio.create_task(_broadcast_log(entry))
+    # broadcast ไปยัง WebSocket subscribers อย่างปลอดภัย
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_broadcast_log(entry))
+    except RuntimeError:
+        pass
 
     return entry
 

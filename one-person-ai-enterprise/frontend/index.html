@@ -8,6 +8,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/main.css" />
+  <link rel="stylesheet" href="/static/css/simulation.css" />
+  <link rel="stylesheet" href="/static/css/kanban.css" />
+  <link rel="stylesheet" href="/static/css/workstation.css" />
+  <link rel="stylesheet" href="/static/css/office3d.css" />
 </head>
 <body>
 
@@ -24,23 +28,33 @@
     <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="ย่อ/ขยายเมนู">‹</button>
   </div>
 
-  <nav class="sidebar-nav">
     <a class="nav-item active" data-page="dashboard" href="#/dashboard" id="nav-dashboard">
-      <span class="nav-icon">📊</span>
-      <span class="nav-label">ภาพรวมระบบ</span>
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">บอร์ดสั่งการ (Visual Kanban)</span>
+      <span class="nav-badge pending" id="badge-kanban-pending" style="display:none">0</span>
+    </a>
+    <a class="nav-item" data-page="office3d" href="#/office3d" id="nav-office3d">
+      <span class="nav-icon">🏢</span>
+      <span class="nav-label">ออฟฟิศเสมือนจริง 3D (AI Office)</span>
+      <span class="nav-badge" style="background:rgba(99,102,241,0.25); color:#a5b4fc; border:1px solid rgba(99,102,241,0.4);">3D Live</span>
+    </a>
+    <a class="nav-item" data-page="workstations" href="#/workstations" id="nav-workstations">
+      <span class="nav-icon">👤</span>
+      <span class="nav-label">โต๊ะทำงานพนักงาน (Workstations)</span>
+      <span class="nav-badge" id="badge-workstations">6</span>
     </a>
     <a class="nav-item" data-page="boardroom" href="#/boardroom" id="nav-boardroom">
       <span class="nav-icon">🏛️</span>
       <span class="nav-label">ห้องประชุมผู้บริหาร</span>
     </a>
     <a class="nav-item" data-page="teams" href="#/teams" id="nav-teams">
-      <span class="nav-icon">🏢</span>
-      <span class="nav-label">ทีมปฏิบัติการ</span>
-      <span class="nav-badge" id="badge-teams">0</span>
+      <span class="nav-icon">👥</span>
+      <span class="nav-label">ทีมปฏิบัติการ AI</span>
+      <span class="nav-badge" id="badge-teams">6</span>
     </a>
     <a class="nav-item" data-page="logs" href="#/logs" id="nav-logs">
-      <span class="nav-icon">📋</span>
-      <span class="nav-label">Logs การทำงาน</span>
+      <span class="nav-icon">📜</span>
+      <span class="nav-label">Logs ระบบ</span>
       <span class="nav-badge error" id="badge-errors" style="display:none">0</span>
     </a>
     <a class="nav-item" data-page="settings" href="#/settings" id="nav-settings">
@@ -52,7 +66,7 @@
   <div class="sidebar-footer">
     <div class="sys-status">
       <span class="status-dot" id="status-dot"></span>
-      <span id="status-text">กำลังโหลด...</span>
+      <span id="status-text">พร้อมใช้งาน</span>
     </div>
     <div class="sys-time" id="sys-time"></div>
   </div>
@@ -64,10 +78,16 @@
 <main class="main" id="main">
   <header class="topbar">
     <div class="topbar-title">
-      <h1 id="page-title">ภาพรวมระบบ</h1>
-      <p id="page-subtitle">One-Person AI Enterprise Platform</p>
+      <h1 id="page-title">บอร์ดสั่งการ (Visual Kanban)</h1>
+      <p id="page-subtitle">One-Person AI Enterprise Command Center</p>
     </div>
     <div class="topbar-actions">
+      <button class="btn btn-sm" onclick="toggleTelegramDrawer()" style="background:rgba(52,211,153,0.12); border-color:rgba(52,211,153,0.3); color:#34d399; font-weight:600;">
+        🔔 Telegram (<span id="topbar-tg-badge">0</span>)
+      </button>
+      <button class="btn btn-sm" onclick="fetchSimulationState()" title="รีเฟรชสถานะบอร์ด">
+        🔄 รีเฟรช
+      </button>
       <span class="live-badge" id="live-badge">● Live</span>
       <span class="time-badge" id="topbar-time">--:--:--</span>
     </div>
@@ -76,151 +96,307 @@
   <div class="page-content" id="page-content">
 
     <!-- ══════════════════════════════════════════════ -->
-    <!--  PAGE: DASHBOARD                               -->
+    <!--  PAGE: DASHBOARD (Visual Kanban Board)         -->
     <!-- ══════════════════════════════════════════════ -->
     <div class="page active" id="page-dashboard">
-      <div class="stats-grid" id="dashboard-stats">
-        <div class="stat-card">
-          <div class="stat-icon">🤖</div>
-          <div class="stat-body">
-            <div class="stat-value" id="stat-agents">—</div>
-            <div class="stat-label">Agent ทั้งหมด</div>
+
+      <!-- Executive Hero & Quick Command Bar -->
+      <div class="kanban-hero">
+        <div class="kanban-hero-top">
+          <div class="kanban-hero-title">
+            <h2>🏢 One-Person AI Enterprise — Kanban Command Center</h2>
+            <p>สั่งงาน ติดตามการทำงานสดของทีม AI และกดยืนยันอนุมัติปิดงาน (HITL) ทั้งหมดในหน้าเดียว</p>
+          </div>
+          <div class="executive-stat-pills">
+            <span class="stat-pill">🤖 ทีม AI: <strong>6</strong> ตำแหน่ง</span>
+            <span class="stat-pill active">⚡ กำลังทำ: <strong id="kb-count-active">0</strong> งาน</span>
+            <span class="stat-pill pending">🚨 รอยืนยันอนุมัติ: <strong id="kb-count-pending">0</strong> งาน</span>
+            <span class="stat-pill done">✅ เสร็จแล้ว: <strong id="kb-count-done">0</strong> งาน</span>
+            <button class="stat-pill" style="cursor:pointer;" onclick="openLimitsModal()" title="คลิกเพื่อตั้งค่าลิมิตความปลอดภัย">🛡️ งบประมาณ AI</button>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">🏢</div>
-          <div class="stat-body">
-            <div class="stat-value" id="stat-depts">—</div>
-            <div class="stat-label">ทีมปฏิบัติการ</div>
+
+        <!-- How-to-Command Quick Guide -->
+        <div class="cmd-guide-banner">
+          <div class="guide-item">
+            <span class="guide-num">1</span>
+            <div class="guide-content">
+              <strong>สั่งงานอัตโนมัติ 100% (แนะนำ):</strong> พิมพ์เป้าหมายที่ต้องการในช่องด้านล่าง แล้วกด <code>🚀 สั่งงานทันที</code> — เลขาอิงฟ้าจะคิด วางแผน และมอบหมายงานให้แผนกที่ตรงสายทำงานเองทันทีโดยไม่ต้องเลือกแผนกเอง!
+            </div>
+          </div>
+          <div class="guide-item">
+            <span class="guide-num">2</span>
+            <div class="guide-content">
+              <strong>สั่งตรงรายแผนก 1-Click:</strong> ดูการ์ดทีมงาน AI ทั้ง 6 แผนกด้านล่าง แล้วกดปุ่ม <code>🚀 สั่งงานแผนกนี้</code> หรือคลิกคำสั่งด่วนบนการ์ด
+            </div>
+          </div>
+          <div class="guide-item">
+            <span class="guide-num">3</span>
+            <div class="guide-content">
+              <strong>ตรวจสอบ & อนุมัติ (HITL):</strong> AI จะทำงานสดและส่งผลงานเข้าคอลัมน์ <code>🚨 รอยืนยันอนุมัติปิดงาน</code> ให้คุณกดไฟเขียวปิดงานเสมอ
+            </div>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">📋</div>
-          <div class="stat-body">
-            <div class="stat-value" id="stat-logs">—</div>
-            <div class="stat-label">Log รวมวันนี้</div>
-          </div>
+
+        <!-- Fast Command Input -->
+        <div class="command-input-wrapper">
+          <input type="text" class="command-input-field" id="kb-command-input" placeholder="💡 พิมพ์สั่งงานทีม AI อะไรก็ได้ที่นี่... เช่น 'สร้างระบบ OTP + สคริปต์คลิปสั้นโปรโมต 3 คลิป', 'เซ็ต Docker CI/CD', 'สรุปค่า Token เดือนนี้'..." onkeydown="if(event.key==='Enter') kbLaunchCustom()" />
+          <button class="btn-command-send" onclick="kbLaunchCustom()">
+            <span>🚀 สั่งงานทันที (Auto-Dispatch)</span>
+          </button>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">🔔</div>
-          <div class="stat-body">
-            <div class="stat-value" id="stat-telegram">—</div>
-            <div class="stat-label">Telegram</div>
+
+        <!-- 1-Click Launch Presets Row -->
+        <div class="preset-pills-row">
+          <span class="preset-pill-label">คำสั่งด่วน 1-Click:</span>
+          <div class="preset-chip" onclick="launchSimulationPreset('systems_dev')">
+            <span>💻</span> พัฒนาระบบ API (บิ๊นท์)
+          </div>
+          <div class="preset-chip" onclick="launchSimulationPreset('social_content')">
+            <span>📣</span> ผลิต Content Social (ลิซ่า)
+          </div>
+          <div class="preset-chip" onclick="launchSimulationPreset('devops')">
+            <span>⚡</span> เซ็ต Docker CI/CD (ก้อง)
+          </div>
+          <div class="preset-chip" onclick="launchSimulationPreset('data_analyst')">
+            <span>📊</span> ตรวจ QA & วิเคราะห์ Funnel (มุก)
+          </div>
+          <div class="preset-chip" onclick="launchSimulationPreset('accounting')">
+            <span>💰</span> สรุปค่า Token & บัญชี (พลอย)
+          </div>
+          <div class="preset-chip" onclick="launchSimulationPreset('collaborative')">
+            <span>🌐</span> Full Launch (Dev + Social)
+          </div>
+          <div class="preset-chip highlight" onclick="launchSimulationPreset('hiring_request')">
+            <span>👥</span> ขอเสนอจ้างทีมเพิ่ม
+          </div>
+          <div class="preset-chip" onclick="openSecretaryChat()">
+            <span>💬</span> คุยกับเลขาอิงฟ้า
+          </div>
+          <div class="preset-chip" onclick="toggleTelegramDrawer()">
+            <span>🔔</span> Telegram (<span id="kb-tg-count">0</span>)
+          </div>
+          <div class="preset-chip" style="margin-left:auto; color:#fca5a5; border-color:rgba(239,68,68,0.25);" onclick="resetSimulationStudio()">
+            <span>⏹️</span> รีเซ็ตบอร์ด
           </div>
         </div>
       </div>
 
-      <div class="dashboard-grid">
-        <!-- Secretary Card -->
-        <div class="card secretary-card">
-          <div class="card-header">
-            <span class="card-icon">🗂️</span>
-            <h2>เลขา AI (อิงฟ้า)</h2>
-            <span class="badge badge-online" id="status-badge-secretary">Online</span>
+      <!-- 🏢 Department Command & 1-Click Dispatch Hub -->
+      <section class="dept-command-hub" id="dept-command-hub">
+        <div class="dept-hub-header">
+          <div class="dept-hub-title">
+            <span>🏢</span>
+            <span>ศูนย์สั่งการทีมงาน AI ทั้ง 6 แผนก — สั่งงานตรง 1-Click</span>
           </div>
-          <p class="card-desc">คุยปรึกษา ถามความเห็น รายงานประจำวันอัตโนมัติ<br/>08:30 น. & 18:00 น. เวลาไทย</p>
-          <div class="card-actions">
-            <button class="btn btn-primary" onclick="openSecretaryChat()">💬 คุยกับอิงฟ้า</button>
+          <div class="dept-hub-sub">
+            💡 กดปุ่ม <strong style="color:#a5b4fc;">🚀 สั่งงานแผนกนี้</strong> เพื่อสั่งงานเฉพาะทาง หรือกดชิปคำสั่งด่วน
+          </div>
+        </div>
+        <div class="dept-cmd-grid" id="dept-cmd-grid">
+          <!-- Loaded dynamically via simulation.js -->
+        </div>
+      </section>
+
+      <!-- AI Workforce Presence Strip -->
+      <div class="workforce-strip">
+        <div class="workforce-strip-label">
+          <span>👥</span>
+          <span>สถานะทีมงาน AI:</span>
+        </div>
+        <div id="workforce-strip-agents" style="display:flex; gap:0.6rem; align-items:center;">
+          <!-- Loaded dynamically -->
+        </div>
+      </div>
+
+      <!-- 4-Column Visual Kanban Board -->
+      <div class="kanban-board">
+        <!-- Col 1: To Do -->
+        <div class="kanban-column kanban-col-todo">
+          <div class="kanban-col-header">
+            <div class="kanban-col-title">
+              <span>📥</span>
+              <span>รอดำเนินการ / บรีฟงาน</span>
+            </div>
+            <span class="kanban-badge-count" id="col-count-todo">5</span>
+          </div>
+          <div class="kanban-col-body" id="kanban-col-todo-body">
+            <!-- Loaded dynamically / presets -->
           </div>
         </div>
 
-        <!-- Quick Command -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-icon">⚡</span>
-            <h2>สั่งงานด่วน</h2>
+        <!-- Col 2: In Progress -->
+        <div class="kanban-column kanban-col-active">
+          <div class="kanban-col-header">
+            <div class="kanban-col-title">
+              <span>⚡</span>
+              <span>กำลังปฏิบัติงานสด</span>
+            </div>
+            <span class="kanban-badge-count" id="col-count-active">0</span>
           </div>
-          <div class="quick-teams-list" id="quick-teams-list">
-            <div class="loading-text">กำลังโหลดทีม...</div>
+          <div class="kanban-col-body" id="kanban-col-active-body">
+            <!-- Loaded dynamically -->
           </div>
         </div>
 
-        <!-- AI Usage Summary Card -->
-        <div class="card card-wide">
-          <div class="card-header">
-            <span class="card-icon">📊</span>
-            <h2>ปริมาณการใช้งานโมเดล AI (โควตาและสถิติ)</h2>
-            <button class="btn btn-sm" onclick="openLimitsModal()">⚙️ ตั้งค่าลิมิตความปลอดภัย</button>
+        <!-- Col 3: Pending Approval (HITL) -->
+        <div class="kanban-column kanban-col-pending">
+          <div class="kanban-col-header">
+            <div class="kanban-col-title" style="color:#fbbf24;">
+              <span>🚨</span>
+              <span>รอยืนยันอนุมัติปิดงาน</span>
+            </div>
+            <span class="kanban-badge-count" id="col-count-pending">0</span>
           </div>
-          
-          <div class="usage-summary-container">
-            <div class="usage-progress-box">
-              <div class="usage-progress-item">
-                <div class="usage-progress-header">
-                  <span>Tokens ที่ใช้ประจำเดือน:</span>
-                  <strong id="usage-tokens-ratio">0 / 10,000,000 Tokens</strong>
-                </div>
-                <div class="progress-bar-container">
-                  <div class="progress-bar-fill" id="usage-tokens-fill" style="width: 0%"></div>
-                </div>
-                <div class="usage-progress-footer">
-                  <span id="usage-tokens-percent">0%</span>
-                  <span id="usage-tokens-remaining">เหลือ 10,000,000 Tokens</span>
-                </div>
-              </div>
-              
-              <div class="usage-progress-item">
-                <div class="usage-progress-header">
-                  <span>ประมาณการค่าใช้จ่าย:</span>
-                  <strong id="usage-cost-ratio">$0.00 / $50.00 USD</strong>
-                </div>
-                <div class="progress-bar-container">
-                  <div class="progress-bar-fill" id="usage-cost-fill" style="width: 0%; background: var(--color-success)"></div>
-                </div>
-                <div class="usage-progress-footer">
-                  <span id="usage-cost-percent">0%</span>
-                  <span id="usage-cost-remaining">เหลือ $50.00 USD</span>
-                </div>
-              </div>
-            </div>
-            
-            <div class="usage-stats-subgrid">
-              <div class="usage-stat-mini">
-                <div class="val" id="usage-today-tokens">0</div>
-                <div class="lbl">ใช้ไปวันนี้ (Tokens)</div>
-              </div>
-              <div class="usage-stat-mini">
-                <div class="val" id="usage-today-cost">$0.00</div>
-                <div class="lbl">ค่าใช้จ่ายวันนี้ (USD)</div>
-              </div>
-              <div class="usage-stat-mini">
-                <div class="val" id="usage-month-requests">0</div>
-                <div class="lbl">จำนวนครั้งที่เรียก (เดือนนี้)</div>
-              </div>
-            </div>
-            
-            <div style="margin-top: 1rem;">
-              <h3 style="margin-bottom: 0.5rem; font-size: 0.95rem; opacity: 0.9;">ประวัติการใช้งานย้อนหลัง</h3>
-              <div class="usage-history-table-container">
-                <table class="usage-table">
-                  <thead>
-                    <tr>
-                      <th>วันที่</th>
-                      <th>จำนวนครั้ง (Requests)</th>
-                      <th>Tokens รวม</th>
-                      <th>ค่าใช้จ่ายประมาณการ (USD)</th>
-                    </tr>
-                  </thead>
-                  <tbody id="usage-history-rows">
-                    <tr><td colspan="4" style="text-align:center; opacity:0.5;">ยังไม่มีประวัติการใช้งาน</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+          <div class="kanban-col-body" id="kanban-col-pending-body">
+            <!-- Loaded dynamically -->
           </div>
         </div>
 
-        <!-- Live Logs Preview -->
-        <div class="card card-wide">
-          <div class="card-header">
-            <span class="card-icon">📡</span>
-            <h2>Log ล่าสุด</h2>
-            <a class="btn btn-sm" href="#/logs" onclick="navigateTo('logs')">ดูทั้งหมด →</a>
+        <!-- Col 4: Done -->
+        <div class="kanban-column kanban-col-done">
+          <div class="kanban-col-header">
+            <div class="kanban-col-title">
+              <span>✅</span>
+              <span>เสร็จสมบูรณ์แล้ว</span>
+            </div>
+            <span class="kanban-badge-count" id="col-count-done">0</span>
           </div>
-          <div class="log-mini" id="dashboard-log-preview">
-            <div class="loading-text">รอ Log...</div>
+          <div class="kanban-col-body" id="kanban-col-done-body">
+            <!-- Loaded dynamically -->
           </div>
         </div>
+      </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!--  PAGE: 3D VIRTUAL AI OFFICE                   -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div class="page" id="page-office3d">
+      <div class="office3d-wrapper">
+        <!-- 3D WebGL Canvas Container -->
+        <div id="office3d-canvas-container"></div>
+
+        <!-- 3D Office Overlay Controls & HUD -->
+        <div class="office3d-hud">
+          <!-- Top Row -->
+          <div class="office3d-top-row">
+            <!-- Top Left: Office Title & Live Stats -->
+            <div class="office3d-hud-card office3d-header-card">
+              <div class="office3d-title-row">
+                <span class="office3d-live-dot"></span>
+                <h3>🏢 One-Person AI Enterprise — 3D Virtual Headquarters</h3>
+              </div>
+              <p class="office3d-sub">ดูพนักงาน AI ทั้ง 6 แผนกกำลังทำงานและเดินไปมาระหว่างโต๊ะทำงาน มุมพักผ่อน และห้องประชุม</p>
+              <div class="office3d-meta-pills">
+                <span class="office3d-pill">👥 AI ประจำการ: <strong>6 คน</strong></span>
+                <span class="office3d-pill active" id="office3d-active-count">⚡ กำลังทำงาน: <strong>0 คน</strong></span>
+                <span class="office3d-pill">💡 คลิกที่ตัวพนักงานหรือโต๊ะทำงานเพื่อสั่งงาน</span>
+              </div>
+            </div>
+
+            <!-- Top Right: Camera Presets & Orbit Controls -->
+            <div class="office3d-hud-card office3d-camera-presets">
+              <span class="hud-label">🎥 มุมมองกล้อง (Camera Presets):</span>
+              <div class="camera-btn-group">
+                <button class="hud-btn active" onclick="setOfficeCameraPreset('isometric', this)">🌐 ภาพรวม (Isometric)</button>
+                <button class="hud-btn" onclick="setOfficeCameraPreset('top', this)">📐 มุมบน (Top-Down)</button>
+                <button class="hud-btn" onclick="setOfficeCameraPreset('boardroom', this)">🏛️ ห้องประชุม</button>
+                <button class="hud-btn" onclick="setOfficeCameraPreset('lounge', this)">☕ มุมกาแฟ</button>
+                <button class="hud-btn" onclick="toggleOfficeFreeRoam()" id="btn-office-freeroam">🎮 หมุนรอบ (Auto Orbit)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Row -->
+          <div class="office3d-bottom-row">
+            <!-- Bottom Left: Quick Jump to AI Employees -->
+            <div class="office3d-hud-card office3d-employee-quickjump">
+              <span class="hud-label">👤 โฟกัสพนักงาน AI (คลิกเพื่อซูมหาทันที):</span>
+              <div class="emp-jump-chips" id="office3d-emp-chips">
+                <!-- Loaded dynamically via renderOfficeHudChips() -->
+              </div>
+            </div>
+
+            <!-- Bottom Right: Quick Dispatch in 3D -->
+            <div class="office3d-hud-card office3d-quick-dispatch">
+              <span class="hud-label">⚡ สั่งงานด่วนในออฟฟิศ 3D:</span>
+              <div class="dispatch-3d-row">
+                <input type="text" id="office3d-quick-input" placeholder="พิมพ์สั่งงาน AI... ดูพวกเขาเดินไปทำงานทันที!" onkeydown="if(event.key==='Enter') dispatchFromOffice3D()" />
+                <button class="btn btn-sm btn-primary" onclick="dispatchFromOffice3D()">🚀 สั่งงาน</button>
+              </div>
+              <div class="dispatch-3d-presets">
+                <button class="mini-chip" onclick="quickRunOfficePreset('systems_dev')">💻 บิ๊นท์เขียนโค้ด</button>
+                <button class="mini-chip" onclick="quickRunOfficePreset('social_content')">📣 ลิซ่าทำคอนเทนต์</button>
+                <button class="mini-chip" onclick="quickRunOfficePreset('devops')">⚡ ก้องรัน DevOps</button>
+                <button class="mini-chip" onclick="quickRunOfficePreset('data_analyst')">📊 มุกตรวจ QA</button>
+                <button class="mini-chip" onclick="quickRunOfficePreset('accounting')">💰 พลอยสรุปงบ</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Center/Right: Floating Employee Inspector Overlay -->
+          <div class="office3d-inspector-card" id="office3d-inspector" style="display:none;">
+            <button class="inspector-close" onclick="closeOfficeInspector()">✕</button>
+            <div class="inspector-header">
+              <div class="inspector-avatar">
+                <img id="inspector-img" src="/static/img/avatars/03_developer.jpg" alt="AI Employee" />
+                <span class="inspector-pip" id="inspector-pip"></span>
+              </div>
+              <div class="inspector-info">
+                <div class="inspector-name" id="inspector-name">บิ๊นท์</div>
+                <div class="inspector-role" id="inspector-role">Lead Full-Stack Developer</div>
+                <div class="inspector-dept" id="inspector-dept">🏢 ฝ่ายพัฒนาระบบซอฟต์แวร์</div>
+              </div>
+            </div>
+            <div class="inspector-status-box">
+              <div class="inspector-status-title">
+                <span id="inspector-status-dot">🟢</span>
+                <span id="inspector-status-text">พร้อมปฏิบัติงาน (Standby)</span>
+              </div>
+              <div class="inspector-thought" id="inspector-thought">
+                "พร้อมรับมอบหมายงานใหม่จากท่าน Owner"
+              </div>
+            </div>
+            <div class="inspector-actions">
+              <button class="btn btn-sm btn-primary" id="inspector-btn-assign" onclick="inspectAssignTask()">🚀 สั่งงานพนักงานคนนี้</button>
+              <button class="btn btn-sm btn-secondary" id="inspector-btn-workstation" onclick="inspectViewWorkstation()">👤 ดูโต๊ะทำงาน</button>
+              <button class="btn btn-sm btn-ghost" id="inspector-btn-avatar" onclick="inspectChangeAvatar()">📷 เปลี่ยนรูป AI</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!--  PAGE: WORKSTATIONS (Virtual Cockpit)         -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div class="page" id="page-workstations">
+      <div class="workstation-container">
+        <!-- Top Employee Selector Strip -->
+        <div class="employee-selector-strip" id="employee-selector-strip">
+          <!-- Loaded dynamically via workstation.js -->
+        </div>
+
+        <!-- Cockpit Content Container -->
+        <div id="workstation-cockpit-content">
+          <div class="loading-text" style="text-align:center; padding:3rem; color:var(--text-muted);">
+            กำลังโหลดข้อมูลโต๊ะทำงานพนักงาน AI...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!--  PAGE: SIMULATION (Mirrored to Kanban)         -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div class="page" id="page-simulation">
+      <div style="text-align:center; padding:3rem 1rem;">
+        <h2 style="margin-bottom:0.75rem;">📋 ศูนย์สั่งการและจำลองงาน AI ถูกรวมเข้าสู่ Kanban Board เรียบร้อยแล้ว</h2>
+        <p style="color:var(--text-muted); margin-bottom:1.5rem;">คุณสามารถสั่งงานและควบคุมการจำลองทั้งหมดได้ที่หน้าบอร์ดสั่งการหลัก</p>
+        <button class="btn btn-primary" onclick="navigateTo('dashboard')">👉 ไปที่บอร์ดสั่งการ (Kanban Board)</button>
       </div>
     </div>
 
@@ -616,6 +792,67 @@
   </div>
 </div>
 
+<!-- 🚀 Department Dispatch Modal (1-Click Autonomous Execution) -->
+<div class="modal" id="modal-dept-dispatch">
+  <div class="modal-backdrop" onclick="closeModal('modal-dept-dispatch')"></div>
+  <div class="modal-box modal-lg">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:0.75rem;">
+        <span id="dispatch-modal-avatar" style="font-size:2rem; width:44px; height:44px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); border-radius:12px;">🤖</span>
+        <div>
+          <h2 id="dispatch-modal-title" style="margin:0; font-size:1.25rem;">สั่งงาน — แผนก</h2>
+          <p id="dispatch-modal-subtitle" style="margin:3px 0 0 0; font-size:0.8rem; color:var(--text-muted);">ผู้รับผิดชอบ: —</p>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-dept-dispatch')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="dispatch-modal-dept-id" value="" />
+      <input type="hidden" id="dispatch-modal-preset" value="" />
+
+      <!-- Department Capabilities Strip -->
+      <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:var(--radius-sm); padding:0.75rem 1rem; margin-bottom:1rem;">
+        <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:3px;">🎯 ขอบเขตความเชี่ยวชาญของแผนกนี้:</div>
+        <div id="dispatch-modal-skills" style="font-size:0.85rem; color:var(--text-primary); font-weight:500;">—</div>
+      </div>
+
+      <!-- Suggested Templates -->
+      <div class="form-group">
+        <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>💡 คำสั่งงานยอดนิยม (คลิกเพื่อเลือกทันที):</span>
+          <span style="font-size:0.72rem; color:var(--text-dim);">1-Click Templates</span>
+        </label>
+        <div class="dispatch-templates-row" id="dispatch-templates-container">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Custom Task Prompt -->
+      <div class="form-group" style="margin-top:1rem;">
+        <label class="form-label required">ระบุรายละเอียดคำสั่งงานที่ต้องการให้ AI ปฏิบัติงาน</label>
+        <textarea class="form-textarea" id="dispatch-prompt-input" rows="4" placeholder="พิมพ์คำสั่งงานที่นี่ เช่น 'สร้างระบบ OTP สำหรับยืนยันตัวตน'"></textarea>
+      </div>
+
+      <!-- AI Autonomous Guarantee Box -->
+      <div class="dispatch-guarantee-box">
+        <span class="guarantee-icon">🛡️</span>
+        <div class="guarantee-text">
+          <strong>กระบวนการทำงานแบบ AI Autonomous 100% + Human Confirmation:</strong>
+          <p style="margin:2px 0 0; font-size:0.78rem; opacity:0.85;">
+            เมื่อกดส่งงาน ทีม AI จะเริ่มวางแผน เขียนโค้ด/คอนเทนต์/รายงาน และตรวจสอบ QA อัตโนมัติในบอร์ด Kanban สดๆ โดยงานจะส่งมาที่กล่อง <em>"รอยืนยันอนุมัติปิดงาน"</em> เพื่อให้ท่าน Owner กดยืนยันไฟเขียวก่อนเสมอ
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-dept-dispatch')">ยกเลิก</button>
+      <button class="btn btn-primary btn-lg" id="btn-dispatch-submit" onclick="submitDeptDispatch()">
+        <span>⚡ ส่งคำสั่งและเริ่มงานทันที (Autonomous Execution)</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Limits Config Modal -->
 <div class="modal" id="modal-limits-config">
   <div class="modal-backdrop" onclick="closeModal('modal-limits-config')"></div>
@@ -643,10 +880,209 @@
   </div>
 </div>
 
+<!-- Deliverable Detail Modal -->
+<div class="modal" id="modal-deliverable-detail">
+  <div class="modal-backdrop" onclick="closeModal('modal-deliverable-detail')"></div>
+  <div class="modal-deliverable-box">
+    <div class="modal-header" style="padding: 1.25rem 1.5rem 0.75rem 1.5rem;">
+      <div>
+        <h2 id="modal-del-title" style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+          📦 รายละเอียดผลงานส่งมอบ
+        </h2>
+        <p id="modal-del-meta" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 3px;">
+          ผู้ส่งมอบ: — | แผนก: —
+        </p>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-deliverable-detail')">✕</button>
+    </div>
+
+    <!-- Tabs Header -->
+    <div class="deliverable-tabs-bar">
+      <button class="del-tab-btn active" data-tab="summary" onclick="switchDeliverableTab('summary')">
+        📝 สรุปผลงาน & QA
+      </button>
+      <button class="del-tab-btn" data-tab="code" onclick="switchDeliverableTab('code')">
+        💻 โค้ดที่พัฒนาเสร็จ
+      </button>
+      <button class="del-tab-btn" data-tab="social" onclick="switchDeliverableTab('social')">
+        📱 สคริปต์ Social Media
+      </button>
+      <button class="del-tab-btn" data-tab="checklist" onclick="switchDeliverableTab('checklist')">
+        📋 รายการตรวจสอบ (Checklist)
+      </button>
+    </div>
+
+    <!-- Tab 1: Summary -->
+    <div class="deliverable-tab-pane active" id="del-pane-summary">
+      <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 0.95rem; color: #fbbf24; margin-bottom: 0.5rem;">📌 สรุปสาระสำคัญของผลงาน</h3>
+        <p id="modal-del-summary" style="font-size: 0.9rem; line-height: 1.6; color: var(--text-primary);"></p>
+      </div>
+      <div style="background: rgba(16,185,129,0.08); border-left: 3px solid #10b981; border-radius: 0 8px 8px 0; padding: 1rem; margin-bottom: 1rem;">
+        <strong style="color: #34d399; font-size: 0.85rem; display: block; margin-bottom: 4px;">🧪 ผลการประเมินคุณภาพ (QA Review by มุก)</strong>
+        <span id="modal-del-qa" style="font-size: 0.85rem; color: #d1fae5;"></span>
+      </div>
+      <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+        <strong>รายละเอียดเพิ่มเติม:</strong> <span id="modal-del-details">—</span>
+      </div>
+    </div>
+
+    <!-- Tab 2: Code Files -->
+    <div class="deliverable-tab-pane" id="del-pane-code">
+      <div id="modal-del-code-container"></div>
+    </div>
+
+    <!-- Tab 3: Social Posts -->
+    <div class="deliverable-tab-pane" id="del-pane-social">
+      <div id="modal-del-social-container"></div>
+    </div>
+
+    <!-- Tab 4: Checklist -->
+    <div class="deliverable-tab-pane" id="del-pane-checklist">
+      <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 1.25rem;">
+        <h3 style="font-size: 0.95rem; color: #fbbf24; margin-bottom: 0.75rem;">📋 เกณฑ์การส่งมอบและการตรวจสอบ</h3>
+        <div id="modal-del-checklist"></div>
+      </div>
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div class="modal-footer" id="modal-del-footer-actions" style="background: rgba(0,0,0,0.3); border-top: 1px solid var(--border); padding: 1rem 1.5rem;">
+      <!-- Populated dynamically -->
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  MODAL: CHANGE AI AVATAR                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal" id="modal-change-avatar">
+  <div class="modal-backdrop" onclick="closeModal('modal-change-avatar')"></div>
+  <div class="modal-box avatar-modal-card">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:0.6rem;">
+        <span style="font-size:1.5rem;">🎨</span>
+        <div>
+          <h3 style="font-size:1.15rem; font-weight:700; color:#fff;">ปรับเปลี่ยนรูปประจำตัว AI</h3>
+          <p style="font-size:0.78rem; color:var(--text-muted);">เลือกอัปโหลดรูปภาพใหม่, ระบุ URL รูปภาพ, หรือเลือกจากรูปสำเร็จรูป</p>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-change-avatar')">✕</button>
+    </div>
+
+    <div class="modal-body" style="padding: 1.25rem 1.5rem;">
+      <!-- Avatar Preview -->
+      <div class="avatar-preview-box">
+        <div class="avatar-preview-img-wrap">
+          <img id="avatar-modal-img" src="/static/img/avatars/01_secretary.jpg" alt="AI Avatar Preview" />
+        </div>
+        <div class="avatar-preview-name" id="avatar-modal-name">อิงฟ้า</div>
+        <div class="avatar-preview-role" id="avatar-modal-role">เลขา AI & Orchestrator</div>
+      </div>
+
+      <!-- Method Tabs -->
+      <div class="avatar-method-tabs">
+        <button class="avatar-method-tab active" data-tab="upload" onclick="switchAvatarTab('upload')">
+          📁 อัปโหลดไฟล์รูป
+        </button>
+        <button class="avatar-method-tab" data-tab="url" onclick="switchAvatarTab('url')">
+          🔗 ใส่ URL รูปภาพ
+        </button>
+        <button class="avatar-method-tab" data-tab="presets" onclick="switchAvatarTab('presets')">
+          🎭 รูปสำเร็จรูป
+        </button>
+      </div>
+
+      <!-- Tab 1: Upload File -->
+      <div class="avatar-tab-content active" id="avatar-tab-upload">
+        <label class="avatar-dropzone" for="avatar-file-input" id="avatar-dropzone">
+          <input type="file" id="avatar-file-input" accept=".jpg,.jpeg,.png,.webp" style="display:none;" onchange="onAvatarFileSelected(event)" />
+          <div class="avatar-dropzone-icon">📤</div>
+          <div class="avatar-dropzone-text">คลิกเลือกรูปภาพ หรือลากไฟล์มาวางที่นี่</div>
+          <div class="avatar-dropzone-hint">รองรับไฟล์ .JPG, .PNG, .WebP (ขนาดไม่เกิน 5 MB)</div>
+        </label>
+      </div>
+
+      <!-- Tab 2: Direct URL -->
+      <div class="avatar-tab-content" id="avatar-tab-url">
+        <div style="display:flex; flex-direction:column; gap:0.5rem;">
+          <label style="font-size:0.8rem; font-weight:600; color:#cbd5e1;">URL ลิงก์รูปภาพ (Image URL):</label>
+          <div style="display:flex; gap:0.5rem;">
+            <input type="url" id="avatar-url-input" class="input-field" placeholder="https://images.unsplash.com/... หรือ URL รูปภาพ" style="flex:1;" oninput="onAvatarUrlChange()" />
+            <button class="btn btn-secondary btn-sm" onclick="onAvatarUrlChange()">พรีวิว</button>
+          </div>
+          <span style="font-size:0.72rem; color:var(--text-muted);">* รองรับลิงก์รูปภาพที่เป็น HTTPS หรือ Direct Image Link ทั่วไป</span>
+        </div>
+      </div>
+
+      <!-- Tab 3: Preset Gallery -->
+      <div class="avatar-tab-content" id="avatar-tab-presets">
+        <div style="font-size:0.78rem; color:#94a3b8; margin-bottom:0.6rem;">คลิกเลือกรูปโปรไฟล์ AI สำเร็จรูปที่ต้องการ:</div>
+        <div class="avatar-presets-grid" id="avatar-presets-grid">
+          <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/01_secretary.jpg', this)">
+            <img src="/static/img/avatars/01_secretary.jpg" alt="Preset Secretary" />
+          </div>
+          <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/03_developer.jpg', this)">
+            <img src="/static/img/avatars/03_developer.jpg" alt="Preset Developer" />
+          </div>
+          <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/02_marketing.jpg', this)">
+            <img src="/static/img/avatars/02_marketing.jpg" alt="Preset Marketing" />
+          </div>
+          <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/04_data_analyst.jpg', this)">
+            <img src="/static/img/avatars/04_data_analyst.jpg" alt="Preset Data Analyst" />
+          </div>
+          <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/05_accounting.jpg', this)">
+            <img src="/static/img/avatars/05_accounting.jpg" alt="Preset Accounting" />
+          </div>
+          <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/06_devops.jpg', this)">
+            <img src="/static/img/avatars/06_devops.jpg" alt="Preset DevOps" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.25); border-top:1px solid var(--border); padding:1rem 1.5rem;">
+      <button class="btn btn-sm btn-ghost" style="color:#f87171;" onclick="resetAvatarModalChanges()">
+        <span>🔄 รีเซ็ตเป็นรูปเดิม</span>
+      </button>
+      <div style="display:flex; gap:0.6rem;">
+        <button class="btn btn-sm btn-secondary" onclick="closeModal('modal-change-avatar')">ยกเลิก</button>
+        <button class="btn btn-sm btn-primary" id="btn-save-avatar" onclick="saveAvatarModalChanges()">
+          <span>💾 บันทึกรูปภาพ</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Telegram Live Alerts Drawer Overlay -->
+<div class="telegram-drawer-overlay" id="telegram-drawer-overlay" onclick="toggleTelegramDrawer()"></div>
+
+<!-- Telegram Live Alerts Drawer -->
+<div class="telegram-drawer" id="telegram-drawer">
+  <div class="tg-drawer-header">
+    <div class="tg-drawer-title">
+      <span>🔔</span>
+      <span>Telegram Alerts (Owner Feed)</span>
+    </div>
+    <button class="tg-drawer-close" onclick="toggleTelegramDrawer()" title="ปิดแถบแจ้งเตือน">✕</button>
+  </div>
+  <div style="padding: 0.75rem 1.25rem; font-size: 0.78rem; color: var(--text-muted); background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.05);">
+    ข้อความและการแจ้งเตือนที่ระบบส่งตรงไปยัง Telegram ของ Owner แบบ Real-Time
+  </div>
+  <div class="tg-drawer-body" id="telegram-drawer-list">
+    <div style="text-align: center; padding: 2rem; opacity: 0.5;">กำลังโหลดประวัติการแจ้งเตือน...</div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="toast-container"></div>
 
 <!-- Scripts -->
+<script src="/static/js/libs/three.min.js"></script>
+<script src="/static/js/libs/OrbitControls.js"></script>
+<script src="/static/js/simulation.js"></script>
+<script src="/static/js/workstation.js"></script>
+<script src="/static/js/office3d.js"></script>
 <script src="/static/js/main.js"></script>
 
 </body>

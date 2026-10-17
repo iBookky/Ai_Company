@@ -2,7 +2,7 @@
 agents.py — Router สำหรับ Agent CRUD API
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, UploadFile, File
 from backend.models.schemas import AgentCreate, AgentRead, AgentUpdate, AgentDetail, ApiResponse
 from backend.services import agent_service
 from backend.services.log_service import write_log
@@ -92,3 +92,26 @@ async def rename_agent_id(agent_id: str, new_id: str):
         message=f"เปลี่ยน ID แผนกจาก {agent_id} เป็น {new_id} สำเร็จ",
     ))
     return ApiResponse(success=True, message=f"เปลี่ยน ID แผนกจาก {agent_id} เป็น {new_id} เรียบร้อยแล้ว")
+
+
+@router.post("/{agent_id}/avatar")
+async def upload_agent_avatar(agent_id: str, file: UploadFile = File(...)):
+    """อัปโหลดรูปภาพประจำตัวสำหรับ Agent/แผนก"""
+    from backend.routers.simulation import upload_employee_avatar
+    return await upload_employee_avatar(agent_id, file)
+
+
+@router.post("/{agent_id}/avatar-url")
+async def set_agent_avatar_url(agent_id: str, req: AgentUpdate):
+    """ตั้งค่า URL รูปภาพประจำตัวสำหรับ Agent"""
+    if not req.avatar_url:
+        raise HTTPException(status_code=400, detail="กรุณาระบุ avatar_url")
+    from backend.routers.simulation import set_employee_avatar_url, SetAvatarUrlRequest
+    return await set_employee_avatar_url(agent_id, SetAvatarUrlRequest(avatar_url=req.avatar_url))
+
+
+@router.post("/{agent_id}/avatar/reset")
+async def reset_agent_avatar(agent_id: str):
+    """รีเซ็ตรูปภาพประจำตัว Agent กลับเป็นรูปมาตรฐาน"""
+    from backend.routers.simulation import reset_employee_avatar
+    return await reset_employee_avatar(agent_id)

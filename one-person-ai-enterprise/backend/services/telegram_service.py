@@ -510,19 +510,73 @@ async def handle_webhook(payload: dict, bot_token: Optional[str] = None) -> dict
         message=f"ได้รับข้อความจาก Telegram ({sender_name}) หา {ctx['agent_name']}: {text[:50]}...",
     ))
 
-    # 1. เช็คคำยืนยันสำหรับคำสั่งที่รอยืนยันอยู่
+    # 1. เช็คคำสั่งระบบ /confirm, /approve, /hire หรือคำว่า "อนุมัติ", "ยืนยัน", "ปิดงาน"
+    from backend.services import simulation_service
+    cleaned_lower = text.strip().lower()
+
+    if cleaned_lower.startswith("/confirm") or cleaned_lower.startswith("/approve") or cleaned_lower in ["อนุมัติ", "ยืนยัน", "ปิดงาน", "confirm", "approve"]:
+        parts = text.strip().split()
+        target_id = parts[1] if len(parts) > 1 else None
+        
+        sim_state = simulation_service.get_simulation_state()
+        pending_tasks = sim_state.get("pending_confirmations", [])
+        
+        task_to_confirm = None
+        if target_id:
+            task_to_confirm = next((t for t in pending_tasks if t.id == target_id), None)
+        elif pending_tasks:
+            task_to_confirm = pending_tasks[0]
+            
+        if task_to_confirm:
+            res = await simulation_service.confirm_task(task_to_confirm.id, owner_name=sender_name)
+            reply = (
+                f"✅ <b>[อนุมัติปิดงานสำเร็จ 100%]</b>\n\n"
+                f"📌 <b>ชื่องาน:</b> {task_to_confirm.title}\n"
+                f"👤 <b>ผู้รับผิดชอบ:</b> {task_to_confirm.assigned_agent_name}\n"
+                f"✨ ระบบได้จัดเก็บผลงานเข้าคลังความรู้บริษัท และบันทึกสถานะปิดงานสำเร็จเรียบร้อยแล้วครับ!"
+            )
+            await send_telegram_message(chat_id, reply, bot_token=bot_token)
+            return {"status": "task_confirmed_via_telegram", "task_id": task_to_confirm.id}
+
+    if cleaned_lower.startswith("/hire") or "อนุมัติสร้าง ai" in cleaned_lower:
+        parts = text.strip().split()
+        target_id = parts[1] if len(parts) > 1 else None
+        
+        sim_state = simulation_service.get_simulation_state()
+        pending_hires = sim_state.get("pending_hires", [])
+        
+        prop_to_approve = None
+        if target_id:
+            prop_to_approve = next((h for h in pending_hires if h.id == target_id), None)
+        elif pending_hires:
+            prop_to_approve = pending_hires[0]
+            
+        if prop_to_approve:
+            res = await simulation_service.approve_hiring_proposal(prop_to_approve.id, owner_name=sender_name)
+            reply = (
+                f"🎉 <b>[อนุมัติสร้างพนักงาน AI สำเร็จ]</b>\n\n"
+                f"👤 <b>พนักงานใหม่:</b> {prop_to_approve.proposed_role}\n"
+                f"🏢 <b>สังกัด:</b> {prop_to_approve.department_name}\n"
+                f"🚀 บรรจุเข้าสู่ระบบ Virtual Office และพร้อมรับคำสั่งงานทันทีครับ!"
+            )
+            await send_telegram_message(chat_id, reply, bot_token=bot_token)
+            return {"status": "hiring_approved_via_telegram", "proposal_id": prop_to_approve.id}
+
+    # 2. เช็คคำยืนยันสำหรับคำสั่งที่รอยืนยันเดิม (Verification Loop เก่า)
     has_active_pending = any(v["status"] == "awaiting_owner" for v in _pending_verifications.values())
     is_confirm = text.lower() in ["ใช่", "yes", "confirm", "อนุมัติ", "ตกลง", "y", "ok"]
 
     if has_active_pending and is_confirm:
         return await _process_confirmation(chat_id, sender_name)
 
-    # 2. จำแนกเจตนาข้อความ (CHAT vs TASK_ORDER)
+    # 3. จำแนกเจตนาข้อความ (CHAT vs TASK_ORDER)
     intent = await classify_intent(text)
 
     if intent == "CHAT":
         return await _handle_personal_chat(chat_id, sender_name, text, bot_token=bot_token)
     else:
+        # สั่งเริ่มการจำลองการทำงานอัตโนมัติใน Simulation Service ควบคู่
+        asyncio.create_task(simulation_service.run_simulation_preset("auto", text))
         return await _initiate_verification(chat_id, sender_name, text)
 
 
@@ -878,6 +932,14 @@ def get_room_status() -> dict:
     default_ops = TELEGRAM_OPS_CHAT_ID or os.getenv("TELEGRAM_OPS_CHAT_ID", "")
 
     dept_rooms = get_all_department_rooms()
+    # Mask bot_token in department rooms to prevent credential leakage via API
+    masked_dept_rooms = {}
+    for d_id, r_info in dept_rooms.items():
+        copy_info = dict(r_info)
+        tok = copy_info.get("bot_token", "")
+        if tok:
+            copy_info["bot_token"] = "••••••••" + tok[-6:] if len(tok) >= 8 else "••••••••"
+        masked_dept_rooms[d_id] = copy_info
 
     return {
         "bot_configured": bool(bot_token),
@@ -896,7 +958,7 @@ def get_room_status() -> dict:
             "id": default_ops,
             "configured": bool(default_ops),
         },
-        "department_rooms": dept_rooms,
+        "department_rooms": masked_dept_rooms,
     }
 
 

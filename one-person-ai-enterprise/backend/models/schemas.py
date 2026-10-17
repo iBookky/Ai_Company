@@ -49,6 +49,7 @@ class AgentCreate(BaseModel):
     role: Optional[str] = Field(None, description="Role identifier")
     ops_chat_id: Optional[str] = Field("", description="Telegram Ops Chat ID ประจำแผนก")
     pm_name: Optional[str] = Field(None, description="ชื่อ PM (หัวหน้าแผนก)")
+    avatar_url: Optional[str] = Field(None, description="URL รูปภาพประจำตัว AI")
 
 
 class AgentRead(BaseModel):
@@ -60,6 +61,7 @@ class AgentRead(BaseModel):
     department: str
     ops_chat_id: str = ""
     pm_name: str = ""
+    avatar_url: Optional[str] = None
     has_identity: bool
     has_skill: bool
     has_job_description: bool
@@ -79,6 +81,7 @@ class AgentUpdate(BaseModel):
     job_description: Optional[str] = None
     ops_chat_id: Optional[str] = None
     pm_name: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 
 class AgentDetail(AgentRead):

@@ -1,0 +1,478 @@
+/* ═══════════════════════════════════════════════════════════════
+   office3d.css — 3D Virtual AI Enterprise Office Styling
+   One-Person AI Enterprise
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Office 3D Full Container ────────────────────────────────── */
+.office3d-wrapper {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 120px);
+  min-height: 650px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  background: #080b12;
+}
+
+#office3d-canvas-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  cursor: grab;
+}
+
+#office3d-canvas-container:active {
+  cursor: grabbing;
+}
+
+/* ─── HUD Overlay Elements ────────────────────────────────────── */
+.office3d-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none; /* Let canvas capture mouse drags by default */
+  z-index: 10;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.office3d-hud-card {
+  pointer-events: auto; /* Allow clicking on HUD controls */
+  background: rgba(13, 17, 26, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  transition: all 0.25s ease;
+}
+
+.office3d-hud-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.hud-label {
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+/* Top Row Layout */
+.office3d-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+/* Top Left: Header Card */
+.office3d-header-card {
+  max-width: 580px;
+}
+
+.office3d-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.35rem;
+}
+
+.office3d-title-row h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.office3d-live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: pulseNeon 1.8s infinite;
+  flex-shrink: 0;
+}
+
+.office3d-sub {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin: 0 0 0.75rem 0;
+}
+
+.office3d-meta-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.office3d-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 3px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.74rem;
+  color: #cbd5e1;
+}
+
+.office3d-pill strong {
+  color: #fff;
+  font-weight: 700;
+}
+
+.office3d-pill.active {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+/* Top Right: Camera Presets */
+.office3d-camera-presets {
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-btn-group {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.hud-btn {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.hud-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.hud-btn.active {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.8), rgba(139, 92, 246, 0.8));
+  color: #fff;
+  border-color: rgba(99, 102, 241, 0.6);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+/* Bottom Row Layout */
+.office3d-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+/* Bottom Left: Employee Quick Jump */
+.office3d-employee-quickjump {
+  max-width: 600px;
+}
+
+.emp-jump-chips {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.emp-jump-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.78rem;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.emp-jump-chip:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: #818cf8;
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.emp-jump-chip .chip-avatar-img {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.emp-jump-chip .chip-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+.emp-jump-chip .chip-status-dot.active {
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
+.emp-jump-chip .chip-status-dot.pending {
+  background: #fbbf24;
+  box-shadow: 0 0 6px #fbbf24;
+}
+
+/* Bottom Right: Quick Dispatch in 3D */
+.office3d-quick-dispatch {
+  width: 440px;
+  max-width: 100%;
+}
+
+.dispatch-3d-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.dispatch-3d-row input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  padding: 6px 10px;
+  color: #fff;
+  font-size: 0.8rem;
+  outline: none;
+  font-family: inherit;
+}
+
+.dispatch-3d-row input:focus {
+  border-color: #6366f1;
+}
+
+.dispatch-3d-presets {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.mini-chip {
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mini-chip:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: #fff;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* ─── Employee Inspector Card (Floating Detail Card) ──────────── */
+.office3d-inspector-card {
+  pointer-events: auto;
+  position: absolute;
+  top: 50%;
+  right: 1.5rem;
+  transform: translateY(-50%);
+  width: 320px;
+  background: rgba(15, 20, 31, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 20px rgba(99, 102, 241, 0.2);
+  z-index: 20;
+  animation: slideInInspector 0.25s ease-out;
+}
+
+@keyframes slideInInspector {
+  from { opacity: 0; transform: translateY(-50%) translateX(20px); }
+  to { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+
+.inspector-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.inspector-close:hover {
+  color: #fff;
+}
+
+.inspector-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 0.9rem;
+}
+
+.inspector-avatar {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #6366f1;
+  flex-shrink: 0;
+  background: #0f172a;
+}
+
+.inspector-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.inspector-pip {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #0f172a;
+  background: #10b981;
+}
+
+.inspector-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.inspector-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inspector-role {
+  font-size: 0.76rem;
+  color: #818cf8;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inspector-dept {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.inspector-status-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.inspector-status-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin-bottom: 0.35rem;
+}
+
+.inspector-thought {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-style: italic;
+  line-height: 1.35;
+}
+
+.inspector-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.inspector-actions button {
+  width: 100%;
+  text-align: center;
+  font-size: 0.78rem;
+}
+
+/* Tooltip on 3D Hover */
+.office3d-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(10, 14, 23, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid #6366f1;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  z-index: 30;
+  transform: translate(-50%, -130%);
+  display: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .office3d-top-row {
+    flex-direction: column;
+  }
+  .office3d-bottom-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .office3d-quick-dispatch {
+    width: 100%;
+  }
+  .office3d-inspector-card {
+    right: 50%;
+    transform: translateY(-50%) translateX(50%);
+    width: 90%;
+    max-width: 320px;
+  }
+}

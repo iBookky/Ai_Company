@@ -140,12 +140,12 @@ class LLMService:
     async def _call_claude(
         self, system_instruction: str, user_message: str, history: Optional[list] = None
     ) -> str:
-        """เรียก Anthropic Claude API"""
-        if not ANTHROPIC_API_KEY:
+        api_key = os.getenv("ANTHROPIC_API_KEY", "")
+        if not api_key:
             return "[Config Error] กรุณาตั้งค่า ANTHROPIC_API_KEY ใน Settings"
         try:
             import anthropic
-            client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+            client = anthropic.AsyncAnthropic(api_key=api_key)
 
             messages = []
             if history:
