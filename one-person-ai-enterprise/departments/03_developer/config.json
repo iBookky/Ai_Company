@@ -1,5 +1,5 @@
 {
-  "name": "ฝ่ายพัฒนาระบบซอฟต์แวร์ (Systems & Software Dev)",
+  "name": "IT & Developer (ฝ่ายพัฒนาระบบซอฟต์แวร์)",
   "role": "pm_03_developer",
   "pm_name": "บิ๊นท์",
   "model": "gemini-1.5-flash",
@@ -8,6 +8,6 @@
   "ops_chat_id": "",
   "bot_token": "",
   "created_at": "2026-08-06T11:09:26.757487",
-  "updated_at": "2026-10-17T07:36:09.777489+00:00",
-  "avatar_url": "/static/img/avatars/03_developer.jpg"
+  "updated_at": "2026-10-19T13:44:54.219916+00:00",
+  "avatar_url": "/static/img/avatars/03_developer.png?v=1792417494"
 }

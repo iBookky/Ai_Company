@@ -123,7 +123,7 @@ DEFAULT_AVATARS_MAP = {
     "03_developer": "/static/img/avatars/03_developer.jpg",
     "04_data_analyst": "/static/img/avatars/04_data_analyst.jpg",
     "05_accounting": "/static/img/avatars/05_accounting.jpg",
-    "06_devops": "/static/img/avatars/06_devops.jpg",
+    "06_sales": "/static/img/avatars/06_sales.jpg",
 }
 
 EMPLOYEE_AVATARS_MAP = dict(DEFAULT_AVATARS_MAP)
@@ -217,12 +217,12 @@ def init_agent_states():
             "avatar": "💰",
         },
         {
-            "id": "06_devops",
-            "name": "ก้อง",
-            "role_title": "Cloud DevOps & Infra Specialist",
-            "department_id": "06_devops",
-            "department_name": "ฝ่ายวิศวกรรมคลาวด์และ DevOps",
-            "avatar": "⚡",
+            "id": "06_sales",
+            "name": "พิมพ์",
+            "role_title": "Head of Sales & Customer Service",
+            "department_id": "06_sales",
+            "department_name": "ฝ่ายขายและบริการลูกค้า (Sales & CS)",
+            "avatar": "🤝",
         },
     ]
 
@@ -410,37 +410,37 @@ def seed_initial_completed_tasks():
     )
     _tasks[t4.id] = t4
 
-    # t5: ก้อง DevOps (06_devops)
+    # t5: พิมพ์ Sales & Customer Service (06_sales)
     t5 = EnterpriseTask(
         id="task-init-005",
-        title="วางระบบ Docker Containerization และ Automated CI/CD Pipeline พร้อม Nginx SSL",
-        category="devops",
-        assigned_agent_id="06_devops",
-        assigned_agent_name="ก้อง (Cloud DevOps)",
-        department_id="06_devops",
+        title="จัดทำ Sales Pipeline, สคริปต์ปิดการขาย B2B และระบบตอบรับลูกค้าสัมพันธ์ 24/7",
+        category="sales",
+        assigned_agent_id="06_sales",
+        assigned_agent_name="พิมพ์ (Sales & CS Lead)",
+        department_id="06_sales",
         status="CONFIRMED",
-        prompt="วางระบบ Container Docker และ CI/CD Pipeline อัตโนมัติ",
+        prompt="ติดต่อลูกค้า นำเสนอแพ็กเกจระบบซอฟต์แวร์ และจัดทำใบเสนอราคา",
         created_at="2026-10-16T17:30:00Z",
         submitted_at="2026-10-16T17:33:00Z",
         confirmed_at="2026-10-16T17:33:30Z",
         deliverable=TaskDeliverable(
-            summary="สร้าง Dockerfile, docker-compose.yml พร้อม Reverse Proxy Nginx และ Healthcheck Uptime 99.99%",
-            type="devops",
-            details="Docker Compose, Nginx Reverse Proxy, SSL Configuration, Automated Container Healthcheck",
+            summary="จัดทำชุดเอกสาร Sales Pitch Deck, แบบร่างใบเสนอราคามาตรฐาน และคลังคำตอบ FAQ สำเร็จรูป 24 ชม.",
+            type="sales",
+            details="Sales Pitch Deck, Quotation Template, Customer Support Script, Omnichannel Helpdesk Workflow",
             files_created=[
                 {
-                    "name": "docker-compose.yml",
-                    "language": "yaml",
-                    "content": "version: '3.8'\nservices:\n  enterprise-app:\n    build: .\n    ports:\n      - '8000:8000'\n    restart: always\n    environment:\n      - ENV=production"
+                    "name": "sales_pitch_and_faq.md",
+                    "language": "markdown",
+                    "content": "# 🤝 AI Enterprise Solutions — Sales Deck & FAQ\n\n- แพ็กเกจระบบบริหารองค์กรอัตโนมัติ 100% AI\n- นำเสนอคุณค่า ROI คืนทุนไวใน 30 วัน\n- บริการดูแลและแก้ไขปัญหา 24/7"
                 }
             ],
             checklist=[
-                "Container Build ผ่าน 100%",
-                "Healthcheck ผ่านเกณฑ์",
-                "SSL Configuration สมบูรณ์",
+                "Sales Script & Pitch Deck ครบถ้วน",
+                "แบบร่างใบเสนอราคาผ่านเกณฑ์",
+                "FAQ & SLA การซัพพอร์ตลูกค้ารัดกุม",
                 "Owner ยืนยันอนุมัติปิดงาน"
             ],
-            qa_report="✅ Zero-Downtime Deploy ผ่านการตรวจสอบโดย ก้อง"
+            qa_report="✅ ข้อมูลและข้อตกลงบริการผ่านการตรวจสอบโดย พิมพ์"
         ),
         owner_feedback="อนุมัติปิดงาน 100% โดย Owner"
     )
@@ -505,7 +505,7 @@ def seed_initial_completed_tasks():
     _tasks[t7.id] = t7
 
 
-seed_initial_completed_tasks()
+# seed_initial_completed_tasks()  # Cleaned for live company launch
 
 
 # ─── Employee Profiles & Virtual Executive Workspaces ──────────────────────
@@ -568,21 +568,21 @@ EMPLOYEE_PROFILES = {
         "compliance_score": 100,
         "risk_level": "LOW RISK",
     },
-    "06_devops": {
-        "id": "06_devops",
-        "name": "ก้อง (Kong)",
-        "role_title": "Cloud Infrastructure & Site Reliability Lead (SRE)",
-        "department_id": "06_devops",
-        "department_name": "ฝ่ายวิศวกรรมคลาวด์ & DevOps",
-        "avatar": "⚡",
-        "photo": "/static/img/avatars/06_devops.jpg",
-        "accent_color": "#fbbf24",
-        "glow": "rgba(251, 191, 36, 0.3)",
-        "motto": "Server ต้องไม่ล่ม Deploy ต้องไร้รอยต่อ และระบบต้องเสถียร 99.99% ตลอด 24 ชั่วโมงครับ",
-        "voice_quote": "สวัสดีครับนายท่าน! เซิร์ฟเวอร์และ Container ทั้งหมดรันอยู่ในสภาวะปกติ 100% Uptime ไม่มีสัญญาณคอขวดครับ",
-        "bio": "วิศวกรโครงสร้างพื้นฐานคลาวด์และ DevOps ผู้ดูแลระบบ Docker Containerization, Nginx SSL Reverse Proxy, Automated CI/CD Pipelines, และระบบสำรองข้อมูลอัตโนมัติ",
-        "tech_stack": ["Docker Compose", "Nginx SSL", "CI/CD Pipeline", "Linux Ubuntu", "Automated Healthchecks", "Zero-Downtime Deploy"],
-        "system_status": "100% OPERATIONAL",
+    "06_sales": {
+        "id": "06_sales",
+        "name": "พิมพ์ (Pim)",
+        "role_title": "Head of Sales & Customer Service",
+        "department_id": "06_sales",
+        "department_name": "ฝ่ายขายและบริการลูกค้า (Sales & CS)",
+        "avatar": "🤝",
+        "photo": "/static/img/avatars/06_sales.jpg",
+        "accent_color": "#fb923c",
+        "glow": "rgba(251, 146, 60, 0.3)",
+        "motto": "บริการด้วยใจ ปิดการขายด้วยคุณค่า และสร้างความประทับใจให้ลูกค้า 24/7 ค่ะ",
+        "voice_quote": "สวัสดีค่ะ! พิมพ์พร้อมดูแลลูกค้า ปิดการขาย และประสานงานทุกความต้องการอย่างรวดเร็วค่ะ",
+        "bio": "หัวหน้าฝ่ายขายและบริการลูกค้าสัมพันธ์ ผู้เชี่ยวชาญด้านการเจรจาต่อรอง การดูแลลูกค้า CRM และการปิดการขายโซลูชันซอฟต์แวร์",
+        "tech_stack": ["B2B Solution Selling", "CRM Pipeline", "24/7 Omnichannel Support", "CSAT Optimization", "Proposal & Quotation", "Customer Retention"],
+        "system_status": "ONLINE & READY",
         "health_score": 100,
         "compliance_score": 100,
         "risk_level": "LOW RISK",
@@ -779,6 +779,21 @@ async def confirm_task(task_id: str, owner_name: str = "Owner", feedback: Option
     except Exception as e:
         logger.warning(f"Could not append to company_memory.md: {e}")
 
+    # บันทึกการเติบโตและบทเรียนลง memory.md ส่วนบุคคลของ Agent
+    try:
+        agent_mem_path = BASE_DIR / "departments" / task.department_id / "memory.md"
+        if agent_mem_path.exists():
+            mem_content = agent_mem_path.read_text(encoding="utf-8")
+            now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
+            mem_entry = (
+                f"\n- *{now_str}* [EXP +25]: ปิดงาน '{task.title}' สำเร็จ — "
+                f"สรุปผล: {task.deliverable.summary[:80] if task.deliverable else 'เรียบร้อย'} | "
+                f"Feedback: \"{task.owner_feedback}\""
+            )
+            agent_mem_path.write_text(mem_content + mem_entry, encoding="utf-8")
+    except Exception as e:
+        logger.warning(f"Could not append to agent memory: {e}")
+
     # ส่ง Telegram แจ้งเตือนปิดงานสำเร็จ
     await dispatch_telegram_notification(
         title="🎉 [ปิดงานเรียบร้อย 100%]",
@@ -832,6 +847,20 @@ async def request_revision(task_id: str, feedback: str, owner_name: str = "Owner
         type_="alert",
         task_id=task.id,
     )
+
+    # บันทึกบทเรียนการแก้ไข (Continuous Learning) ลง memory.md ส่วนบุคคลของ Agent
+    try:
+        agent_mem_path = BASE_DIR / "departments" / task.department_id / "memory.md"
+        if agent_mem_path.exists():
+            mem_content = agent_mem_path.read_text(encoding="utf-8")
+            now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
+            mem_entry = (
+                f"\n- *{now_str}* [เรียนรู้การแก้ไข]: งาน '{task.title}' "
+                f"Owner ชี้แนะว่า: \"{feedback}\" (บันทึกเป็นข้อควรระวังถาวร)"
+            )
+            agent_mem_path.write_text(mem_content + mem_entry, encoding="utf-8")
+    except Exception as e:
+        logger.warning(f"Could not record agent correction: {e}")
 
     await broadcast_simulation_update()
     return {"success": True, "task": task}
@@ -1435,7 +1464,7 @@ async def simulate_ai_hiring_flow():
     proposal = await request_ai_hiring(
         requested_by_id="01_secretary",
         proposed_role="ก้อง (Cloud DevOps Specialist)",
-        department_id="06_devops",
+        department_id="07_devops",
         department_name="ฝ่ายระบบคลาวด์และ DevOps อัตโนมัติ",
         avatar="⚡",
         reason="เพื่อรองรับการ Deploy ระบบขึ้น Cloud (Docker, Kubernetes, CI/CD) และดูแลความเสถียรของเซิร์ฟเวอร์แบบอัตโนมัติ 24/7 เพื่อให้ บิ๊นท์ มีสมาธิกับการเขียนโค้ด Feature หลัก",
@@ -1444,6 +1473,129 @@ async def simulate_ai_hiring_flow():
         model="gemini-1.5-flash"
     )
     return proposal
+
+
+async def simulate_sales_flow(task_title: str, custom_prompt: str = ""):
+    """
+    การจำลองการทำงานฝ่ายขายและบริการลูกค้าสัมพันธ์ (Sales & Customer Service Pipeline)
+    Flow:
+    1. พิมพ์ (Sales & CS Lead) วางกลยุทธ์การขาย คัดกรอง Lead และเตรียม Sales Pitch
+    2. พิมพ์ จัดทำใบเสนอราคา สัญญาการให้บริการ และเอกสาร FAQ ดูแลลูกค้า
+    3. พลอย (Accounting) ตรวจสอบตัวเลขในใบเสนอราคา และเงื่อนไขการเงิน
+    4. ส่งมอบ Deliverable เข้าสู่สถานะ 🚨 AWAITING_CONFIRMATION
+    5. ส่ง Telegram Notification ขอยืนยันปิดงานจาก Owner
+    """
+    task_id = str(uuid.uuid4())[:8]
+    prompt_text = custom_prompt or task_title
+
+    task = EnterpriseTask(
+        id=task_id,
+        title=task_title,
+        category="sales",
+        assigned_agent_id="06_sales",
+        assigned_agent_name="พิมพ์ (Sales & CS Lead)",
+        department_id="06_sales",
+        collaborators=["05_accounting", "01_secretary"],
+        status="IN_PROGRESS",
+        prompt=prompt_text,
+    )
+    _tasks[task_id] = task
+
+    # Step 1: วิเคราะห์ความต้องการลูกค้า
+    if "06_sales" in _agent_states:
+        _agent_states["06_sales"].status = "planning"
+        _agent_states["06_sales"].current_action = f"วิเคราะห์ความต้องการลูกค้าและวางแผน Sales Pitch: {task_title}"
+        _agent_states["06_sales"].current_thought = "จัดเตรียม Solution Architecture, คุณค่า ROI และแพ็กเกจที่ตอบโจทย์ลูกค้า"
+        _agent_states["06_sales"].progress = 25
+        _agent_states["06_sales"].current_task_id = task_id
+    write_log(LogCreate(
+        agent_id="06_sales",
+        agent_name="พิมพ์ (Sales & CS Lead)",
+        level=LogLevel.INFO,
+        message=f"เริ่มวิเคราะห์ความต้องการและจัดทำเอกสารการขาย: {task_title}",
+        thought_process="วิเคราะห์ Pain Point ของลูกค้า คำนวณความคุ้มค่า และจัดเตรียมแพ็กเกจบริการแบบ B2B",
+    ))
+    await broadcast_state()
+    await asyncio.sleep(2.5)
+
+    # Step 2: จัดทำใบเสนอราคาและเอกสารการขาย
+    if "06_sales" in _agent_states:
+        _agent_states["06_sales"].progress = 65
+        _agent_states["06_sales"].status = "writing_content"
+        _agent_states["06_sales"].current_action = "จัดทำใบเสนอราคา, SLA สัญญาการให้บริการ และคลังคำตอบ FAQ สำเร็จรูป"
+        _agent_states["06_sales"].current_thought = "กำหนดเงื่อนไขการชำระเงิน นโยบายดูแลลูกค้า 24/7 และแผนการส่งมอบระบบ"
+    write_log(LogCreate(
+        agent_id="06_sales",
+        agent_name="พิมพ์ (Sales & CS Lead)",
+        level=LogLevel.INFO,
+        message="จัดทำชุดเอกสาร Sales Pitch Deck, ใบเสนอราคา และคู่มือ Customer Service เสร็จสมบูรณ์",
+        thought_process="ประสานงานกับฝ่ายการเงินเพื่อยืนยันเงื่อนไขราคาและส่วนลดพิเศษ",
+    ))
+    await broadcast_state()
+    await asyncio.sleep(2.5)
+
+    # Step 3: ตรวจสอบความถูกต้องทางการเงิน
+    if "05_accounting" in _agent_states:
+        _agent_states["05_accounting"].status = "reviewing"
+        _agent_states["05_accounting"].current_action = "ตรวจสอบตัวเลขในใบเสนอราคาและอัตรากำไรขั้นต้น (Gross Margin)"
+        _agent_states["05_accounting"].current_thought = "ยืนยันเงื่อนไขราคาและเครดิตเทอมถูกต้องตามนโยบายบริษัท"
+        _agent_states["05_accounting"].progress = 85
+    await broadcast_state()
+    await asyncio.sleep(2.0)
+
+    # Step 4: ส่งมอบ Deliverable เข้าสู่สถานะ AWAITING_CONFIRMATION
+    deliverable = TaskDeliverable(
+        summary=f"ชุดเอกสารการขายและข้อตกลงบริการลูกค้า: '{task_title}' จัดเตรียมเสร็จสิ้น",
+        type="sales",
+        details="Sales Solution Deck, Standard Quotation, Customer SLA Guarantee, 24/7 Support Escalation Protocol",
+        files_created=[
+            {
+                "name": "sales_proposal_quotation.md",
+                "language": "markdown",
+                "content": f"# 🤝 ข้อเสนอการขายและใบเสนอราคา — {task_title}\n\n- **ลูกค้าเป้าหมาย**: องค์กรยุคใหม่ที่ต้องการระบบ AI บริหารงานแบบ 100%\n- **คุณค่าหลัก**: ประหยัดต้นทุน 70%, เพิ่มความเร็วการส่งมอบงาน 5 เท่า\n- **บริการหลังการขาย**: ทีม Customer Service ดูแลตลอด 24 ชั่วโมง"
+            }
+        ],
+        checklist=[
+            "Sales Pitch Deck ตรงตามความต้องการลูกค้า",
+            "ใบเสนอราคาและเงื่อนไขการเงินผ่านเกณฑ์",
+            "ระบบ Support FAQ และ Customer SLA ครบถ้วน",
+            "รอยืนยันไฟเขียวอนุมัติปิดงานจาก Owner"
+        ],
+        qa_report="✅ ตรวจสอบข้อตกลงและเงื่อนไขการขายผ่านเกณฑ์ 100% โดย พิมพ์ & พลอย"
+    )
+
+    task.status = "AWAITING_CONFIRMATION"
+    task.deliverable = deliverable
+    task.submitted_at = datetime.now(timezone.utc).isoformat()
+
+    if "06_sales" in _agent_states:
+        _agent_states["06_sales"].status = "awaiting_confirmation"
+        _agent_states["06_sales"].current_action = "🚨 จัดทำเอกสารการขายเสร็จสิ้น! รอ Owner ยืนยันอนุมัติปิดงาน"
+        _agent_states["06_sales"].current_thought = "ส่งชุดเอกสารให้ Owner ตรวจสอบและให้ความเห็นชอบก่อนส่งมอบให้ลูกค้า"
+        _agent_states["06_sales"].progress = 95
+
+    write_log(LogCreate(
+        agent_id="06_sales",
+        agent_name="พิมพ์ (Sales & CS Lead)",
+        level=LogLevel.WARNING,
+        message=f"🚨 งาน '{task_title}' เสร็จสมบูรณ์แล้ว! รอ Owner กดยืนยันอนุมัติปิดงาน (HITL Approval)",
+        thought_process="ระงับการส่งมอบเอกสารภายนอกจนกว่า Owner จะกด Confirm ในระบบหรือ Telegram",
+    ))
+
+    # ส่ง Telegram Notification
+    try:
+        from backend.services.telegram_service import send_telegram_alert
+        await send_telegram_alert(
+            f"🤝 *[งานรออนุมัติปิดงาน - Sales & CS]*\n"
+            f"📌 *ชื่องาน*: {task_title}\n"
+            f"👤 *ผู้รับผิดชอบ*: พิมพ์ (Head of Sales & CS)\n"
+            f"📄 *สรุปผลงาน*: จัดทำเอกสารการขายและสัญญาบริการลูกค้าเสร็จสิ้น\n"
+            f"⚡ *กรุณาตรวจสอบและกดยืนยัน (Confirm) ผ่านหน้าเว็บหรือบอทครับ*"
+        )
+    except Exception as e:
+        logger.warning(f"Telegram notification warning: {e}")
+
+    await broadcast_state()
 
 
 async def simulate_devops_flow(task_title: str, custom_prompt: str = ""):
@@ -1791,7 +1943,7 @@ async def simulate_accounting_flow(task_title: str, custom_prompt: str = ""):
         assigned_agent_id="05_accounting",
         assigned_agent_name="พลอย (Finance & Cost)",
         department_id="05_accounting",
-        collaborators=["01_secretary", "06_devops"],
+        collaborators=["01_secretary", "06_sales"],
         status="IN_PROGRESS",
         prompt=prompt_text,
     )
@@ -1921,7 +2073,7 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = ""):
         assigned_agent_id="01_secretary",
         assigned_agent_name="อิงฟ้า (เลขา AI & CKO)",
         department_id="01_secretary",
-        collaborators=["02_การตลาด_ai", "03_developer", "04_data_analyst", "05_accounting", "06_devops"],
+        collaborators=["02_การตลาด_ai", "03_developer", "04_data_analyst", "05_accounting", "06_sales"],
         status="IN_PROGRESS",
         prompt=prompt_text,
     )
@@ -2050,11 +2202,11 @@ async def run_simulation_preset(preset_key: str, custom_text: str = "") -> dict:
         _active_simulation_task = asyncio.create_task(simulate_content_creation_flow(task_title, custom_text))
         return {"status": "started", "preset": "social_content", "assigned_to": "ลิซ่า (Marketing Lead)", "title": task_title}
 
-    # 3. แผนก DevOps & Cloud (ก้อง - 06_devops)
-    elif preset_key == "devops":
-        task_title = custom_text or "วางระบบ Container Docker และ CI/CD Pipeline อัตโนมัติ"
-        _active_simulation_task = asyncio.create_task(simulate_devops_flow(task_title, custom_text))
-        return {"status": "started", "preset": "devops", "assigned_to": "ก้อง (Cloud DevOps)", "title": task_title}
+    # 3. แผนกขายและบริการลูกค้า (พิมพ์ - 06_sales)
+    elif preset_key in ("sales", "devops"):
+        task_title = custom_text or "จัดทำแผนกลยุทธ์การขาย B2B Solution และระบบตอบกลับลูกค้า 24/7"
+        _active_simulation_task = asyncio.create_task(simulate_sales_flow(task_title, custom_text))
+        return {"status": "started", "preset": "sales", "assigned_to": "พิมพ์ (Sales & CS Lead)", "title": task_title}
 
     # 4. แผนก QA & วิเคราะห์ข้อมูล (มุก - 04_data_analyst)
     elif preset_key == "data_analyst":
@@ -2148,10 +2300,11 @@ async def run_simulation_preset(preset_key: str, custom_text: str = "") -> dict:
 
 
 def reset_simulation():
-    """รีเซ็ตสถานะทั้งหมดกลับสู่ค่าเริ่มต้น"""
+    """รีเซ็ตสถานะทั้งหมดกลับสู่ค่าเริ่มต้น พร้อมเปิดทำการ"""
     global _tasks, _hiring_proposals, _notifications_log
     _tasks.clear()
     _hiring_proposals.clear()
+    _notifications_log.clear()
     init_agent_states()
     for ag in _agent_states.values():
         ag.status = "idle"
@@ -2159,8 +2312,7 @@ def reset_simulation():
         ag.current_thought = "ระบบสแตนด์บาย ทุกกระบวนการต้องรอการยืนยันจาก Owner ก่อนปิดงาน"
         ag.progress = 0
         ag.current_task_id = None
-    seed_initial_completed_tasks()
-    return {"status": "reset_complete"}
+    return {"status": "clean_ready"}
 
 
 # ─── Employee Workstation & Telemetry Services ───────────────────────────────
@@ -2172,7 +2324,7 @@ EMPLOYEE_NICKNAMES_MAP = {
     "03_developer": "บิ๊นท์ (บิ๊นท์)",
     "04_data_analyst": "มุก (มุก)",
     "05_accounting": "พลอย (พลอย)",
-    "06_devops": "ก้อง (ก้อง)",
+    "06_sales": "พิมพ์ (พิมพ์)",
 }
 
 EMPLOYEE_MOTTOS_MAP = {
@@ -2181,7 +2333,7 @@ EMPLOYEE_MOTTOS_MAP = {
     "03_developer": "พัฒนาซอฟต์แวร์ API, Database, Automation คุณภาพระดับ Production • ก่อนปิดงานต้องให้ Owner ยืนยันเสมอ (HITL)",
     "04_data_analyst": "ตรวจสอบคุณภาพงานระบบและคอนเทนต์ พร้อมค้นหาจุดรั่วไหลเพื่อเพิ่ม Conversion Rate สูงสุด",
     "05_accounting": "ควบคุมงบประมาณ ตรวจสอบต้นทุน Token/Cloud และดูแลอัตรากำไร (Profit Margin)",
-    "06_devops": "ดูแล Server Uptime 99.99%, วางระบบ CI/CD Pipelines, และจัดการ Cloud Deployment",
+    "06_sales": "บริการด้วยใจ ปิดการขายด้วยคุณค่า และสร้างความประทับใจให้ลูกค้า 24/7 ค่ะ",
 }
 
 EMPLOYEE_TECH_STACK_MAP = {
@@ -2190,7 +2342,7 @@ EMPLOYEE_TECH_STACK_MAP = {
     "03_developer": ["FastAPI", "Python", "JWT Auth", "PostgreSQL", "Docker", "Pytest", "RESTful API"],
     "04_data_analyst": ["QA Code Review", "Security Audit", "Funnel Analytics", "OWASP Top 10", "Conversion Tracking"],
     "05_accounting": ["Token Auditing", "Cloud Cost Control", "ROI Forecast", "Budget Guardrails", "Ledger Analytics"],
-    "06_devops": ["Docker", "Kubernetes", "CI/CD Actions", "Nginx SSL", "Zero-Downtime", "Healthcheck 99.99%"],
+    "06_sales": ["B2B Solution Selling", "CRM Pipeline", "24/7 Omnichannel Support", "CSAT Optimization", "Proposal & Quotation", "Customer Retention"],
 }
 
 
@@ -2274,6 +2426,7 @@ def get_employee_workspace(employee_id: str) -> Optional[Dict[str, Any]]:
     identity_content = ""
     skill_content = ""
     job_desc_content = ""
+    memory_content = ""
     config_data = {}
 
     if dept_dir.exists():
@@ -2283,6 +2436,8 @@ def get_employee_workspace(employee_id: str) -> Optional[Dict[str, Any]]:
             skill_content = (dept_dir / "skill.md").read_text(encoding="utf-8")
         if (dept_dir / "job_description.md").exists():
             job_desc_content = (dept_dir / "job_description.md").read_text(encoding="utf-8")
+        if (dept_dir / "memory.md").exists():
+            memory_content = (dept_dir / "memory.md").read_text(encoding="utf-8")
         if (dept_dir / "config.json").exists():
             try:
                 config_data = json.loads((dept_dir / "config.json").read_text(encoding="utf-8"))
@@ -2375,6 +2530,7 @@ def get_employee_workspace(employee_id: str) -> Optional[Dict[str, Any]]:
             "identity_md": identity_content,
             "skill_md": skill_content,
             "job_description_md": job_desc_content,
+            "memory_md": memory_content,
             "tech_stack": tech_stack,
             "bot_token": config_data.get("bot_token", ""),
             "has_bot": bool(config_data.get("bot_token")),

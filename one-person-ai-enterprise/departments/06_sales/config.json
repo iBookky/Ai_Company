@@ -1,0 +1,13 @@
+{
+  "name": "Sales & Customer Service (ฝ่ายขายและบริการลูกค้า)",
+  "role": "pm_06_sales",
+  "pm_name": "พิมพ์ (Sales & CS Lead)",
+  "model": "gemini-2.5-flash",
+  "temperature": 0.7,
+  "department": "06_sales",
+  "ops_chat_id": "",
+  "bot_token": "",
+  "created_at": "2026-10-19T12:00:00",
+  "updated_at": "2026-10-19T12:00:00",
+  "avatar_url": "/static/img/avatars/06_sales.jpg"
+}

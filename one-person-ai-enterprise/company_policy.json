@@ -1,0 +1,45 @@
+{
+  "working_hours": {
+    "mode": "autonomous_24_7",
+    "mode_label": "24/7 Autonomous (AI สแตนด์บายและทำงานตลอด 24 ชั่วโมง)",
+    "start_time": "08:30",
+    "end_time": "18:00",
+    "work_days": "ทุกวัน (จันทร์ - อาทิตย์)",
+    "morning_briefing_time": "08:30",
+    "evening_summary_time": "18:00",
+    "off_hours_behavior": "AI ปฏิบัติงานเบื้องหลัง สรุปข้อมูล และสแตนด์บายรับคำสั่งด่วน 24/7",
+    "timezone": "Asia/Bangkok (ICT GMT+7)"
+  },
+  "strategic_direction": {
+    "vision": "สร้างและบริหารองค์กรเทคโนโลยีและคอนเทนต์ระดับสากลด้วยพลังของ One-Person Multi-Agent AI Enterprise 100%",
+    "primary_focus": "1. พัฒนาระบบซอฟต์แวร์และ Automation 2. ธุรกิจร้านอะไหล่รถยนต์ 3. ผลิตคอนเทนต์โซเชียลมีเดียคุณภาพสูง",
+    "quarterly_goals": "พัฒนาระบบอัตโนมัติให้เสร็จสมบูรณ์, ดำเนินงานแบบ Zero-Token ประหยัดงบประมาณ, เพิ่มการเข้าถึงของแบรนด์",
+    "target_audience": "ผู้ประกอบการ, เจ้าของธุรกิจ, ลูกค้าทั่วไป และผู้ติดตามสื่อดิจิทัลสายเทคโนโลยี",
+    "brand_tone": "มืออาชีพ นวัตกรรมสูง จริงใจ เข้าถึงง่าย และสร้างสรรค์"
+  },
+  "policies": {
+    "hitl_rule": "กฎเหล็ก Human-in-the-Loop: ทุกการส่งมอบงานสำคัญ (การเงิน, โพสต์คอนเทนต์จริง, Deploy ระบบ) ต้องผ่านการยืนยัน (Confirm) จาก Owner เสมอ",
+    "token_cost_policy": "นโยบาย Zero-Token Priority: ให้ความสำคัญกับโมเดลในเครื่อง (Local LLM / Ollama) และสมองกลอัจฉริยะเป็นอันดับแรกเพื่อประหยัดต้นทุน 0 บาท",
+    "quality_assurance": "มาตรฐาน Zero-Defect: ซอฟต์แวร์ต้องผ่านการทดสอบครอบคลุม 100% คอนเทนต์ต้อง Hook 3 วินาทีแรกและตรงกลุ่มเป้าหมาย",
+    "security_privacy": "รักษาความลับทางการค้าและข้อมูลลูกค้า 100%: ห้าม Hardcode Secrets และปกป้อง API Keys ทุกระดับ"
+  },
+  "company_model": {
+    "model_type": "One-Person AI Enterprise (Solopreneur + Multi-Agent Workforce)",
+    "supreme_leader": "พี่บุ๊ค (Owner & Supreme Decision Maker)",
+    "core_departments": [
+      "01_secretary: สำนักเลขาและ CKO (อิงฟ้า)",
+      "02_marketing: ฝ่ายการตลาดและ Social Media (ลิซ่า)",
+      "03_developer: ฝ่ายพัฒนาระบบซอฟต์แวร์ (บิ๊นท์)",
+      "04_data_analyst: ฝ่ายวิเคราะห์ข้อมูลและ QA (มุก)",
+      "05_accounting: ฝ่ายบัญชีและการเงิน (พลอย)",
+      "06_sales: ฝ่ายขายและบริการลูกค้าสัมพันธ์ (พิมพ์)"
+    ],
+    "workforce_scaling": "หากมีภาระงานเกินขีดจำกัด AI แต่ละแผนกสามารถยื่นคำขอจ้างงาน AI (Hiring Proposal) ให้ Owner พิจารณาอนุมัติได้"
+  },
+  "shift": {
+    "status": "off_duty",
+    "status_label": "เลิกงาน / พักผ่อน (Off Duty)",
+    "last_started_at": "2026-10-19T14:56:54.356751+00:00",
+    "last_ended_at": "2026-10-19T14:58:55.438139+00:00"
+  }
+}

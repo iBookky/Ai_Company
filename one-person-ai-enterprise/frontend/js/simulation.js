@@ -86,26 +86,26 @@ const ENTERPRISE_DEPARTMENTS = {
       'เขียนบทความเจาะลึกเบื้องหลังระบบ AI สำหรับโพสต์ลง Facebook Page และ LinkedIn'
     ]
   },
-  '06_devops': {
-    id: '06_devops',
-    name: 'ฝ่ายวิศวกรรมคลาวด์ & DevOps',
-    pm: 'ก้อง (Cloud DevOps)',
-    avatar: '⚡',
-    role: 'Cloud DevOps & Infra Specialist',
-    color: '#fbbf24',
-    glow: 'rgba(251, 191, 36, 0.25)',
-    btnBorder: 'rgba(251, 191, 36, 0.4)',
-    btnBg: 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.35))',
-    btnHover: 'linear-gradient(135deg, rgba(251, 191, 36, 0.4), rgba(245, 158, 11, 0.6))',
-    btnColor: '#fde68a',
-    skills: 'Container Docker, CI/CD Pipeline, Nginx Reverse Proxy, Server Uptime 99.99%',
-    preset: 'devops',
-    quickAction: '🐳 เซ็ต Docker & CI/CD',
-    quickPrompt: 'วางระบบ Container Docker และ CI/CD Pipeline อัตโนมัติ',
+  '06_sales': {
+    id: '06_sales',
+    name: 'ฝ่ายขายและบริการลูกค้า (Sales & CS)',
+    pm: 'พิมพ์ (Sales & CS Lead)',
+    avatar: '🤝',
+    role: 'Head of Sales & Customer Service',
+    color: '#fb923c',
+    glow: 'rgba(251, 146, 60, 0.25)',
+    btnBorder: 'rgba(251, 146, 60, 0.4)',
+    btnBg: 'linear-gradient(135deg, rgba(251, 146, 60, 0.2), rgba(249, 115, 22, 0.35))',
+    btnHover: 'linear-gradient(135deg, rgba(251, 146, 60, 0.4), rgba(249, 115, 22, 0.6))',
+    btnColor: '#ffedd5',
+    skills: 'ปิดการขาย B2B, จัดทำใบเสนอราคา, ตอบแชตลูกค้า 24/7, ติดตาม Lead, CRM & Retention',
+    preset: 'sales',
+    quickAction: '🤝 ปิดการขาย & บริการลูกค้า',
+    quickPrompt: 'ติดต่อลูกค้า นำเสนอแพ็กเกจระบบซอฟต์แวร์ และจัดทำใบเสนอราคา',
     templates: [
-      'วางระบบ Container Docker และ CI/CD Pipeline อัตโนมัติ',
-      'เขียน docker-compose สำหรับรัน FastAPI, Postgres, Redis และ Nginx SSL',
-      'ตรวจสอบความปลอดภัยของเซิร์ฟเวอร์ และตั้งค่าระบบ Automated Healthcheck'
+      'ติดต่อลูกค้า นำเสนอแพ็กเกจระบบซอฟต์แวร์ และจัดทำใบเสนอราคา',
+      'ตอบคำถามและดูแลข้อสงสัยของลูกค้าเกี่ยวกับระบบ AI Enterprise ตลอด 24 ชม.',
+      'วางกลยุทธ์ Sales Pipeline และจัดทำสคริปต์ปิดการขายสำหรับลูกค้ารายใหม่'
     ]
   },
   '04_data_analyst': {
@@ -415,22 +415,22 @@ function renderColTodo() {
       </button>
     </div>
 
-    <!-- Preset 3: DevOps & Cloud -->
-    <div class="kanban-card" style="border-left: 3px solid #fbbf24;">
+    <!-- Preset 3: Sales & Customer Service -->
+    <div class="kanban-card" style="border-left: 3px solid #fb923c;">
       <div class="card-top-row">
-        <div class="card-title-text">⚡ 3. วางระบบ Cloud & CI/CD</div>
-        <span class="card-category-tag">DevOps</span>
+        <div class="card-title-text">🤝 3. แผนกลยุทธ์การขาย & ดูแลลูกค้า</div>
+        <span class="card-category-tag">Sales & CS</span>
       </div>
       <div class="card-assignee-row">
-        <span class="card-assignee-avatar">⚡</span>
+        <span class="card-assignee-avatar">🤝</span>
         <div>
-          <span class="card-assignee-name">ก้อง (Cloud DevOps)</span>
+          <span class="card-assignee-name">พิมพ์ (Sales & CS Lead)</span>
         </div>
       </div>
       <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.35; margin:0;">
-        จัดทำ Dockerfile, Compose, CI/CD Actions และตรวจสอบความปลอดภัย
+        จัดทำ B2B Solution Proposal, ปิดการขาย และเตรียมระบบบริการลูกค้า 24/7
       </p>
-      <button class="btn-card-inspect" style="background:rgba(251,191,36,0.1); border-color:rgba(251,191,36,0.3); color:#fbbf24;" onclick="launchSimulationPreset('devops')">
+      <button class="btn-card-inspect" style="background:rgba(251,146,60,0.1); border-color:rgba(251,146,60,0.3); color:#fb923c;" onclick="launchSimulationPreset('sales')">
         ⚡ รันงานนี้ทันที
       </button>
     </div>

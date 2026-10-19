@@ -65,9 +65,11 @@ class AgentRead(BaseModel):
     has_identity: bool
     has_skill: bool
     has_job_description: bool
+    has_memory: bool = False
     identity_preview: str
     skill_preview: str
     job_description_preview: str
+    memory_preview: str = ""
     created_at: str
     path: str
 

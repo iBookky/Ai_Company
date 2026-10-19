@@ -44,6 +44,7 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
     identity_file = dept_dir / "identity.md"
     skill_file = dept_dir / "skill.md"
     job_description_file = dept_dir / "job_description.md"
+    memory_file = dept_dir / "memory.md"
 
     config = {}
     if config_file.exists():
@@ -62,7 +63,7 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
             "03_developer": "/static/img/avatars/03_developer.jpg",
             "04_data_analyst": "/static/img/avatars/04_data_analyst.jpg",
             "05_accounting": "/static/img/avatars/05_accounting.jpg",
-            "06_devops": "/static/img/avatars/06_devops.jpg",
+            "06_sales": "/static/img/avatars/06_sales.jpg",
         }
         avatar_url = default_avatars.get(dept_dir.name, "/static/img/avatars/01_secretary.jpg")
 
@@ -79,6 +80,7 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
         has_identity=identity_file.exists(),
         has_skill=skill_file.exists(),
         has_job_description=job_description_file.exists(),
+        has_memory=memory_file.exists(),
         identity_preview=(
             identity_file.read_text(encoding="utf-8")[:300]
             if identity_file.exists() else ""
@@ -90,6 +92,10 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
         job_description_preview=(
             job_description_file.read_text(encoding="utf-8")[:300]
             if job_description_file.exists() else ""
+        ),
+        memory_preview=(
+            memory_file.read_text(encoding="utf-8")[:350]
+            if memory_file.exists() else ""
         ),
         created_at=config.get("created_at", ""),
         path=str(dept_dir),
@@ -224,7 +230,7 @@ def update_agent(agent_id: str, data: AgentUpdate) -> Optional[AgentRead]:
 def delete_agent(agent_id: str) -> bool:
     """ลบ Agent และโฟลเดอร์อย่างปลอดภัย (ป้องกันการลบแผนกหลักและ Path Traversal)"""
     # ป้องกันการลบแผนกหลัก 6 แผนก
-    CORE_DEPTS = {"01_secretary", "02_การตลาด_ai", "03_developer", "04_data_analyst", "05_accounting", "06_devops"}
+    CORE_DEPTS = {"01_secretary", "02_การตลาด_ai", "03_developer", "04_data_analyst", "05_accounting", "06_sales"}
     if agent_id in CORE_DEPTS:
         return False
 

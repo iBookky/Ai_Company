@@ -16,6 +16,8 @@ let _pendingProposal = null;
 
 // ─── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  checkEnterpriseAuth();
+
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', (e) => {
       const page = el.dataset.page;
@@ -30,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   startClock();
   fetchHealthCheck();
   connectLogWS();
+  initCompanyShift();
 
   window.addEventListener('hashchange', routeFromHash);
   window.addEventListener('resize', () => {
@@ -72,9 +75,10 @@ const PAGES = {
     sub: 'One-Person AI Enterprise Command Center',
     load: () => { navigateTo('dashboard'); }
   },
-  teams:     { title: 'ทีมปฏิบัติการ AI', sub: 'จัดการทีม Agent และ PM Bots', load: loadTeams },
-  logs:      { title: 'Logs การทำงาน', sub: 'ติดตาม Log ระบบ Real-time', load: loadLogs },
-  settings:  { title: 'ตั้งค่าระบบ', sub: 'API Keys, Bot Token, การเชื่อมต่อ', load: loadSettings },
+  teams:      { title: 'ทีมปฏิบัติการ AI', sub: 'จัดการทีม Agent และ PM Bots', load: loadTeams },
+  directives: { title: 'ทิศทาง & นโยบายบริษัท', sub: 'กำหนดเวลาทำงาน ทิศทางองค์กร นโยบายความปลอดภัย และรูปแบบบริษัท', load: loadDirectivesPage },
+  logs:       { title: 'Logs การทำงาน', sub: 'ติดตาม Log ระบบ Real-time', load: loadLogs },
+  settings:   { title: 'ตั้งค่าระบบ', sub: 'API Keys, Bot Token, ความปลอดภัย, การเชื่อมต่อ', load: loadSettings },
 };
 
 function routeFromHash() {
@@ -505,26 +509,37 @@ function renderTeams(agents, rooms, filter = '') {
       </div>`).join('');
 
     const footer = isSecretary ? `
-      <button class="btn btn-sm btn-primary" onclick="openDeptDispatchModal('${deptId}')">🚀 สั่งงานเลขาอิงฟ้า</button>
-      <button class="btn btn-sm" onclick="openEmployeeWorkstation('${deptId}')">👤 โต๊ะทำงาน</button>
-      <button class="btn btn-sm" onclick="openAvatarModal('${deptId}')" title="เปลี่ยนรูป AI">📷 เปลี่ยนรูป</button>
-      <button class="btn btn-sm" onclick="openSecretaryChat()">💬 คุยกับอิงฟ้า</button>
-      <button class="btn btn-sm" onclick="openCreateAgentForDept('${deptId}')">＋ Agent</button>
+      <div class="team-card-actions">
+        <button class="btn btn-sm btn-primary btn-dispatch-main" onclick="openDeptDispatchModal('${deptId}')">🚀 สั่งงานเลขาอิงฟ้า</button>
+        <div class="team-card-subactions">
+          <button class="btn btn-sm" onclick="openEmployeeWorkstation('${deptId}')" title="ดูโต๊ะทำงาน AI">👤 โต๊ะทำงาน</button>
+          <button class="btn btn-sm" onclick="openAvatarModal('${deptId}')" title="เปลี่ยนรูปประจำตัว AI">📷 เปลี่ยนรูป</button>
+          <button class="btn btn-sm" onclick="openSecretaryChat()" title="ปรึกษาส่วนตัวกับอิงฟ้า">💬 คุยกับอิงฟ้า</button>
+          <button class="btn btn-sm" onclick="openCreateAgentForDept('${deptId}')" title="เพิ่ม Agent ภายใต้สำนักนี้">＋ Agent</button>
+        </div>
+      </div>
     ` : `
-      <button class="btn btn-sm btn-primary" onclick="openDeptDispatchModal('${deptId}')">🚀 สั่งงานแผนกนี้</button>
-      <button class="btn btn-sm" onclick="openEmployeeWorkstation('${deptId}')">👤 โต๊ะทำงาน</button>
-      <button class="btn btn-sm" onclick="openAvatarModal('${deptId}')" title="เปลี่ยนรูป AI">📷 เปลี่ยนรูป</button>
-      <button class="btn btn-sm" onclick="openDirectCommandModal('${deptId}', '${escHtml(name)}')">💬 สั่งตรง</button>
-      <button class="btn btn-sm" onclick="openCreateAgentForDept('${deptId}')">＋ Agent</button>
-      ${!token ? `<button class="btn btn-sm" onclick="setTokenForTeam('${deptId}', '${escHtml(name)}')">🔑 Token</button>` : ''}
-      <button class="btn btn-sm btn-danger" onclick="deleteTeam('${deptId}', '${escHtml(name)}')">🗑️</button>
+      <div class="team-card-actions">
+        <button class="btn btn-sm btn-primary btn-dispatch-main" onclick="openDeptDispatchModal('${deptId}')">🚀 สั่งงานแผนกนี้</button>
+        <div class="team-card-subactions">
+          <button class="btn btn-sm" onclick="openEmployeeWorkstation('${deptId}')" title="ดูโต๊ะทำงาน AI">👤 โต๊ะทำงาน</button>
+          <button class="btn btn-sm" onclick="openAvatarModal('${deptId}')" title="เปลี่ยนรูปประจำตัว AI">📷 เปลี่ยนรูป</button>
+          <button class="btn btn-sm" onclick="openDirectCommandModal('${deptId}', '${escHtml(name)}')" title="สั่งงานตรงแผนกนี้">💬 สั่งตรง</button>
+          <button class="btn btn-sm" onclick="openCreateAgentForDept('${deptId}')" title="เพิ่ม Agent ภายใต้แผนกนี้">＋ Agent</button>
+          ${!token ? `<button class="btn btn-sm btn-outline-warning" onclick="setTokenForTeam('${deptId}', '${escHtml(name)}')" title="ตั้งค่า Bot Token">🔑 Token</button>` : ''}
+          <button class="btn btn-sm btn-danger btn-icon" onclick="deleteTeam('${deptId}', '${escHtml(name)}')" title="ลบแผนก">🗑️</button>
+        </div>
+      </div>
     `;
+
+    const pmAgent = dAgents.find(a => a.role && a.role.startsWith('pm')) || dAgents[0];
+    const deptAvatarUrl = pmAgent?.avatar_url || `/static/img/avatars/${deptId}.png`;
 
     return `
       <div class="team-card" id="tc-${deptId}">
         <div class="team-card-head">
           <div class="team-avatar" style="cursor:pointer; overflow:hidden; padding:0; display:flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:50%; border:2px solid var(--border);" onclick="openEmployeeWorkstation('${deptId}')" title="คลิกเพื่อดูโต๊ะทำงาน">
-            <img src="/static/img/avatars/${deptId}.jpg" alt="${escHtml(name)}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.parentElement.innerHTML='${avatarEmoji}';" />
+            <img src="${deptAvatarUrl}" alt="${escHtml(name)}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.src='/static/img/avatars/${deptId}.jpg'; this.onerror=()=>{this.parentElement.innerHTML='${avatarEmoji}';};" />
           </div>
           <div class="team-info">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
@@ -1432,3 +1447,366 @@ async function updateAgentStatuses() {
 
 // Start polling for agent status every 1.5 seconds
 setInterval(updateAgentStatuses, 1500);
+
+// ─── Authentication & Security Guard ─────────────────────────
+function getEnterpriseToken() {
+  return localStorage.getItem('ai_enterprise_token') || sessionStorage.getItem('ai_enterprise_token');
+}
+
+function checkEnterpriseAuth() {
+  const token = getEnterpriseToken();
+  const loginScreen = document.getElementById('login-screen');
+  if (!token) {
+    if (loginScreen) {
+      loginScreen.style.display = 'flex';
+    }
+    return false;
+  }
+  fetch('/api/auth/verify', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  }).then(res => {
+    if (!res.ok) {
+      localStorage.removeItem('ai_enterprise_token');
+      sessionStorage.removeItem('ai_enterprise_token');
+      if (loginScreen) loginScreen.style.display = 'flex';
+    } else {
+      if (loginScreen) loginScreen.style.display = 'none';
+    }
+  }).catch(() => {
+    // If server temporarily unreachable, keep session alive
+  });
+  return true;
+}
+
+async function handleLoginSubmit(e) {
+  e.preventDefault();
+  const userEl = document.getElementById('login-username');
+  const passEl = document.getElementById('login-password');
+  const remEl = document.getElementById('login-remember');
+  const btnEl = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  const errText = document.getElementById('login-error-text');
+
+  if (!userEl || !passEl) return;
+  const username = userEl.value.trim();
+  const password = passEl.value.trim();
+
+  if (errEl) errEl.style.display = 'none';
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<span>⏳ กำลังตรวจสอบ...</span>';
+  }
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.detail || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+    }
+
+    if (remEl && remEl.checked) {
+      localStorage.setItem('ai_enterprise_token', data.token);
+      localStorage.setItem('ai_enterprise_owner', data.owner_name || username);
+    } else {
+      sessionStorage.setItem('ai_enterprise_token', data.token);
+      sessionStorage.setItem('ai_enterprise_owner', data.owner_name || username);
+    }
+
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen) {
+      loginScreen.style.display = 'none';
+    }
+
+    if (typeof toast === 'function') {
+      toast(`🎉 ยินดีต้อนรับคุณ ${data.owner_name || username} เข้าสู่ระบบ AI Enterprise`, 'success');
+    }
+
+    // Refresh dashboard
+    loadDashboard();
+
+  } catch (err) {
+    if (errEl && errText) {
+      errText.textContent = err.message;
+      errEl.style.display = 'flex';
+    }
+  } finally {
+    if (btnEl) {
+      btnEl.disabled = false;
+      btnEl.innerHTML = '<span>เข้าสู่ระบบองค์กร</span><span>→</span>';
+    }
+  }
+}
+
+function logoutEnterprise() {
+  if (!confirm('ต้องการออกจากระบบ AI Enterprise หรือไม่?')) return;
+  localStorage.removeItem('ai_enterprise_token');
+  sessionStorage.removeItem('ai_enterprise_token');
+  const loginScreen = document.getElementById('login-screen');
+  if (loginScreen) {
+    loginScreen.style.display = 'flex';
+    const passInput = document.getElementById('login-password');
+    if (passInput) passInput.value = '';
+  }
+  if (typeof toast === 'function') {
+    toast('🔒 ออกจากระบบเรียบร้อยแล้ว', 'info');
+  }
+}
+
+function togglePasswordVisibility(inputId) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+async function changeEnterprisePassword() {
+  const currentPass = document.getElementById('sec-current-pass')?.value;
+  const newPass = document.getElementById('sec-new-pass')?.value;
+  const statusEl = document.getElementById('save-status-security');
+
+  if (!currentPass || !newPass) {
+    if (typeof toast === 'function') toast('กรุณากรอกรหัสผ่านปัจจุบันและรหัสผ่านใหม่', 'warning');
+    return;
+  }
+
+  const token = getEnterpriseToken();
+  try {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ current_password: currentPass, new_password: newPass })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
+
+    if (statusEl) {
+      statusEl.textContent = '✅ ' + data.message;
+      statusEl.style.color = '#34d399';
+    }
+    if (typeof toast === 'function') toast('✅ เปลี่ยนรหัสผ่านเข้าสู่ระบบเรียบร้อยแล้ว', 'success');
+    document.getElementById('sec-current-pass').value = '';
+    document.getElementById('sec-new-pass').value = '';
+  } catch (err) {
+    if (statusEl) {
+      statusEl.textContent = '❌ ' + err.message;
+      statusEl.style.color = '#f87171';
+    }
+    if (typeof toast === 'function') toast(err.message, 'error');
+  }
+}
+
+// ─── Company Directives & Operating Policies ─────────────────
+let _cachedDirectives = null;
+
+async function loadDirectivesPage() {
+  try {
+    const res = await fetch('/api/company/directives');
+    if (!res.ok) throw new Error(await res.text());
+    _cachedDirectives = await res.json();
+    populateDirectivesForm(_cachedDirectives);
+  } catch (err) {
+    console.error('Failed to load directives:', err);
+    if (typeof toast === 'function') toast('เกิดข้อผิดพลาดในการโหลดนโยบายบริษัท', 'error');
+  }
+}
+
+function populateDirectivesForm(d) {
+  if (!d) return;
+  const wh = d.working_hours || {};
+  const sd = d.strategic_direction || {};
+  const pol = d.policies || {};
+  const cm = d.company_model || {};
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el && val !== undefined) el.value = val;
+  };
+
+  setVal('dir-hours-mode', wh.mode || 'autonomous_24_7');
+  setVal('dir-hours-days', wh.work_days || 'ทุกวัน (จันทร์ - อาทิตย์)');
+  setVal('dir-hours-morning', wh.morning_briefing_time || '08:30');
+  setVal('dir-hours-evening', wh.evening_summary_time || '18:00');
+  setVal('dir-hours-off', wh.off_hours_behavior || '');
+
+  setVal('dir-vision', sd.vision || '');
+  setVal('dir-focus', sd.primary_focus || '');
+  setVal('dir-goals', sd.quarterly_goals || '');
+  setVal('dir-audience', sd.target_audience || '');
+  setVal('dir-tone', sd.brand_tone || '');
+
+  setVal('dir-pol-hitl', pol.hitl_rule || '');
+  setVal('dir-pol-token', pol.token_cost_policy || '');
+  setVal('dir-pol-qa', pol.quality_assurance || '');
+  setVal('dir-pol-sec', pol.security_privacy || '');
+
+  setVal('dir-model-type', cm.model_type || '');
+  setVal('dir-model-leader', cm.supreme_leader || '');
+  setVal('dir-model-scaling', cm.workforce_scaling || '');
+}
+
+function switchDirectivesTab(tab) {
+  document.querySelectorAll('.directives-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  document.querySelectorAll('.directives-section').forEach(sec => {
+    sec.classList.toggle('active', sec.id === `directives-sec-${tab}`);
+  });
+}
+
+async function saveDirectivesChanges() {
+  const saveBtn = document.getElementById('btn-save-directives');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span>⏳ กำลังบันทึก...</span>';
+  }
+
+  const payload = {
+    working_hours: {
+      mode: document.getElementById('dir-hours-mode')?.value,
+      work_days: document.getElementById('dir-hours-days')?.value,
+      morning_briefing_time: document.getElementById('dir-hours-morning')?.value,
+      evening_summary_time: document.getElementById('dir-hours-evening')?.value,
+      off_hours_behavior: document.getElementById('dir-hours-off')?.value
+    },
+    strategic_direction: {
+      vision: document.getElementById('dir-vision')?.value,
+      primary_focus: document.getElementById('dir-focus')?.value,
+      quarterly_goals: document.getElementById('dir-goals')?.value,
+      target_audience: document.getElementById('dir-audience')?.value,
+      brand_tone: document.getElementById('dir-tone')?.value
+    },
+    policies: {
+      hitl_rule: document.getElementById('dir-pol-hitl')?.value,
+      token_cost_policy: document.getElementById('dir-pol-token')?.value,
+      quality_assurance: document.getElementById('dir-pol-qa')?.value,
+      security_privacy: document.getElementById('dir-pol-sec')?.value
+    },
+    company_model: {
+      model_type: document.getElementById('dir-model-type')?.value,
+      supreme_leader: document.getElementById('dir-model-leader')?.value,
+      workforce_scaling: document.getElementById('dir-model-scaling')?.value
+    }
+  };
+
+  try {
+    const res = await fetch('/api/company/directives', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'บันทึกไม่สำเร็จ');
+
+    _cachedDirectives = data.directives;
+    if (typeof toast === 'function') {
+      toast('🎉 บันทึกเวลาทำงาน ทิศทาง และนโยบายบริษัทเรียบร้อยแล้ว (ซิงค์สู่ AI ทั้ง 6 แผนกแล้ว)', 'success');
+    }
+  } catch (err) {
+    console.error('Failed to save directives:', err);
+    if (typeof toast === 'function') toast(`เกิดข้อผิดพลาดในการบันทึก: ${err.message}`, 'error');
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<span>💾 บันทึกทิศทางและนโยบาย</span>';
+    }
+  }
+}
+
+// Global exports
+window.handleLoginSubmit = handleLoginSubmit;
+window.logoutEnterprise = logoutEnterprise;
+window.togglePasswordVisibility = togglePasswordVisibility;
+window.changeEnterprisePassword = changeEnterprisePassword;
+window.loadDirectivesPage = loadDirectivesPage;
+window.switchDirectivesTab = switchDirectivesTab;
+window.saveDirectivesChanges = saveDirectivesChanges;
+
+// ─── Company Shift Controller (Start / End Work) ─────────────
+let _companyShiftState = 'active';
+
+async function initCompanyShift() {
+  try {
+    const res = await fetch('/api/company/shift');
+    if (!res.ok) return;
+    const data = await res.json();
+    _companyShiftState = data.status || 'active';
+    renderShiftUI(_companyShiftState);
+  } catch (err) {
+    console.error('Failed to init company shift:', err);
+  }
+}
+
+function renderShiftUI(status) {
+  const indicator = document.getElementById('shift-indicator');
+  const btn = document.getElementById('btn-toggle-shift');
+  if (!indicator || !btn) return;
+
+  if (status === 'active') {
+    indicator.className = 'shift-indicator on';
+    indicator.innerHTML = '🟢 เปิดทำการ';
+    btn.className = 'btn btn-sm btn-shift-end';
+    btn.innerHTML = '<span>⏹️ เลิกงาน</span>';
+    btn.title = 'กดเมื่อเลิกงานประจำวัน เพื่อให้อิงฟ้าสรุปผลงาน EOD และเข้าสู่โหมดพักผ่อน';
+  } else {
+    indicator.className = 'shift-indicator off';
+    indicator.innerHTML = '🌙 เลิกงาน';
+    btn.className = 'btn btn-sm btn-shift-start';
+    btn.innerHTML = '<span>🚀 เริ่มงาน</span>';
+    btn.title = 'กดเมื่อเริ่มงาน เพื่อปลุกทีมงาน AI ทุกแผนกและให้อิงฟ้าส่งสรุปเช้า';
+  }
+}
+
+async function toggleCompanyShift() {
+  const isCurrentlyActive = _companyShiftState === 'active';
+  const action = isCurrentlyActive ? 'end' : 'start';
+
+  const confirmMsg = isCurrentlyActive
+    ? 'ต้องการกด "เลิกงานประจำวัน" หรือไม่?\n\n(เลขาอิงฟ้าจะรวบรวมผลงานสรุป EOD ส่งเข้า Telegram และให้ทีมงาน AI เข้าสู่โหมดพักผ่อน)'
+    : 'ต้องการกด "เริ่มงานประจำวัน" หรือไม่?\n\n(ทีมงาน AI ทุกแผนกจะตื่นพร้อมทำงาน และเลขาอิงฟ้าจะส่งรายงานสรุปเช้าเข้า Telegram)';
+
+  if (!confirm(confirmMsg)) return;
+
+  const btn = document.getElementById('btn-toggle-shift');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳ กำลังประมวลผล...</span>';
+  }
+
+  try {
+    const res = await fetch(`/api/company/shift/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'ไม่สามารถเปลี่ยนสถานะกะทำงานได้');
+
+    _companyShiftState = data.status;
+    renderShiftUI(_companyShiftState);
+
+    if (typeof toast === 'function') {
+      toast(data.message, isCurrentlyActive ? 'info' : 'success');
+    }
+
+    // Refresh simulation state & agent statuses
+    if (typeof fetchSimulationState === 'function') fetchSimulationState();
+    if (typeof updateAgentStatuses === 'function') updateAgentStatuses();
+
+  } catch (err) {
+    console.error('Failed to toggle shift:', err);
+    if (typeof toast === 'function') toast(`เกิดข้อผิดพลาด: ${err.message}`, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+window.initCompanyShift = initCompanyShift;
+window.toggleCompanyShift = toggleCompanyShift;
+
+

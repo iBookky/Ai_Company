@@ -18,7 +18,7 @@ BASE_DIR = Path(__file__).parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 # Import routers
-from backend.routers import agents, logs, drafts, skype, telegram, settings, usage, simulation
+from backend.routers import agents, logs, drafts, skype, telegram, settings, usage, simulation, auth, company
 from backend.services import log_service
 from backend.models.schemas import LogCreate, LogLevel
 
@@ -86,6 +86,8 @@ app.add_middleware(
 )
 
 # Register routers
+app.include_router(auth.router)
+app.include_router(company.router)
 app.include_router(agents.router)
 app.include_router(logs.router)
 app.include_router(drafts.router)

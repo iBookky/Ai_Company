@@ -192,6 +192,13 @@ function renderWorkstationCockpit(data) {
           <div class="identity-detail-row">
             <span class="identity-detail-label">🧠 AI Engine</span>
             <span class="identity-detail-val" style="font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(emp.model)}</span>
+          <div class="identity-detail-row">
+            <span class="identity-detail-label">🧠 ความฉลาด & เติบโต</span>
+            <span class="identity-detail-val" style="color:#a78bfa; font-weight:600; font-size:0.75rem;">Level 1 • 0 EXP (เรียนรู้สะสม)</span>
+          </div>
+          <div class="identity-detail-row">
+            <span class="identity-detail-label">⚡ โหมดคิดคำนวณ</span>
+            <span class="identity-detail-val" style="color:#34d399; font-weight:600; font-size:0.75rem;">Zero-Token Ready (ฟรี 100%)</span>
           </div>
           <div class="identity-detail-row">
             <span class="identity-detail-label">🤖 Telegram Bot</span>
@@ -209,6 +216,9 @@ function renderWorkstationCockpit(data) {
           </button>
           <button class="btn-workstation-cmd secondary" onclick="openAvatarModal('${escapeHtml(emp.id)}')">
             <span>📷 เปลี่ยนรูปประจำตัว AI</span>
+          </button>
+          <button class="btn-workstation-cmd secondary" onclick="openAgentMemoryModal('${escapeHtml(emp.id)}', '${escapeHtml(emp.name)}')">
+            <span>🧠 ดูคลังความจำ & พฤติกรรมที่เรียนรู้</span>
           </button>
           <button class="btn-workstation-cmd secondary" onclick="workstationChat('${escapeHtml(emp.id)}', '${escapeHtml(emp.name)}')">
             <span>💬 คุยส่วนตัว 1-on-1 (Direct Prompt)</span>
@@ -718,6 +728,19 @@ async function saveAvatarModalChanges() {
       renderEmployeeSelectorStrip(_cachedEmployees, _activeEmpId);
     }
 
+    // Update team card in DOM and allAgents
+    const tcImg = document.querySelector(`#tc-${CSS.escape(_currentAvatarTargetId)} .team-avatar img`);
+    if (tcImg) {
+      tcImg.src = newUrl;
+    }
+    if (window.allAgents) {
+      const ag = window.allAgents.find(a => a.id === _currentAvatarTargetId || a.department === _currentAvatarTargetId);
+      if (ag) ag.avatar_url = newUrl;
+    }
+    if (typeof window.loadTeams === 'function') {
+      window.loadTeams();
+    }
+
     // Refresh simulation state & dashboard if present
     if (typeof fetchSimulationState === 'function') fetchSimulationState();
     if (typeof loadDashboard === 'function') loadDashboard();
@@ -768,9 +791,26 @@ async function resetAvatarModalChanges() {
   }
 }
 
+function openAgentMemoryModal(deptId, empName) {
+  const modal = document.getElementById('modal-agent-memory');
+  if (!modal) return;
+  const title = document.getElementById('memory-modal-title');
+  const content = document.getElementById('memory-modal-content');
+  if (title) title.textContent = `🧠 ความจำ & การเติบโตของ ${empName}`;
+  if (content) {
+    if (_currentWorkspaceData && _currentWorkspaceData.employee && _currentWorkspaceData.employee.memory_md) {
+      content.textContent = _currentWorkspaceData.employee.memory_md;
+    } else {
+      content.textContent = 'กำลังเริ่มต้นความจำระยะยาว... พนักงานคนนี้พร้อมเก็บเกี่ยวประสบการณ์จริงจากการทำงาน';
+    }
+  }
+  openModal('modal-agent-memory');
+}
+
 // Hook into simulation live state update
 if (typeof window !== 'undefined') {
   window.loadWorkstations = loadWorkstations;
+  window.openAgentMemoryModal = openAgentMemoryModal;
   window.switchWorkstationEmployee = switchWorkstationEmployee;
   window.setWorkstationHistoryFilter = setWorkstationHistoryFilter;
   window.workstationAssignTask = workstationAssignTask;

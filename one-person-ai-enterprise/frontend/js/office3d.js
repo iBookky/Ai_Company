@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
-   office3d.js — Interactive 3D Virtual AI Enterprise Office
-   Three.js Isometric Workspace & Autonomous AI Agent Life
+   office3d.js — Real-World 3D Virtual AI Enterprise Office
+   Warm Architectural Workspace, Live Department Monitors & Holographic Status
    One-Person AI Enterprise
    ═══════════════════════════════════════════════════════════════ */
 
@@ -18,19 +18,28 @@ let _officeRaycaster = null;
 let _officeMouse = null;
 let _officeHoveredAgent = null;
 let _officeSelectedAgentId = null;
-let _officeCameraTarget = { pos: null, lookAt: null, active: false };
+let _officeCameraTarget = { pos: null, lookAt: null, active: false, speed: 0.08 };
 
 // Agents & World Objects
 const _officeEmployees = {};
 let _officeClickableObjects = [];
 let _officeSyncInterval = null;
+let _officeSpotlights = {};
 
-// Preset Camera Positions
+// Camera Presets for Real-World Navigation
 const OFFICE_CAMERA_PRESETS = {
-  isometric: { pos: [22, 20, 22], target: [0, 1, 0] },
-  top:       { pos: [0, 32, 0.5], target: [0, 0, 0] },
-  boardroom: { pos: [0, 8, 8], target: [0, 1, 0] },
-  lounge:    { pos: [0, 7, -5], target: [0, 1, -10] },
+  overview:    { pos: [22, 19, 22], target: [0, 1.2, 0], label: '🌐 ภาพรวม (Overview)' },
+  isometric:   { pos: [22, 19, 22], target: [0, 1.2, 0], label: '🌐 ภาพรวม (Isometric)' },
+  top:         { pos: [0, 30, 0.5], target: [0, 0, 0], label: '📐 ผังออฟฟิศ (Top-Down)' },
+  boardroom:   { pos: [0, 5.5, 6.5], target: [0, 1.2, 0], label: '🏛️ ห้องประชุม' },
+  lounge:      { pos: [0, 5.2, -6.0], target: [0, 1.2, -10.5], label: '☕ มุมกาแฟ & พักผ่อน' },
+  // Department Closeups
+  '01_secretary':    { pos: [-4.2, 3.8, -3.2], target: [-8, 1.4, -6], label: '🗂️ สำนักเลขาธิการ' },
+  '03_developer':    { pos: [4.2, 3.8, -3.2], target: [8, 1.4, -6], label: '💻 ฝ่ายพัฒนาซอฟต์แวร์' },
+  '02_การตลาด_ai':   { pos: [4.2, 3.8, 3.2], target: [8, 1.4, 6], label: '📣 ฝ่ายการตลาด & Content' },
+  '04_data_analyst': { pos: [-4.2, 3.8, 3.2], target: [-8, 1.4, 6], label: '📊 ฝ่ายตรวจสอบคุณภาพ & Data' },
+  '05_accounting':   { pos: [-8.0, 3.8, 0], target: [-12, 1.4, 0], label: '💰 ฝ่ายการเงิน & ต้นทุน Cloud' },
+  '06_sales':        { pos: [8.0, 3.8, 0], target: [12, 1.4, 0], label: '🤝 ฝ่ายขายและบริการลูกค้า' },
 };
 
 // 6 AI Employees Master Specification
@@ -40,99 +49,92 @@ const OFFICE_EMPLOYEE_DEFS = {
     name: 'อิงฟ้า',
     role: 'Executive Secretary & CKO',
     dept: 'สำนักเลขาธิการ & CKO',
+    shortDept: 'เลขาธิการ & CKO',
+    icon: '🗂️',
     color: 0x38bdf8,
-    shirtColor: 0x0284c7,
-    pantsColor: 0x1e293b,
+    colorHex: '#38bdf8',
     deskPos: [-8, 0, -6],
     deskRot: Math.PI * 0.25,
-    chairPos: [-8, 0, -6.8],
     avatarUrl: '/static/img/avatars/01_secretary.jpg',
     defaultThought: 'วางแผนกลยุทธ์และจัดสรรงานให้ทุกแผนก',
+    screenType: 'secretary',
   },
   '03_developer': {
     id: '03_developer',
     name: 'บิ๊นท์',
     role: 'Lead Full-Stack Developer',
     dept: 'ฝ่ายพัฒนาระบบซอฟต์แวร์',
+    shortDept: 'ฝ่ายพัฒนาซอฟต์แวร์',
+    icon: '💻',
     color: 0x818cf8,
-    shirtColor: 0x4f46e5,
-    pantsColor: 0x0f172a,
+    colorHex: '#818cf8',
     deskPos: [8, 0, -6],
     deskRot: -Math.PI * 0.25,
-    chairPos: [8, 0, -6.8],
     avatarUrl: '/static/img/avatars/03_developer.jpg',
     defaultThought: 'ออกแบบสถาปัตยกรรม Backend & API',
+    screenType: 'code',
   },
   '02_การตลาด_ai': {
     id: '02_การตลาด_ai',
     name: 'ลิซ่า',
     role: 'Head of Marketing & Social Content',
     dept: 'ฝ่ายการตลาด & Social Content',
+    shortDept: 'ฝ่ายการตลาด & Content',
+    icon: '📣',
     color: 0xf472b6,
-    shirtColor: 0xdb2777,
-    pantsColor: 0x334155,
+    colorHex: '#f472b6',
     deskPos: [8, 0, 6],
     deskRot: -Math.PI * 0.75,
-    chairPos: [8, 0, 6.8],
     avatarUrl: '/static/img/avatars/02_marketing.jpg',
     defaultThought: 'คิดสคริปต์ไวรัล TikTok & แคมเปญโปรโมต',
+    screenType: 'marketing',
   },
   '04_data_analyst': {
     id: '04_data_analyst',
     name: 'มุก',
     role: 'Senior QA & Data Analyst',
     dept: 'ฝ่ายตรวจสอบคุณภาพ & Data',
+    shortDept: 'ฝ่าย QA & Data',
+    icon: '📊',
     color: 0x34d399,
-    shirtColor: 0x059669,
-    pantsColor: 0x1e293b,
+    colorHex: '#34d399',
     deskPos: [-8, 0, 6],
     deskRot: Math.PI * 0.75,
-    chairPos: [-8, 0, 6.8],
     avatarUrl: '/static/img/avatars/04_data_analyst.jpg',
     defaultThought: 'ตรวจสอบ Code Review และ Funnel Conversion',
+    screenType: 'data',
   },
   '05_accounting': {
     id: '05_accounting',
     name: 'พลอย',
     role: 'Finance & Cloud Cost Controller',
     dept: 'ฝ่ายการเงิน & ต้นทุน Cloud',
+    shortDept: 'ฝ่ายการเงิน & บัญชี',
+    icon: '💰',
     color: 0xa78bfa,
-    shirtColor: 0x7c3aed,
-    pantsColor: 0x0f172a,
+    colorHex: '#a78bfa',
     deskPos: [-12, 0, 0],
     deskRot: Math.PI * 0.5,
-    chairPos: [-12.8, 0, 0],
     avatarUrl: '/static/img/avatars/05_accounting.jpg',
     defaultThought: 'ควบคุมงบประมาณ API Token และจุดคุ้มทุน ROI',
+    screenType: 'finance',
   },
-  '06_devops': {
-    id: '06_devops',
-    name: 'ก้อง',
-    role: 'Cloud DevOps & Infra Specialist',
-    dept: 'ฝ่ายวิศวกรรมคลาวด์ & DevOps',
-    color: 0xfbbf24,
-    shirtColor: 0xd97706,
-    pantsColor: 0x1e293b,
+  '06_sales': {
+    id: '06_sales',
+    name: 'พิมพ์',
+    role: 'Head of Sales & Customer Service',
+    dept: 'ฝ่ายขายและบริการลูกค้า (Sales & CS)',
+    shortDept: 'ฝ่ายขาย & บริการลูกค้า',
+    icon: '🤝',
+    color: 0xfb923c,
+    colorHex: '#fb923c',
     deskPos: [12, 0, 0],
     deskRot: -Math.PI * 0.5,
-    chairPos: [12.8, 0, 0],
-    avatarUrl: '/static/img/avatars/06_devops.jpg',
-    defaultThought: 'เฝ้าระวังเซิร์ฟเวอร์ Uptime 99.99% & CI/CD',
+    avatarUrl: '/static/img/avatars/06_sales.jpg',
+    defaultThought: 'ประสานงานดูแลลูกค้า เสนอ Solution และติดตามปิดการขาย 24/7',
+    screenType: 'sales',
   },
 };
-
-// Common Points of Interest for Wandering
-const OFFICE_WAYPOINTS = [
-  { name: 'boardroom_1', pos: [-2, 0, -1] },
-  { name: 'boardroom_2', pos: [2, 0, -1] },
-  { name: 'boardroom_3', pos: [-2, 0, 1] },
-  { name: 'boardroom_4', pos: [2, 0, 1] },
-  { name: 'coffee_machine', pos: [-1.5, 0, -9] },
-  { name: 'water_cooler', pos: [1.5, 0, -9] },
-  { name: 'sofa_lounge', pos: [0, 0, -11] },
-  { name: 'presentation_stage', pos: [0, 0, 9] },
-  { name: 'center_hall', pos: [0, 0, 3] },
-];
 
 // ═══════════════════════════════════════════════════════════════
 //  1. INITIALIZATION & LIFECYCLE
@@ -148,47 +150,49 @@ function initOffice3D() {
     return;
   }
 
-  // 1. Scene
+  // 1. Scene with Warm Architectural Ambient Sky
   _officeScene = new THREE.Scene();
-  _officeScene.background = new THREE.Color(0x0a0e17);
-  _officeScene.fog = new THREE.FogExp2(0x0a0e17, 0.015);
+  _officeScene.background = new THREE.Color(0x141824); // Warm architectural dusk interior
+  _officeScene.fog = new THREE.FogExp2(0x141824, 0.012);
 
-  // 2. Camera (Perspective with isometric feel)
+  // 2. Camera (Perspective with real-world architectural view)
   const width = container.clientWidth || 1000;
   const height = container.clientHeight || 700;
   _officeCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 200);
-  _officeCamera.position.set(22, 20, 22);
+  _officeCamera.position.set(22, 19, 22);
 
-  // 3. Renderer
+  // 3. Renderer with high-fidelity soft shadows
   _officeRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
   _officeRenderer.setSize(width, height);
   _officeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   _officeRenderer.shadowMap.enabled = true;
   _officeRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  _officeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  _officeRenderer.toneMappingExposure = 1.15;
   container.innerHTML = '';
   container.appendChild(_officeRenderer.domElement);
 
-  // 4. Controls
+  // 4. OrbitControls
   if (typeof THREE.OrbitControls !== 'undefined') {
     _officeControls = new THREE.OrbitControls(_officeCamera, _officeRenderer.domElement);
     _officeControls.enableDamping = true;
     _officeControls.dampingFactor = 0.05;
-    _officeControls.maxPolarAngle = Math.PI / 2 - 0.05; // Don't go below floor
-    _officeControls.minDistance = 6;
-    _officeControls.maxDistance = 60;
-    _officeControls.target.set(0, 1, 0);
+    _officeControls.maxPolarAngle = Math.PI / 2 - 0.06; // Prevent looking under floor
+    _officeControls.minDistance = 4;
+    _officeControls.maxDistance = 55;
+    _officeControls.target.set(0, 1.2, 0);
   }
 
-  // 5. Lighting
-  setupOfficeLighting();
+  // 5. Lighting Setup
+  setupRealWorldLighting();
 
-  // 6. Architecture & Environment
-  buildOfficeArchitecture();
+  // 6. Architecture & Desks
+  buildRealWorldArchitecture();
 
-  // 7. 6 AI Employees
+  // 7. 6 AI Department Workstations & Employees
   buildOfficeEmployees();
 
-  // 8. Render HUD chips
+  // 8. Render HUD Quick-Jump Dock
   renderOfficeHudChips();
 
   // 9. Interaction Setup
@@ -209,738 +213,961 @@ function initOffice3D() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  2. LIGHTING & ENVIRONMENT
+//  2. PROCEDURAL TEXTURES (WARM WOOD, SCREENS, BADGES)
 // ═══════════════════════════════════════════════════════════════
 
-function setupOfficeLighting() {
-  // Ambient Light
-  const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+// Procedural Warm Light Oak Parquet Hardwood Floor
+function createWarmWoodTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d');
+
+  // Base warm honey-oak tone
+  ctx.fillStyle = '#9e7343';
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  const plankH = 64;
+  const plankW = 256;
+  const tones = ['#b88a53', '#ae7f47', '#9c6f39', '#bf925b', '#a4753f', '#c99b64'];
+
+  for (let y = 0; y < 1024; y += plankH) {
+    const rowOffset = (Math.floor(y / plankH) % 2) * (plankW / 2);
+    for (let x = -plankW; x < 1024 + plankW; x += plankW) {
+      const rx = x + rowOffset;
+      const color = tones[Math.abs(Math.floor((x * 11 + y * 17) % tones.length))];
+      ctx.fillStyle = color;
+      ctx.fillRect(rx + 2, y + 2, plankW - 4, plankH - 4);
+
+      // Delicate wood grain lines
+      ctx.strokeStyle = 'rgba(60, 35, 10, 0.12)';
+      ctx.lineWidth = 1;
+      for (let g = 8; g < plankH - 4; g += 10) {
+        ctx.beginPath();
+        ctx.moveTo(rx + 2, y + g);
+        ctx.bezierCurveTo(
+          rx + plankW * 0.3, y + g + Math.sin(rx + g) * 2,
+          rx + plankW * 0.7, y + g - Math.cos(y + g) * 2,
+          rx + plankW - 2, y + g
+        );
+        ctx.stroke();
+      }
+
+      // Plank Bevel & Joint Groove
+      ctx.strokeStyle = 'rgba(35, 20, 8, 0.35)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(rx, y, plankW, plankH);
+
+      // Light highlight on top edge of plank
+      ctx.strokeStyle = 'rgba(255, 240, 210, 0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(rx + 2, y + 2);
+      ctx.lineTo(rx + plankW - 2, y + 2);
+      ctx.stroke();
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(6, 5);
+  return texture;
+}
+
+// Procedural Real-World Screens (Code, Analytics, Marketing, Finance, DevOps)
+function createMonitorScreenTexture(type, colorHex) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 320;
+  const ctx = canvas.getContext('2d');
+
+  // Dark IDE/Dashboard Background
+  ctx.fillStyle = '#0b0f19';
+  ctx.fillRect(0, 0, 512, 320);
+
+  // Window Top Title Bar
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(0, 0, 512, 32);
+
+  // Window Dots (Red, Yellow, Green)
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath(); ctx.arc(18, 16, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f59e0b';
+  ctx.beginPath(); ctx.arc(36, 16, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#10b981';
+  ctx.beginPath(); ctx.arc(54, 16, 5, 0, Math.PI * 2); ctx.fill();
+
+  // Title Text
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = 'bold 12px "JetBrains Mono", monospace';
+  ctx.fillText(`AI Enterprise Terminal — [${type.toUpperCase()}]`, 75, 20);
+
+  if (type === 'code' || type === 'devops') {
+    // Code Syntax / Server Logs
+    ctx.font = '11px "JetBrains Mono", monospace';
+    const lines = [
+      { text: 'import fastapi, uvicorn, asyncio', color: '#f472b6' },
+      { text: 'from enterprise.services import agent_service', color: '#38bdf8' },
+      { text: 'app = FastAPI(title="AI Enterprise Engine")', color: '#818cf8' },
+      { text: '', color: '' },
+      { text: '@app.post("/api/agents/dispatch")', color: '#fbbf24' },
+      { text: 'async def dispatch_task(payload: TaskModel):', color: '#60a5fa' },
+      { text: '    worker = await queue.get_agent("03_developer")', color: '#34d399' },
+      { text: '    return {"status": "ACTIVE", "progress": 82}', color: '#a78bfa' },
+      { text: '    # Real-time WebSockets streaming updates...', color: '#64748b' },
+      { text: '[200 OK] Uptime: 99.99% | Ping: 12ms', color: '#10b981' },
+      { text: 'Docker container worker_dev: running healthy', color: '#38bdf8' },
+    ];
+    let ly = 60;
+    lines.forEach((l, idx) => {
+      ctx.fillStyle = '#475569';
+      ctx.fillText(`${idx + 1}`.padStart(2, '0'), 14, ly);
+      ctx.fillStyle = l.color || '#cbd5e1';
+      ctx.fillText(l.text, 40, ly);
+      ly += 22;
+    });
+  } else if (type === 'marketing') {
+    // Video Timeline & Social Analytics
+    ctx.fillStyle = '#ec4899';
+    ctx.fillRect(20, 50, 220, 130);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText('🎬 Viral TikTok Video', 35, 100);
+    ctx.font = '11px sans-serif';
+    ctx.fillText('One-Person AI Enterprise 100%', 35, 125);
+
+    // Timeline Track
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(20, 195, 472, 35);
+    ctx.fillStyle = '#ec4899';
+    ctx.fillRect(40, 202, 180, 20);
+    ctx.fillStyle = '#8b5cf6';
+    ctx.fillRect(230, 202, 140, 20);
+
+    // Stats Card on Right
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(260, 50, 230, 130);
+    ctx.fillStyle = '#34d399';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('148,500', 280, 95);
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('Total Video Impressions (+38%)', 280, 120);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText('Conversion: 12.4% | Leads: 642', 280, 145);
+  } else if (type === 'finance') {
+    // Financial Ledger & Token Cost Graphs
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(20, 50, 472, 110);
+    ctx.fillStyle = '#a78bfa';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('฿ 42,850.00', 35, 95);
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('Cloud Cost Efficiency | LLM Budget Cap: $100.00', 35, 125);
+
+    // Bar chart
+    const bars = [40, 65, 55, 90, 75, 120, 95, 140, 110];
+    bars.forEach((bh, i) => {
+      ctx.fillStyle = i === bars.length - 1 ? '#34d399' : '#818cf8';
+      ctx.fillRect(35 + i * 50, 290 - bh, 36, bh);
+    });
+  } else if (type === 'sales') {
+    // Sales CRM Pipeline & Customer Service Dashboard
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(20, 50, 225, 115);
+    ctx.fillStyle = '#ea580c';
+    ctx.fillRect(20, 50, 225, 28);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('🤝 Enterprise CRM Pipeline', 32, 70);
+    ctx.fillStyle = '#fed7aa';
+    ctx.font = '11px sans-serif';
+    ctx.fillText('B2B Solutions & Client Relations', 32, 98);
+    ctx.fillStyle = '#fef08a';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText('Closed: ฿450,000 / Q4', 32, 122);
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '11px sans-serif';
+    ctx.fillText('Active Qualified Leads: 28 Deals', 32, 145);
+
+    // CSAT & Live Support Card on Right
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(260, 50, 232, 115);
+    ctx.fillStyle = '#fb923c';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('99.2% CSAT', 275, 95);
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('Omnichannel Support & Resolution', 275, 120);
+    ctx.fillStyle = '#34d399';
+    ctx.fillText('Avg Response: < 30s | SLA: 100%', 275, 145);
+
+    // Pipeline Stage Bar
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(20, 195, 472, 35);
+    ctx.fillStyle = '#fb923c';
+    ctx.fillRect(35, 202, 150, 20);
+    ctx.fillStyle = '#10b981';
+    ctx.fillRect(195, 202, 140, 20);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(345, 202, 130, 20);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('PROSPECT (10)', 45, 216);
+    ctx.fillText('PROPOSAL (8)', 205, 216);
+    ctx.fillText('CLOSED WON (10)', 355, 216);
+  } else {
+    // QA & Secretary / Executive KPI Dashboard
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(20, 50, 220, 100);
+    ctx.fillStyle = '#10b981';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('99.4% Pass', 35, 95);
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('Automated QA Test Suite Coverage', 35, 125);
+
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(260, 50, 232, 100);
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('6 Active AI', 275, 95);
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('Autonomous Company Operations', 275, 125);
+
+    // Task check list
+    ctx.font = '12px sans-serif';
+    ctx.fillStyle = '#34d399';
+    ctx.fillText('✔ 01 Secretary — Strategy & Daily Briefing', 35, 190);
+    ctx.fillText('✔ 03 Developer — FastAPI Endpoints Clean', 35, 218);
+    ctx.fillText('✔ 06 Sales & CS — Deal Pipeline Closed & CSAT 99%', 35, 246);
+    ctx.fillText('✔ 05 Accounting — Budget under Threshold', 35, 274);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  return texture;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  3. REAL-WORLD LIGHTING & ARCHITECTURE
+// ═══════════════════════════════════════════════════════════════
+
+function setupRealWorldLighting() {
+  // 1. Natural Sky Fill (HemisphereLight: soft sky blue / warm floor bounce)
+  const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x92673a, 0.75);
+  _officeScene.add(hemiLight);
+
+  // 2. Ambient Warm Light
+  const ambient = new THREE.AmbientLight(0xffedd5, 0.45);
   _officeScene.add(ambient);
 
-  // Directional Sun Light
-  const sunLight = new THREE.DirectionalLight(0xffffff, 0.85);
-  sunLight.position.set(20, 30, 15);
+  // 3. Natural Sunlight Streaming from Windows (DirectionalLight)
+  const sunLight = new THREE.DirectionalLight(0xfffaed, 1.25);
+  sunLight.position.set(24, 28, 18);
   sunLight.castShadow = true;
   sunLight.shadow.mapSize.width = 2048;
   sunLight.shadow.mapSize.height = 2048;
   sunLight.shadow.camera.near = 5;
-  sunLight.shadow.camera.far = 70;
-  const d = 25;
+  sunLight.shadow.camera.far = 75;
+  const d = 26;
   sunLight.shadow.camera.left = -d;
   sunLight.shadow.camera.right = d;
   sunLight.shadow.camera.top = d;
   sunLight.shadow.camera.bottom = -d;
-  sunLight.shadow.bias = -0.0005;
+  sunLight.shadow.bias = -0.0004;
   _officeScene.add(sunLight);
 
-  // Cyber Neon Accent Point Lights at Key Pods
-  const colors = [0x6366f1, 0x38bdf8, 0x10b981, 0xf472b6];
-  const positions = [[-8, 3, -6], [8, 3, -6], [8, 3, 6], [-8, 3, 6]];
-  positions.forEach((pos, idx) => {
-    const light = new THREE.PointLight(colors[idx % colors.length], 0.65, 14);
-    light.position.set(pos[0], pos[1], pos[2]);
-    _officeScene.add(light);
-  });
-
-  // Central Boardroom Spotlight
-  const centerLight = new THREE.SpotLight(0xffffff, 0.8, 20, Math.PI / 4, 0.3);
-  centerLight.position.set(0, 12, 0);
+  // 4. Central Boardroom Chandelier Spotlight
+  const centerLight = new THREE.SpotLight(0xfffaed, 1.1, 24, Math.PI / 4, 0.35);
+  centerLight.position.set(0, 11, 0);
   centerLight.target.position.set(0, 0, 0);
   _officeScene.add(centerLight);
   _officeScene.add(centerLight.target);
+
+  // 5. Warm Spotlights at each of the 6 Department Bays
+  Object.values(OFFICE_EMPLOYEE_DEFS).forEach(def => {
+    const spot = new THREE.SpotLight(0xffedd5, 0.7, 12, Math.PI / 3.5, 0.4);
+    spot.position.set(def.deskPos[0], 6.5, def.deskPos[2]);
+    spot.target.position.set(def.deskPos[0], 1, def.deskPos[2]);
+    _officeScene.add(spot);
+    _officeScene.add(spot.target);
+    _officeSpotlights[def.id] = spot;
+  });
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  3. ARCHITECTURE, DESKS & FURNITURE
-// ═══════════════════════════════════════════════════════════════
+function buildRealWorldArchitecture() {
+  const woodTexture = createWarmWoodTexture();
 
-function buildOfficeArchitecture() {
   const materials = {
-    floor: new THREE.MeshStandardMaterial({
-      color: 0x0f172a,
-      roughness: 0.25,
-      metalness: 0.1,
+    floorWood: new THREE.MeshStandardMaterial({
+      map: woodTexture,
+      roughness: 0.35,
+      metalness: 0.05,
     }),
-    gridLines: new THREE.LineBasicMaterial({ color: 0x1e293b, transparent: true, opacity: 0.5 }),
-    wallGlass: new THREE.MeshPhysicalMaterial({
-      color: 0x1e1b4b,
+    carpetWalkway: new THREE.MeshStandardMaterial({
+      color: 0x222a38,
+      roughness: 0.85,
+    }),
+    glassWall: new THREE.MeshPhysicalMaterial({
+      color: 0xdbeafe,
       transparent: true,
-      opacity: 0.35,
-      roughness: 0.1,
-      transmission: 0.8,
-      thickness: 0.4,
+      opacity: 0.32,
+      roughness: 0.08,
+      transmission: 0.88,
+      thickness: 0.3,
     }),
-    wallTrim: new THREE.MeshStandardMaterial({ color: 0x6366f1, emissive: 0x4f46e5, emissiveIntensity: 0.3 }),
-    deskSurface: new THREE.MeshStandardMaterial({ color: 0x1e2230, roughness: 0.4, metalness: 0.2 }),
-    deskLegs: new THREE.MeshStandardMaterial({ color: 0x0a0d14, roughness: 0.7 }),
-    woodBoardroom: new THREE.MeshStandardMaterial({ color: 0x1e1b4b, roughness: 0.3, metalness: 0.3 }),
-    leatherChair: new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5 }),
-    screenGlow: new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
-    neonGreen: new THREE.MeshBasicMaterial({ color: 0x10b981 }),
-    plantGreen: new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.6 }),
+    aluminumTrim: new THREE.MeshStandardMaterial({
+      color: 0x475569,
+      roughness: 0.25,
+      metalness: 0.8,
+    }),
+    deskWoodOak: new THREE.MeshStandardMaterial({
+      color: 0xdfbe93,
+      roughness: 0.45,
+    }),
+    deskSteelMatte: new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      roughness: 0.6,
+      metalness: 0.4,
+    }),
+    boardroomMarble: new THREE.MeshStandardMaterial({
+      color: 0x1e2538,
+      roughness: 0.18,
+      metalness: 0.25,
+    }),
+    leatherExecutive: new THREE.MeshStandardMaterial({
+      color: 0x1f2430,
+      roughness: 0.55,
+    }),
+    plantGreen: new THREE.MeshStandardMaterial({
+      color: 0x16a34a,
+      roughness: 0.5,
+    }),
+    potWhiteCeramic: new THREE.MeshStandardMaterial({
+      color: 0xf1f5f9,
+      roughness: 0.15,
+    }),
   };
 
-  // 1. Main Floor (36m x 30m)
-  const floorGeo = new THREE.BoxGeometry(36, 0.4, 30);
-  const floor = new THREE.Mesh(floorGeo, materials.floor);
+  // 1. Main Parquet Hardwood Floor (38m x 32m)
+  const floorGeo = new THREE.BoxGeometry(38, 0.4, 32);
+  const floor = new THREE.Mesh(floorGeo, materials.floorWood);
   floor.position.y = -0.2;
   floor.receiveShadow = true;
   _officeScene.add(floor);
 
-  // Subtle Floor Grid Helper
-  const gridHelper = new THREE.GridHelper(36, 36, 0x312e81, 0x1e293b);
-  gridHelper.position.y = 0.02;
-  _officeScene.add(gridHelper);
+  // 2. Central Executive Walkway (Slate Grey Runner)
+  const runnerGeo = new THREE.BoxGeometry(4.0, 0.02, 28);
+  const runner = new THREE.Mesh(runnerGeo, materials.carpetWalkway);
+  runner.position.set(0, 0.01, 0);
+  runner.receiveShadow = true;
+  _officeScene.add(runner);
 
-  // 2. Glass Perimeter Walls with Glowing Trims
-  createWall(0, 2, -15, 36, 4, 0.3, materials.wallGlass, materials.wallTrim); // Back
-  createWall(-18, 2, 0, 0.3, 4, 30, materials.wallGlass, materials.wallTrim); // Left
-  createWall(18, 2, 0, 0.3, 4, 30, materials.wallGlass, materials.wallTrim);  // Right
+  // Cross walkway connecting east/west wings
+  const crossRunnerGeo = new THREE.BoxGeometry(32, 0.02, 3.6);
+  const crossRunner = new THREE.Mesh(crossRunnerGeo, materials.carpetWalkway);
+  crossRunner.position.set(0, 0.008, 0);
+  crossRunner.receiveShadow = true;
+  _officeScene.add(crossRunner);
 
-  // 3. Central Boardroom Table & Chairs
-  const tableGroup = new THREE.Group();
-  const tableTopGeo = new THREE.CylinderGeometry(3.6, 3.6, 0.15, 32);
-  tableTopGeo.scale(1.4, 1, 0.85); // Oval
-  const tableTop = new THREE.Mesh(tableTopGeo, materials.woodBoardroom);
-  tableTop.position.y = 1.0;
-  tableTop.castShadow = true;
-  tableTop.receiveShadow = true;
-  tableGroup.add(tableTop);
+  // 3. Perimeter Glass Curtain Windows with Modern Aluminum Mullions
+  createPanoramicWindows(-19, 2.5, 0, 0.3, 5.0, 32, materials.glassWall, materials.aluminumTrim); // West
+  createPanoramicWindows(19, 2.5, 0, 0.3, 5.0, 32, materials.glassWall, materials.aluminumTrim);  // East
+  createPanoramicWindows(0, 2.5, -16, 38, 5.0, 0.3, materials.glassWall, materials.aluminumTrim); // North
+  createPanoramicWindows(0, 2.5, 16, 38, 5.0, 0.3, materials.glassWall, materials.aluminumTrim);  // South
 
-  // Center Hologram Projector on Boardroom Table
-  const holoGeo = new THREE.CylinderGeometry(0.5, 0.6, 0.1, 16);
-  const holoBase = new THREE.Mesh(holoGeo, materials.wallTrim);
-  holoBase.position.y = 1.1;
-  tableGroup.add(holoBase);
+  // 4. Executive Boardroom Table & Modern Chairs (x: 0, z: 0)
+  buildExecutiveBoardroom(materials);
 
-  const holoRaysGeo = new THREE.ConeGeometry(1.2, 1.8, 16, 1, true);
-  const holoRaysMat = new THREE.MeshBasicMaterial({ color: 0x6366f1, transparent: true, opacity: 0.25, wireframe: true });
-  const holoRays = new THREE.Mesh(holoRaysGeo, holoRaysMat);
-  holoRays.position.y = 2.0;
-  holoRays.rotation.x = Math.PI;
-  tableGroup.add(holoRays);
-
-  // Table Legs
-  const legGeo = new THREE.CylinderGeometry(0.12, 0.12, 1.0, 12);
-  [[-2, 0.5, -1], [2, 0.5, -1], [-2, 0.5, 1], [2, 0.5, 1]].forEach(lp => {
-    const leg = new THREE.Mesh(legGeo, materials.deskLegs);
-    leg.position.set(...lp);
-    tableGroup.add(leg);
-  });
-
-  // 6 Boardroom Executive Chairs
-  const chairPositions = [
-    [-2.2, 0, -1.8, 0], [0, 0, -2.1, 0], [2.2, 0, -1.8, 0],
-    [-2.2, 0, 1.8, Math.PI], [0, 0, 2.1, Math.PI], [2.2, 0, 1.8, Math.PI]
-  ];
-  chairPositions.forEach(cp => {
-    const chair = createOfficeChair(materials.leatherChair);
-    chair.position.set(cp[0], 0, cp[1]);
-    chair.rotation.y = cp[2];
-    tableGroup.add(chair);
-  });
-  _officeScene.add(tableGroup);
-
-  // 4. Coffee Lounge & Break Area (x: 0, z: -10)
+  // 5. Break Lounge & Italian Espresso Bar (x: 0, z: -10.5)
   buildCoffeeLounge(materials);
 
-  // 5. Presentation / Deliverable Stage (x: 0, z: 10)
-  buildPresentationStage(materials);
+  // 6. Presentation Wall with Smart LED Display (x: 0, z: 12)
+  buildPresentationWall(materials);
 
-  // 6. Build 6 Dedicated Workstations for Employees
+  // 7. 6 Dedicated Department Bays
   Object.values(OFFICE_EMPLOYEE_DEFS).forEach(def => {
-    buildEmployeeDesk(def, materials);
+    buildDepartmentWorkstation(def, materials);
   });
 
-  // 7. Decorative Potted Plants & Partitions
-  [[-14, 0, -12], [14, 0, -12], [-14, 0, 12], [14, 0, 12], [-4, 0, -14], [4, 0, -14]].forEach(pp => {
-    createPottedPlant(pp[0], pp[2], materials);
+  // 8. Realistic Indoor Plants (Monstera & Ficus in Ceramic Pots)
+  [
+    [-15, -13], [15, -13], [-15, 13], [15, 13],
+    [-3.2, -6], [3.2, -6], [-3.2, 6], [3.2, 6],
+    [-15, 0], [15, 0]
+  ].forEach(([px, pz]) => {
+    createOfficePlant(px, pz, materials);
   });
 }
 
-function createWall(x, y, z, w, h, d, glassMat, trimMat) {
-  const wallGroup = new THREE.Group();
+function createPanoramicWindows(x, y, z, w, h, d, glassMat, trimMat) {
+  const group = new THREE.Group();
+
+  // Glass Pane
   const glass = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), glassMat);
-  wallGroup.add(glass);
+  group.add(glass);
 
-  // Glowing Top Trim
-  const topTrim = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, d + 0.05), trimMat);
+  // Architectural Framing (Top/Bottom trims)
+  const isZAxis = d > w;
+  const frameGeo = isZAxis
+    ? new THREE.BoxGeometry(w + 0.1, 0.16, d)
+    : new THREE.BoxGeometry(w, 0.16, d + 0.1);
+
+  const topTrim = new THREE.Mesh(frameGeo, trimMat);
   topTrim.position.y = h / 2;
-  wallGroup.add(topTrim);
+  group.add(topTrim);
 
-  wallGroup.position.set(x, y, z);
-  _officeScene.add(wallGroup);
+  const botTrim = new THREE.Mesh(frameGeo, trimMat);
+  botTrim.position.y = -h / 2;
+  group.add(botTrim);
+
+  group.position.set(x, y, z);
+  _officeScene.add(group);
 }
 
-function createOfficeChair(material) {
-  const chairGroup = new THREE.Group();
+function buildExecutiveBoardroom(materials) {
+  const group = new THREE.Group();
 
-  // Seat
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.7), material);
-  seat.position.y = 0.55;
-  chairGroup.add(seat);
+  // Oval Executive Marble/Glass Conference Table
+  const tableGeo = new THREE.CylinderGeometry(3.6, 3.6, 0.14, 32);
+  tableGeo.scale(1.45, 1, 0.85); // Oval
+  const tableTop = new THREE.Mesh(tableGeo, materials.boardroomMarble);
+  tableTop.position.y = 1.05;
+  tableTop.castShadow = true;
+  tableTop.receiveShadow = true;
+  group.add(tableTop);
 
-  // Backrest
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 0.1), material);
-  back.position.set(0, 0.95, -0.32);
-  chairGroup.add(back);
+  // Chrome Pedestal Base
+  const baseGeo = new THREE.CylinderGeometry(0.8, 1.2, 1.0, 24);
+  const base = new THREE.Mesh(baseGeo, materials.aluminumTrim);
+  base.position.y = 0.52;
+  group.add(base);
 
-  // Base stem & wheels
-  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8), material);
-  stem.position.y = 0.25;
-  chairGroup.add(stem);
+  // Conference Speakerphone Puck in Center
+  const micGeo = new THREE.CylinderGeometry(0.4, 0.45, 0.08, 16);
+  const mic = new THREE.Mesh(micGeo, materials.deskSteelMatte);
+  mic.position.y = 1.15;
+  group.add(mic);
 
-  const starGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.04, 5);
-  const star = new THREE.Mesh(starGeo, material);
+  // Glowing center status ring
+  const ringGeo = new THREE.RingGeometry(0.32, 0.36, 24);
+  const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 1.195;
+  group.add(ring);
+
+  // 6 Executive High-Back Chairs around boardroom table
+  const chairPos = [
+    [-2.4, 0, -1.8, 0], [0, 0, -2.1, 0], [2.4, 0, -1.8, 0],
+    [-2.4, 0, 1.8, Math.PI], [0, 0, 2.1, Math.PI], [2.4, 0, 1.8, Math.PI]
+  ];
+  chairPos.forEach(([cx, cy, cz, rotY]) => {
+    const chair = createRealExecutiveChair(materials);
+    chair.position.set(cx, 0, cz);
+    chair.rotation.y = rotY;
+    group.add(chair);
+  });
+
+  _officeScene.add(group);
+}
+
+function createRealExecutiveChair(materials) {
+  const chair = new THREE.Group();
+
+  // Seat with cushion curve
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.12, 0.72), materials.leatherExecutive);
+  seat.position.y = 0.58;
+  seat.castShadow = true;
+  chair.add(seat);
+
+  // High Ergonomic Backrest
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.85, 0.1), materials.leatherExecutive);
+  back.position.set(0, 1.02, -0.32);
+  back.castShadow = true;
+  chair.add(back);
+
+  // Headrest
+  const headrest = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.22, 0.08), materials.leatherExecutive);
+  headrest.position.set(0, 1.5, -0.32);
+  chair.add(headrest);
+
+  // Chrome Armrests
+  [-0.38, 0.38].forEach(ax => {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, 0.45), materials.aluminumTrim);
+    arm.position.set(ax, 0.78, -0.05);
+    chair.add(arm);
+  });
+
+  // Base Stem & 5-Star Wheels
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 12), materials.aluminumTrim);
+  stem.position.y = 0.26;
+  chair.add(stem);
+
+  const star = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.05, 5), materials.deskSteelMatte);
   star.position.y = 0.04;
-  chairGroup.add(star);
+  chair.add(star);
 
-  return chairGroup;
+  return chair;
 }
 
 function buildCoffeeLounge(materials) {
   const lounge = new THREE.Group();
-  lounge.position.set(0, 0, -10.5);
+  lounge.position.set(0, 0, -10.8);
 
-  // Coffee counter bar
-  const bar = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.1, 1.0), materials.deskSurface);
-  bar.position.y = 0.55;
+  // Modern Oak Coffee Bar Counter
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.15, 1.1), materials.deskWoodOak);
+  bar.position.y = 0.58;
   bar.castShadow = true;
   lounge.add(bar);
 
-  // Espresso Machine
-  const machine = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.6), materials.wallTrim);
-  machine.position.set(-0.8, 1.4, 0);
+  // Commercial Italian Espresso Machine
+  const machine = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.65, 0.65), materials.aluminumTrim);
+  machine.position.set(-1.0, 1.48, 0);
   lounge.add(machine);
 
-  // Water Cooler (cylinder + blue bottle)
-  const coolerBase = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.9, 16), materials.deskSurface);
-  coolerBase.position.set(1.0, 0.45, 0);
-  lounge.add(coolerBase);
+  // Coffee cups
+  const cupGeo = new THREE.CylinderGeometry(0.08, 0.07, 0.12, 12);
+  const cupMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  [-0.2, 0.1].forEach(cx => {
+    const cup = new THREE.Mesh(cupGeo, cupMat);
+    cup.position.set(cx, 1.21, 0.1);
+    lounge.add(cup);
+  });
 
-  const coolerBottle = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.6, 16), materials.wallGlass);
-  coolerBottle.position.set(1.0, 1.15, 0);
-  lounge.add(coolerBottle);
+  // Water Dispenser Cooler
+  const cooler = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.0, 16), materials.potWhiteCeramic);
+  cooler.position.set(1.4, 0.5, 0);
+  lounge.add(cooler);
+  const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.65, 16), materials.glassWall);
+  bottle.position.set(1.4, 1.3, 0);
+  lounge.add(bottle);
 
-  // Small Coffee Table & Cozy Lounge Chairs
-  const cTable = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.45, 24), materials.woodBoardroom);
-  cTable.position.set(0, 0.22, 2.5);
-  lounge.add(cTable);
-
-  const sofaMat = new THREE.MeshStandardMaterial({ color: 0x312e81, roughness: 0.6 });
-  const sofa = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.6, 0.9), sofaMat);
-  sofa.position.set(0, 0.3, 3.8);
+  // Cozy Velvet/Leather Lounge Sofa
+  const sofaMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 });
+  const sofa = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.65, 1.1), sofaMat);
+  sofa.position.set(0, 0.33, 2.8);
   sofa.rotation.y = Math.PI;
+  sofa.castShadow = true;
   lounge.add(sofa);
+
+  // Low Oak Coffee Table with Magazines
+  const cTable = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, 0.8), materials.deskWoodOak);
+  cTable.position.set(0, 0.18, 1.6);
+  cTable.castShadow = true;
+  lounge.add(cTable);
 
   _officeScene.add(lounge);
 }
 
-function buildPresentationStage(materials) {
-  const stage = new THREE.Group();
-  stage.position.set(0, 0, 10.5);
+function buildPresentationWall(materials) {
+  const group = new THREE.Group();
+  group.position.set(0, 0, 12.5);
 
-  // Raised platform
-  const plat = new THREE.Mesh(new THREE.BoxGeometry(6.0, 0.2, 3.2), materials.deskSurface);
-  plat.position.y = 0.1;
-  stage.add(plat);
+  // 85" Ultra-HD Smart Presentation Board
+  const screenW = 6.0;
+  const screenH = 3.2;
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(screenW + 0.2, screenH + 0.2, 0.1), materials.deskSteelMatte);
+  frame.position.y = 2.4;
+  group.add(frame);
 
-  // Smart Digital Whiteboard (Owner HITL Dashboard)
-  const boardFrame = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.2, 0.1), materials.deskLegs);
-  boardFrame.position.set(0, 1.8, 0.8);
-  stage.add(boardFrame);
+  const displayTexture = createMonitorScreenTexture('data', '#38bdf8');
+  const screenMat = new THREE.MeshBasicMaterial({ map: displayTexture });
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(screenW, screenH), screenMat);
+  screen.position.set(0, 2.4, 0.06);
+  group.add(screen);
 
-  const boardScreen = new THREE.Mesh(new THREE.BoxGeometry(4.0, 2.0, 0.05), new THREE.MeshBasicMaterial({ color: 0x1e1b4b }));
-  boardScreen.position.set(0, 1.8, 0.85);
-  stage.add(boardScreen);
-
-  // Podium
-  const podium = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.6), materials.wallTrim);
-  podium.position.set(0, 0.7, -0.4);
-  stage.add(podium);
-
-  _officeScene.add(stage);
+  _officeScene.add(group);
 }
 
-function buildEmployeeDesk(def, materials) {
-  const deskGroup = new THREE.Group();
-  deskGroup.position.set(...def.deskPos);
-  deskGroup.rotation.y = def.deskRot;
+function createOfficePlant(x, z, materials) {
+  const group = new THREE.Group();
+  group.position.set(x, 0, z);
 
-  // 1. Desk Surface
-  const top = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 1.3), materials.deskSurface);
-  top.position.y = 0.95;
-  top.castShadow = true;
-  top.receiveShadow = true;
-  deskGroup.add(top);
+  // Modern Ceramic Plant Pot
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.35, 0.75, 16), materials.potWhiteCeramic);
+  pot.position.y = 0.38;
+  pot.castShadow = true;
+  group.add(pot);
 
-  // Legs
-  const legGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.95, 12);
-  [[-1.1, 0.475, -0.55], [1.1, 0.475, -0.55], [-1.1, 0.475, 0.55], [1.1, 0.475, 0.55]].forEach(lp => {
-    const leg = new THREE.Mesh(legGeo, materials.deskLegs);
-    leg.position.set(...lp);
-    deskGroup.add(leg);
+  // Lush Plant Leaves
+  const leavesGeo = new THREE.DodecahedronGeometry(0.65, 1);
+  const leaves = new THREE.Mesh(leavesGeo, materials.plantGreen);
+  leaves.position.y = 1.05;
+  leaves.scale.set(1, 1.3, 1);
+  leaves.castShadow = true;
+  group.add(leaves);
+
+  _officeScene.add(group);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  4. 6 DEPARTMENT WORKSTATIONS & 3D FLOATING STATUS BADGES
+// ═══════════════════════════════════════════════════════════════
+
+function buildDepartmentWorkstation(def, materials) {
+  const group = new THREE.Group();
+  const [dx, dy, dz] = def.deskPos;
+  group.position.set(dx, 0, dz);
+  group.rotation.y = def.deskRot;
+
+  // 1. Floor Zone Label (Department name on floor)
+  createFloorDepartmentLabel(group, def);
+
+  // 2. Modern Ergonomic Oak Desk (2.4m x 1.1m)
+  const topGeo = new THREE.BoxGeometry(2.4, 0.08, 1.1);
+  const deskTop = new THREE.Mesh(topGeo, materials.deskWoodOak);
+  deskTop.position.y = 0.96;
+  deskTop.castShadow = true;
+  deskTop.receiveShadow = true;
+  group.add(deskTop);
+
+  // Matte Black Steel Desk Legs
+  const legGeo = new THREE.BoxGeometry(0.08, 0.96, 0.95);
+  [-1.05, 1.05].forEach(lx => {
+    const leg = new THREE.Mesh(legGeo, materials.deskSteelMatte);
+    leg.position.set(lx, 0.48, 0);
+    leg.castShadow = true;
+    group.add(leg);
   });
 
-  // 2. Monitors setup based on employee specialty
-  const isDev = def.id === '03_developer';
-  const isMarketing = def.id === '02_การตลาด_ai';
-  const isDevOps = def.id === '06_devops';
+  // 3. Desk Screens with Live Realistic Textures
+  const screenTex = createMonitorScreenTexture(def.screenType, def.colorHex);
 
-  if (isDev) {
-    // Triple curved monitor for Developer Bint
-    createMonitor(deskGroup, 0, 1.35, -0.2, 0.9, 0.5, def.color);
-    createMonitor(deskGroup, -0.85, 1.35, -0.1, 0.8, 0.5, def.color, 0.28);
-    createMonitor(deskGroup, 0.85, 1.35, -0.1, 0.8, 0.5, def.color, -0.28);
+  if (def.id === '03_developer') {
+    // Lead Dev: Triple Coding Monitors
+    createMonitorMesh(group, -0.75, 1.45, -0.15, 0.85, 0.55, screenTex, 0.25);
+    createMonitorMesh(group, 0, 1.45, -0.25, 1.0, 0.6, screenTex, 0);
+    createMonitorMesh(group, 0.75, 1.45, -0.15, 0.85, 0.55, screenTex, -0.25);
+  } else if (def.id === '06_sales') {
+    // Sales & CS Lead Pim: Dual Curved Monitors + Client Conference Station
+    createMonitorMesh(group, -0.5, 1.45, -0.2, 0.95, 0.55, screenTex, 0.15);
+    createMonitorMesh(group, 0.5, 1.45, -0.2, 0.95, 0.55, screenTex, -0.15);
 
-    // Mini CPU Server Tower under desk
-    const tower = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.65, 0.6), materials.wallTrim);
-    tower.position.set(0.8, 0.33, 0);
-    deskGroup.add(tower);
-  } else if (isMarketing) {
-    // Dual monitor + Ring light on tripod for Lisa
-    createMonitor(deskGroup, -0.4, 1.35, -0.2, 0.9, 0.55, def.color);
-    createMonitor(deskGroup, 0.55, 1.35, -0.2, 0.9, 0.55, def.color, -0.15);
+    // Executive Customer Trophy / Award Plaque behind Pim
+    const plaqueBack = new THREE.Mesh(
+      new THREE.BoxGeometry(1.8, 1.2, 0.08),
+      new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.2 })
+    );
+    plaqueBack.position.set(0, 2.0, -1.9);
+    group.add(plaqueBack);
+
+    const trophy = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.12, 0.35, 16),
+      new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.2 })
+    );
+    trophy.position.set(1.05, 1.18, 0.1);
+    group.add(trophy);
+  } else if (def.id === '02_การตลาด_ai') {
+    // Marketing: Dual Monitor + Studio Ring Light
+    createMonitorMesh(group, -0.45, 1.45, -0.2, 0.9, 0.55, screenTex, 0.15);
+    createMonitorMesh(group, 0.5, 1.45, -0.2, 0.9, 0.55, screenTex, -0.15);
 
     // Studio Ring Light
-    const ringGeo = new THREE.TorusGeometry(0.28, 0.04, 16, 32);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.position.set(0.9, 1.7, 0.2);
-    deskGroup.add(ring);
-  } else if (isDevOps) {
-    // DevOps Kong: Wide Console Monitor + Server Racks behind
-    createMonitor(deskGroup, 0, 1.4, -0.2, 1.3, 0.65, def.color);
-
-    // 2 Server Racks behind the desk
-    const rackGeo = new THREE.BoxGeometry(1.0, 2.6, 0.8);
-    const rackMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6 });
-    [-1.2, 1.2].forEach(rx => {
-      const rack = new THREE.Mesh(rackGeo, rackMat);
-      rack.position.set(rx, 1.3, -1.8);
-      deskGroup.add(rack);
-
-      // Blinking LEDs
-      const ledGeo = new THREE.BoxGeometry(0.7, 0.05, 0.05);
-      const led = new THREE.Mesh(ledGeo, new THREE.MeshBasicMaterial({ color: 0x10b981 }));
-      led.position.set(rx, 1.8, -1.38);
-      deskGroup.add(led);
-    });
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.32, 0.035, 16, 32),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    ring.position.set(1.0, 1.7, 0.1);
+    group.add(ring);
   } else {
-    // Standard sleek dual monitors
-    createMonitor(deskGroup, -0.45, 1.35, -0.2, 0.85, 0.55, def.color);
-    createMonitor(deskGroup, 0.45, 1.35, -0.2, 0.85, 0.55, def.color);
+    // Standard Dual Curved Ultra-Wide Monitors
+    createMonitorMesh(group, -0.48, 1.45, -0.2, 0.9, 0.55, screenTex, 0.12);
+    createMonitorMesh(group, 0.48, 1.45, -0.2, 0.9, 0.55, screenTex, -0.12);
   }
 
-  // Keyboard & Mouse
-  const kb = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.02, 0.25), materials.deskLegs);
-  kb.position.set(0, 1.01, 0.2);
-  deskGroup.add(kb);
+  // Keyboard, Mouse, and Coffee Mug on Desk
+  const kb = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.02, 0.22), materials.deskSteelMatte);
+  kb.position.set(0, 1.01, 0.15);
+  group.add(kb);
 
-  // Executive Chair
-  const chair = createOfficeChair(materials.leatherChair);
-  chair.position.set(0, 0, 0.9);
-  deskGroup.add(chair);
+  const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.12, 12), new THREE.MeshStandardMaterial({ color: def.color }));
+  mug.position.set(0.65, 1.06, 0.25);
+  group.add(mug);
 
-  // Interaction Hitbox on Desk
+  // Executive Chair at Desk
+  const chair = createRealExecutiveChair(materials);
+  chair.position.set(0, 0, 0.85);
+  group.add(chair);
+
+  // Invisible Interaction Hitbox on Desk
   const hitBox = new THREE.Mesh(
-    new THREE.BoxGeometry(2.6, 2.0, 2.4),
-    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, wireframe: false })
+    new THREE.BoxGeometry(2.8, 2.2, 2.6),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
   );
-  hitBox.position.set(0, 1.0, 0);
+  hitBox.position.set(0, 1.2, 0);
   hitBox.userData = { isDesk: true, agentId: def.id };
-  deskGroup.add(hitBox);
+  group.add(hitBox);
   _officeClickableObjects.push(hitBox);
 
-  _officeScene.add(deskGroup);
+  _officeScene.add(group);
 }
 
-function createMonitor(parent, x, y, z, w, h, screenColorHex, rotY = 0) {
+function createFloorDepartmentLabel(parentGroup, def) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+  ctx.roundRect(8, 8, 496, 112, 16);
+  ctx.fill();
+
+  ctx.strokeStyle = def.colorHex;
+  ctx.lineWidth = 4;
+  ctx.roundRect(8, 8, 496, 112, 16);
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 36px "Noto Sans Thai", sans-serif';
+  ctx.fillText(`${def.icon} ${def.name}`, 30, 60);
+
+  ctx.fillStyle = def.colorHex;
+  ctx.font = '600 24px "Noto Sans Thai", sans-serif';
+  ctx.fillText(def.shortDept, 30, 95);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const planeGeo = new THREE.PlaneGeometry(2.4, 0.6);
+  const planeMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.95 });
+  const plane = new THREE.Mesh(planeGeo, planeMat);
+  plane.rotation.x = -Math.PI / 2;
+  plane.position.set(0, 0.02, 1.6);
+  parentGroup.add(plane);
+}
+
+function createMonitorMesh(parent, x, y, z, w, h, screenTexture, rotY = 0) {
   const group = new THREE.Group();
   group.position.set(x, y, z);
   group.rotation.y = rotY;
 
-  // Bezel
-  const bezel = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.04), new THREE.MeshStandardMaterial({ color: 0x050505 }));
+  // Ultra-slim Bezel
+  const bezel = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.04), new THREE.MeshStandardMaterial({ color: 0x090d16 }));
   bezel.castShadow = true;
   group.add(bezel);
 
-  // Screen
-  const screen = new THREE.Mesh(
-    new THREE.PlaneGeometry(w - 0.06, h - 0.06),
-    new THREE.MeshBasicMaterial({ color: screenColorHex })
-  );
-  screen.position.z = 0.025;
+  // Active Screen
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.04, h - 0.04), new THREE.MeshBasicMaterial({ map: screenTexture }));
+  screen.position.z = 0.022;
   group.add(screen);
 
-  // Stand
-  const stand = new THREE.Mesh(
-    new THREE.BoxGeometry(0.08, y - 0.95, 0.08),
-    new THREE.MeshStandardMaterial({ color: 0x111111 })
-  );
-  stand.position.set(0, -(y - 0.95) / 2, 0);
+  // Articulated Monitor Stand
+  const stand = new THREE.Mesh(new THREE.BoxGeometry(0.08, y - 0.96, 0.08), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+  stand.position.set(0, -(y - 0.96) / 2, 0);
   group.add(stand);
 
   parent.add(group);
 }
 
-function createPottedPlant(x, z, materials) {
-  const plantGroup = new THREE.Group();
-  plantGroup.position.set(x, 0, z);
-
-  // Modern Pot
-  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.7, 16), materials.deskSurface);
-  pot.position.y = 0.35;
-  plantGroup.add(pot);
-
-  // Leaves
-  const leaves = new THREE.Mesh(new THREE.DodecahedronGeometry(0.55), materials.plantGreen);
-  leaves.position.y = 0.9;
-  plantGroup.add(leaves);
-
-  _officeScene.add(plantGroup);
-}
-
 // ═══════════════════════════════════════════════════════════════
-//  4. 3D AI EMPLOYEE AVATARS & MOVEMENT ENGINE
+//  5. REAL-WORLD AI EMPLOYEE AVATARS & 3D FLOATING STATUS HUD
 // ═══════════════════════════════════════════════════════════════
 
 function buildOfficeEmployees() {
   Object.values(OFFICE_EMPLOYEE_DEFS).forEach(def => {
-    const agent = createEmployeeModel(def);
+    const agent = createRealWorldEmployee(def);
     _officeEmployees[def.id] = agent;
     _officeScene.add(agent.root);
     _officeClickableObjects.push(agent.hitBox);
   });
 }
 
-function createEmployeeModel(def) {
+function createRealWorldEmployee(def) {
   const root = new THREE.Group();
-  const [dx, dy, dz] = def.chairPos;
-  root.position.set(dx, 0, dz);
+  const [dx, dy, dz] = def.deskPos;
+  // Position right at chair
+  const chairOffset = new THREE.Vector3(0, 0, 0.85).applyAxisAngle(new THREE.Vector3(0, 1, 0), def.deskRot);
+  root.position.set(dx + chairOffset.x, 0, dz + chairOffset.z);
+  root.rotation.y = def.deskRot + Math.PI;
 
-  // Materials
-  const skinMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.6 });
-  const shirtMat = new THREE.MeshStandardMaterial({ color: def.shirtColor, roughness: 0.5 });
-  const pantsMat = new THREE.MeshStandardMaterial({ color: def.pantsColor, roughness: 0.6 });
-  const hairMat = new THREE.MeshStandardMaterial({ color: 0x171717, roughness: 0.4 });
-  const shoeMat = new THREE.MeshStandardMaterial({ color: 0x050505 });
+  // 1. Elegant Circular Halo Pedestal at Floor
+  const haloGeo = new THREE.RingGeometry(0.45, 0.52, 32);
+  const haloMat = new THREE.MeshBasicMaterial({ color: def.color, side: THREE.DoubleSide });
+  const halo = new THREE.Mesh(haloGeo, haloMat);
+  halo.rotation.x = -Math.PI / 2;
+  halo.position.y = 0.03;
+  root.add(halo);
 
-  // 1. Torso
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.35), shirtMat);
-  torso.position.y = 1.05;
-  torso.castShadow = true;
-  root.add(torso);
+  // 2. High-Res Circular Portrait Badge Avatar
+  const loader = new THREE.TextureLoader();
+  const avatarTex = loader.load(def.avatarUrl);
 
-  // 2. Head
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 16), skinMat);
-  head.position.y = 1.6;
-  head.castShadow = true;
-  root.add(head);
+  const avatarGeo = new THREE.CircleGeometry(0.42, 32);
+  const avatarMat = new THREE.MeshBasicMaterial({ map: avatarTex, side: THREE.DoubleSide });
+  const avatarMesh = new THREE.Mesh(avatarGeo, avatarMat);
+  avatarMesh.position.y = 1.35;
+  avatarMesh.castShadow = true;
+  root.add(avatarMesh);
 
-  // Hair / Cap
-  const hair = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.52), hairMat);
-  hair.position.set(0, 1.74, 0);
-  root.add(hair);
+  // Metallic & Glowing Bezel Rim around Avatar Portrait
+  const rimGeo = new THREE.RingGeometry(0.42, 0.46, 32);
+  const rimMat = new THREE.MeshBasicMaterial({ color: def.color, side: THREE.DoubleSide });
+  const rim = new THREE.Mesh(rimGeo, rimMat);
+  rim.position.y = 1.35;
+  rim.position.z = 0.005;
+  root.add(rim);
 
-  // Smart Glasses for Bint & Mook
-  if (def.id === '03_developer' || def.id === '04_data_analyst') {
-    const glasses = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-    glasses.position.set(0, 1.62, 0.22);
-    root.add(glasses);
-  }
+  // Acrylic Stand Stem
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.04, 0.8, 12),
+    new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.6, roughness: 0.3 })
+  );
+  stem.position.y = 0.85;
+  root.add(stem);
 
-  // 3. Limbs (Arms & Legs for walking cycle)
-  const armGeo = new THREE.BoxGeometry(0.16, 0.6, 0.16);
-  const leftArm = new THREE.Mesh(armGeo, shirtMat);
-  leftArm.position.set(-0.36, 1.05, 0);
-  root.add(leftArm);
+  // 3. Floating 3D Holographic Status Badge (Anchor at y: 2.8m above workstation)
+  const statusSprite = create3DStatusSprite(def, '🟢 พร้อมปฏิบัติงาน', def.defaultThought);
+  statusSprite.position.y = 2.8;
+  root.add(statusSprite);
 
-  const rightArm = new THREE.Mesh(armGeo, shirtMat);
-  rightArm.position.set(0.36, 1.05, 0);
-  root.add(rightArm);
-
-  const legGeo = new THREE.BoxGeometry(0.2, 0.7, 0.2);
-  const leftLeg = new THREE.Mesh(legGeo, pantsMat);
-  leftLeg.position.set(-0.16, 0.35, 0);
-  leftLeg.castShadow = true;
-  root.add(leftLeg);
-
-  const rightLeg = new THREE.Mesh(legGeo, pantsMat);
-  rightLeg.position.set(0.16, 0.35, 0);
-  rightLeg.castShadow = true;
-  root.add(rightLeg);
-
-  // 4. Status Beacon Light above head
-  const beaconGeo = new THREE.SphereGeometry(0.1, 12, 12);
-  const beaconMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
-  const beacon = new THREE.Mesh(beaconGeo, beaconMat);
-  beacon.position.y = 2.05;
-  root.add(beacon);
-
-  // 5. Billboard Name Tag
-  const nameSprite = createTextBillboard(`${def.name} (${def.role.split(' ')[0]})`, '#ffffff', '#1e1b4b');
-  nameSprite.position.set(0, 2.35, 0);
-  nameSprite.scale.set(2.8, 0.7, 1);
-  root.add(nameSprite);
-
-  // 6. Floating Live Thought Bubble Billboard
-  const thoughtSprite = createTextBillboard(`💭 "${def.defaultThought}"`, '#38bdf8', 'rgba(10, 14, 23, 0.85)');
-  thoughtSprite.position.set(0, 3.0, 0);
-  thoughtSprite.scale.set(4.0, 0.85, 1);
-  thoughtSprite.visible = true;
-  root.add(thoughtSprite);
-
-  // 7. Clickable Hitbox
+  // 4. Hitbox for clicking
   const hitBox = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.65, 0.65, 2.6, 8),
+    new THREE.BoxGeometry(1.6, 2.8, 1.6),
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
   );
-  hitBox.position.y = 1.3;
+  hitBox.position.y = 1.4;
   hitBox.userData = { isAgent: true, agentId: def.id };
   root.add(hitBox);
 
   return {
-    def: def,
-    root: root,
-    torso: torso,
-    head: head,
-    leftArm: leftArm,
-    rightArm: rightArm,
-    leftLeg: leftLeg,
-    rightLeg: rightLeg,
-    beacon: beacon,
-    nameSprite: nameSprite,
-    thoughtSprite: thoughtSprite,
-    hitBox: hitBox,
-    // Movement State
-    homePos: new THREE.Vector3(...def.chairPos),
-    currentPos: new THREE.Vector3(...def.chairPos),
-    targetPos: new THREE.Vector3(...def.chairPos),
-    isWalking: false,
-    isSitting: true,
-    walkSpeed: 3.2,
-    walkCycle: 0,
-    wanderCooldown: Math.random() * 8 + 6,
-    // Simulation Live State
+    def,
+    root,
+    avatarMesh,
+    halo,
+    statusSprite,
+    hitBox,
     status: 'idle',
     actionText: 'พร้อมปฏิบัติงาน',
     thoughtText: def.defaultThought,
     progress: 0,
+    timeOffset: Math.random() * 10,
   };
 }
 
-function createTextBillboard(text, textColor = '#ffffff', bgColor = 'rgba(15, 23, 42, 0.8)') {
+// 3D World-Space Floating Billboard Sprite (Crisp Canvas Badge)
+function create3DStatusSprite(def, statusText, thoughtText) {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 128;
+  canvas.width = 640;
+  canvas.height = 240;
   const ctx = canvas.getContext('2d');
 
-  // Draw pill background
-  ctx.fillStyle = bgColor;
-  roundRect(ctx, 10, 10, 492, 108, 24, true, true);
-
-  // Border
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = '#6366f1';
-  roundRect(ctx, 10, 10, 492, 108, 24, false, true);
-
-  // Text
-  ctx.fillStyle = textColor;
-  ctx.font = 'bold 32px "Noto Sans Thai", Inter, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, 256, 64);
+  updateStatusSpriteCanvas(ctx, canvas, def, statusText, thoughtText);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
-  const mat = new THREE.SpriteMaterial({ map: texture, depthTest: false });
-  const sprite = new THREE.Sprite(mat);
+  const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(3.6, 1.35, 1);
   sprite.userData = { canvas, ctx, texture };
   return sprite;
 }
 
-function updateTextBillboard(sprite, text, textColor = '#ffffff', bgColor = 'rgba(15, 23, 42, 0.85)') {
-  if (!sprite || !sprite.userData || !sprite.userData.canvas) return;
-  const { canvas, ctx, texture } = sprite.userData;
+function updateStatusSpriteCanvas(ctx, canvas, def, statusText, thoughtText) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.clearRect(0, 0, 512, 128);
-  ctx.fillStyle = bgColor;
-  roundRect(ctx, 10, 10, 492, 108, 24, true, true);
+  // Semi-transparent Glassmorphic Badge Container
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+  ctx.roundRect(10, 10, 620, 220, 24);
+  ctx.fill();
 
+  // Vibrant Department Border
+  ctx.strokeStyle = def.colorHex;
   ctx.lineWidth = 4;
-  ctx.strokeStyle = '#6366f1';
-  roundRect(ctx, 10, 10, 492, 108, 24, false, true);
+  ctx.roundRect(10, 10, 620, 220, 24);
+  ctx.stroke();
 
-  ctx.fillStyle = textColor;
-  ctx.font = 'bold 28px "Noto Sans Thai", Inter, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+  // Top Row: Icon + Name + Role
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 32px "Noto Sans Thai", sans-serif';
+  ctx.fillText(`${def.icon} ${def.name} (${def.role})`, 30, 56);
 
-  // Truncate if too long
-  let display = text;
-  if (display.length > 36) display = display.substring(0, 34) + '...';
-  ctx.fillText(display, 256, 64);
+  // Department Subtitle
+  ctx.fillStyle = def.colorHex;
+  ctx.font = '600 20px "Noto Sans Thai", sans-serif';
+  ctx.fillText(def.dept, 30, 90);
 
-  texture.needsUpdate = true;
-}
+  // Status Pill Box
+  const isWorking = statusText.includes('กำลัง') || statusText.includes('Active') || statusText.includes('⚡');
+  const isHitl = statusText.includes('อนุมัติ') || statusText.includes('HITL') || statusText.includes('🚨');
 
-function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+  const pillBg = isHitl ? 'rgba(245, 158, 11, 0.25)' : (isWorking ? 'rgba(16, 185, 129, 0.25)' : 'rgba(56, 189, 248, 0.2)');
+  const pillBorder = isHitl ? '#f59e0b' : (isWorking ? '#10b981' : '#38bdf8');
+  const dotColor = isHitl ? '#fbbf24' : (isWorking ? '#34d399' : '#38bdf8');
+
+  ctx.fillStyle = pillBg;
+  ctx.roundRect(30, 110, 580, 44, 12);
+  ctx.fill();
+  ctx.strokeStyle = pillBorder;
+  ctx.lineWidth = 2;
+  ctx.roundRect(30, 110, 580, 44, 12);
+  ctx.stroke();
+
+  // Glowing Dot
+  ctx.fillStyle = dotColor;
   ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-  if (fill) ctx.fill();
-  if (stroke) ctx.stroke();
+  ctx.arc(52, 132, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Status Text
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 20px "Noto Sans Thai", sans-serif';
+  ctx.fillText(statusText, 72, 139);
+
+  // Current Thought / Activity snippet
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = 'italic 18px "Noto Sans Thai", sans-serif';
+  const cleanThought = (thoughtText || def.defaultThought || '').slice(0, 48);
+  ctx.fillText(`"${cleanThought}${cleanThought.length >= 48 ? '...' : ''}"`, 30, 195);
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  5. ANIMATION LOOP & WALKING ENGINE ("เดินไปเดินมา")
+//  6. ANIMATION LOOP & SMOOTH CAMERA GLIDE
 // ═══════════════════════════════════════════════════════════════
-
-let _clock = null;
 
 function animateOffice() {
   _officeAnimId = requestAnimationFrame(animateOffice);
 
-  if (!_clock && typeof THREE !== 'undefined' && THREE.Clock) {
-    _clock = new THREE.Clock();
-  }
-  const delta = _clock ? Math.min(_clock.getDelta(), 0.1) : 0.016;
-  const time = _clock ? _clock.getElapsedTime() : performance.now() * 0.001;
+  const time = performance.now() * 0.001;
 
-  // 1. Update Camera Smooth Orbit / Transitions
-  if (_officeControls) _officeControls.update();
+  // 1. Smooth Camera Gliding (Lerp Interpolation)
+  if (_officeCameraTarget.active && _officeCamera && _officeControls) {
+    const tPos = _officeCameraTarget.pos;
+    const tLook = _officeCameraTarget.lookAt;
+    const speed = _officeCameraTarget.speed || 0.08;
 
-  if (_officeCameraTarget.active) {
-    _officeCamera.position.lerp(_officeCameraTarget.pos, 0.05);
-    _officeControls.target.lerp(_officeCameraTarget.lookAt, 0.05);
-    if (_officeCamera.position.distanceTo(_officeCameraTarget.pos) < 0.2) {
+    _officeCamera.position.lerp(tPos, speed);
+    _officeControls.target.lerp(tLook, speed);
+    _officeControls.update();
+
+    if (_officeCamera.position.distanceTo(tPos) < 0.15 &&
+        _officeControls.target.distanceTo(tLook) < 0.15) {
       _officeCameraTarget.active = false;
     }
+  } else if (_officeControls) {
+    _officeControls.update();
   }
 
-  // 2. Update AI Employees Autonomous Behavior & Walking Animation
+  // 2. Avatar Gentle Breathing & Activity Halos
   Object.values(_officeEmployees).forEach(agent => {
-    updateAgentMovement(agent, delta, time);
+    // Gentle breathing elevation
+    const breath = Math.sin(time * 2.5 + agent.timeOffset) * 0.04;
+    agent.avatarMesh.position.y = 1.35 + breath;
+
+    // Halo pulse if working
+    if (['coding', 'writing_content', 'reviewing', 'planning', 'active'].includes(agent.status)) {
+      const pulse = 1.0 + Math.sin(time * 6 + agent.timeOffset) * 0.15;
+      agent.halo.scale.set(pulse, pulse, pulse);
+    } else {
+      agent.halo.scale.set(1, 1, 1);
+    }
   });
 
-  // 3. Render Scene
-  if (_officeRenderer && _officeScene && _officeCamera) {
-    _officeRenderer.render(_officeScene, _officeCamera);
-  }
-}
-
-function updateAgentMovement(agent, delta, time) {
-  // If Active Working or Awaiting Approval, override wandering
-  if (['coding', 'writing_content', 'reviewing', 'planning', 'active'].includes(agent.status)) {
-    // Return to desk immediately and work
-    if (agent.targetPos.distanceTo(agent.homePos) > 0.5) {
-      agent.targetPos.copy(agent.homePos);
-      agent.isWalking = true;
-    }
-  } else if (agent.status === 'awaiting_confirmation') {
-    // Walk to Presentation Stage to show deliverable to Owner!
-    const stagePos = new THREE.Vector3(0, 0, 8.5);
-    if (agent.targetPos.distanceTo(stagePos) > 0.5) {
-      agent.targetPos.copy(stagePos);
-      agent.isWalking = true;
-    }
-  } else {
-    // IDLE: Autonomous Wandering Routine every 10-18 seconds
-    agent.wanderCooldown -= delta;
-    if (agent.wanderCooldown <= 0) {
-      agent.wanderCooldown = Math.random() * 12 + 10;
-      // 50% chance walk somewhere, 50% chance stay or return home
-      if (Math.random() > 0.4) {
-        const wp = OFFICE_WAYPOINTS[Math.floor(Math.random() * OFFICE_WAYPOINTS.length)];
-        agent.targetPos.set(wp.pos[0] + (Math.random() * 0.8 - 0.4), 0, wp.pos[1] + (Math.random() * 0.8 - 0.4));
-        agent.isWalking = true;
-      } else {
-        agent.targetPos.copy(agent.homePos);
-        agent.isWalking = true;
-      }
-    }
-  }
-
-  // Walking Physics & Interpolation
-  const dist = agent.currentPos.distanceTo(agent.targetPos);
-  if (dist > 0.15) {
-    agent.isWalking = true;
-    agent.isSitting = false;
-
-    // Movement direction
-    const dir = new THREE.Vector3().subVectors(agent.targetPos, agent.currentPos).normalize();
-    agent.currentPos.addScaledVector(dir, agent.walkSpeed * delta);
-    agent.root.position.copy(agent.currentPos);
-
-    // Smooth turn towards movement direction
-    const targetAngle = Math.atan2(dir.x, dir.z);
-    agent.root.rotation.y = THREE.MathUtils.lerp(agent.root.rotation.y, targetAngle, 0.12);
-
-    // Walking Cycle (Legs & Arms swinging alternately + Torso bobbing)
-    agent.walkCycle += delta * 10;
-    const swing = Math.sin(agent.walkCycle);
-
-    agent.leftLeg.rotation.x = swing * 0.55;
-    agent.rightLeg.rotation.x = -swing * 0.55;
-    agent.leftArm.rotation.x = -swing * 0.45;
-    agent.rightArm.rotation.x = swing * 0.45;
-
-    // Torso gentle bob
-    agent.torso.position.y = 1.05 + Math.abs(Math.sin(agent.walkCycle * 2)) * 0.06;
-  } else {
-    // Stopped at destination
-    agent.isWalking = false;
-    agent.leftLeg.rotation.x = 0;
-    agent.rightLeg.rotation.x = 0;
-
-    // Check if at Home Desk
-    if (agent.currentPos.distanceTo(agent.homePos) < 0.6) {
-      agent.isSitting = true;
-      agent.root.position.copy(agent.homePos);
-      agent.root.rotation.y = agent.def.deskRot + Math.PI;
-
-      // Typing motion if Active
-      if (['coding', 'writing_content', 'reviewing', 'planning', 'active'].includes(agent.status)) {
-        agent.leftArm.rotation.x = -0.7 + Math.sin(time * 12) * 0.1;
-        agent.rightArm.rotation.x = -0.7 + Math.cos(time * 14) * 0.1;
-      } else {
-        // Resting arms on desk
-        agent.leftArm.rotation.x = -0.4;
-        agent.rightArm.rotation.x = -0.4;
-      }
-    } else {
-      // Standing idle somewhere in office
-      agent.leftArm.rotation.x = THREE.MathUtils.lerp(agent.leftArm.rotation.x, 0, 0.1);
-      agent.rightArm.rotation.x = THREE.MathUtils.lerp(agent.rightArm.rotation.x, 0, 0.1);
-    }
-  }
-
-  // Beacon Pulse
-  if (agent.beacon) {
-    if (agent.status === 'awaiting_confirmation') {
-      agent.beacon.material.color.setHex(0xfbbf24);
-      agent.beacon.scale.setScalar(1 + Math.sin(time * 8) * 0.4);
-    } else if (['coding', 'writing_content', 'reviewing', 'planning', 'active'].includes(agent.status)) {
-      agent.beacon.material.color.setHex(0x38bdf8);
-      agent.beacon.scale.setScalar(1 + Math.sin(time * 6) * 0.3);
-    } else {
-      agent.beacon.material.color.setHex(0x10b981);
-      agent.beacon.scale.setScalar(1);
-    }
-  }
+  _officeRenderer.render(_officeScene, _officeCamera);
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  6. LIVE STATE SYNC WITH BACKEND SIMULATION
+//  7. LIVE STATE SYNC WITH BACKEND SIMULATION
 // ═══════════════════════════════════════════════════════════════
 
 async function syncOfficeWithSimState() {
@@ -948,50 +1175,54 @@ async function syncOfficeWithSimState() {
 
   try {
     const data = await apiGet('/api/simulation/state');
-    if (!data || !data.agents) return;
+    if (!data) return;
 
     let activeCount = 0;
 
-    data.agents.forEach(ag => {
-      const empId = ag.department_id || ag.id;
-      const agent = _officeEmployees[empId];
-      if (!agent) return;
+    // Map agents from backend state
+    if (data.agents && Array.isArray(data.agents)) {
+      data.agents.forEach(a => {
+        const agent = _officeEmployees[a.id];
+        if (!agent) return;
 
-      agent.status = ag.status || 'idle';
-      agent.actionText = ag.current_action || 'พร้อมปฏิบัติงาน';
-      agent.thoughtText = ag.current_thought || agent.def.defaultThought;
-      agent.progress = ag.progress || 0;
+        agent.status = a.status || 'idle';
+        agent.actionText = a.action || 'พร้อมปฏิบัติงาน';
+        agent.thoughtText = a.thought || a.current_thought || agent.def.defaultThought;
+        agent.progress = a.progress || 0;
 
-      if (['coding', 'writing_content', 'reviewing', 'planning', 'active'].includes(agent.status)) {
-        activeCount++;
-      }
+        let displayStatus = '🟢 พร้อมปฏิบัติงาน (Standby)';
+        if (a.status === 'awaiting_confirmation') {
+          displayStatus = '🚨 รอยืนยันอนุมัติปิดงาน (HITL)';
+        } else if (['coding', 'writing_content', 'reviewing', 'planning', 'active'].includes(a.status)) {
+          displayStatus = `⚡ กำลังทำงาน: ${a.action || 'ประมวลผล'} (${a.progress || 0}%)`;
+          activeCount++;
+        }
 
-      // Update Floating Thought Bubble
-      let bubbleText = agent.thoughtText;
-      if (agent.status === 'awaiting_confirmation') {
-        bubbleText = '🚨 งานเสร็จแล้ว! รอ Owner อนุมัติ';
-      } else if (['coding', 'writing_content', 'reviewing', 'planning', 'active'].includes(agent.status)) {
-        bubbleText = `⚡ ${agent.actionText}`;
-      }
-      updateTextBillboard(agent.thoughtSprite, `💭 "${bubbleText}"`, '#38bdf8');
-    });
+        // Update 3D Floating Sprite
+        if (agent.statusSprite && agent.statusSprite.userData) {
+          const { ctx, canvas, texture } = agent.statusSprite.userData;
+          updateStatusSpriteCanvas(ctx, canvas, agent.def, displayStatus, agent.thoughtText);
+          texture.needsUpdate = true;
+        }
 
-    // Update Top Count Pill
-    const countEl = document.getElementById('office3d-active-count');
-    if (countEl) countEl.innerHTML = `⚡ กำลังทำงาน: <strong>${activeCount} คน</strong>`;
-
-    // Update Inspector if currently open
-    if (_officeSelectedAgentId) {
-      updateInspectorDetails(_officeSelectedAgentId);
+        // If inspector is open for this agent, update it
+        if (_officeSelectedAgentId === a.id) {
+          updateInspectorDetails(a.id);
+        }
+      });
     }
 
+    const countEl = document.getElementById('office3d-active-count');
+    if (countEl) {
+      countEl.innerHTML = `⚡ กำลังทำงาน: <strong>${activeCount} คน</strong>`;
+    }
   } catch (err) {
     console.warn('[Office3D] Sync warning:', err);
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  7. INTERACTION, RAYCASTING & INSPECTOR CARD
+//  8. INTERACTION, ONE-CLICK DEPARTMENT NAVIGATION & INSPECTOR
 // ═══════════════════════════════════════════════════════════════
 
 function onOfficeMouseMove(e) {
@@ -1007,36 +1238,53 @@ function onOfficeMouseMove(e) {
 
   if (intersects.length > 0) {
     const hit = intersects[0].object;
-    const agentId = hit.userData.agentId;
     container.style.cursor = 'pointer';
-    _officeHoveredAgent = agentId;
+    _officeHoveredAgent = hit.userData.agentId;
   } else {
     container.style.cursor = 'grab';
     _officeHoveredAgent = null;
   }
 }
 
-function onOfficeCanvasClick(e) {
+function onOfficeCanvasClick() {
   if (!_officeHoveredAgent) return;
-  focusOnEmployee(_officeHoveredAgent);
+  focusOnDepartment(_officeHoveredAgent);
 }
 
-function focusOnEmployee(empId) {
-  const agent = _officeEmployees[empId];
-  if (!agent) return;
+// Smooth One-Click Zoom into Any Department Bay
+function focusOnDepartment(deptId) {
+  const preset = OFFICE_CAMERA_PRESETS[deptId];
+  const agent = _officeEmployees[deptId];
+  if (!preset && !agent) return;
 
-  _officeSelectedAgentId = empId;
+  _officeSelectedAgentId = deptId;
 
-  // Camera smooth transition to employee desk
-  const [dx, dy, dz] = agent.def.deskPos;
+  // Cinematic 3/4 camera glide
+  const [dx, dy, dz] = agent ? agent.def.deskPos : [0, 0, 0];
+  const tPos = preset ? new THREE.Vector3(...preset.pos) : new THREE.Vector3(dx + 4.5, 4.0, dz + 4.5);
+  const tLook = preset ? new THREE.Vector3(...preset.target) : new THREE.Vector3(dx, 1.4, dz);
+
   _officeCameraTarget = {
-    pos: new THREE.Vector3(dx + 5, 5, dz + 5),
-    lookAt: new THREE.Vector3(dx, 1.2, dz),
+    pos: tPos,
+    lookAt: tLook,
     active: true,
+    speed: 0.08,
   };
 
+  // Turn on highlight spotlight for this department
+  Object.keys(_officeSpotlights).forEach(id => {
+    if (_officeSpotlights[id]) {
+      _officeSpotlights[id].intensity = (id === deptId) ? 1.4 : 0.45;
+    }
+  });
+
+  // Highlight active chip in dock
+  document.querySelectorAll('.emp-jump-chip').forEach(c => {
+    c.classList.toggle('active', c.getAttribute('data-dept') === deptId);
+  });
+
   // Open Inspector Card
-  updateInspectorDetails(empId);
+  updateInspectorDetails(deptId);
   const card = document.getElementById('office3d-inspector');
   if (card) card.style.display = 'block';
 }
@@ -1056,7 +1304,7 @@ function updateInspectorDetails(empId) {
   const pipEl = document.getElementById('inspector-pip');
 
   if (imgEl) imgEl.src = def.avatarUrl;
-  if (nameEl) nameEl.textContent = def.name;
+  if (nameEl) nameEl.textContent = `${def.name} (${def.icon})`;
   if (roleEl) roleEl.textContent = def.role;
   if (deptEl) deptEl.textContent = `🏢 ${def.dept}`;
 
@@ -1084,6 +1332,96 @@ function closeOfficeInspector() {
   const card = document.getElementById('office3d-inspector');
   if (card) card.style.display = 'none';
   _officeSelectedAgentId = null;
+
+  // Restore regular department spotlights
+  Object.values(_officeSpotlights).forEach(spot => {
+    if (spot) spot.intensity = 0.7;
+  });
+
+  document.querySelectorAll('.emp-jump-chip').forEach(c => c.classList.remove('active'));
+}
+
+function setOfficeCameraPreset(presetKey, btnEl) {
+  const p = OFFICE_CAMERA_PRESETS[presetKey];
+  if (!p) return;
+
+  _officeCameraTarget = {
+    pos: new THREE.Vector3(...p.pos),
+    lookAt: new THREE.Vector3(...p.target),
+    active: true,
+    speed: 0.07,
+  };
+
+  document.querySelectorAll('.camera-btn-group .hud-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) {
+    btnEl.classList.add('active');
+  }
+
+  if (presetKey === 'overview' || presetKey === 'top' || presetKey === 'boardroom' || presetKey === 'lounge') {
+    closeOfficeInspector();
+  }
+}
+
+function toggleOfficeFreeRoam() {
+  if (_officeControls) {
+    _officeControls.autoRotate = !_officeControls.autoRotate;
+    _officeControls.autoRotateSpeed = 0.8;
+    const btn = document.getElementById('btn-office-freeroam');
+    if (btn) btn.classList.toggle('active', _officeControls.autoRotate);
+  }
+}
+
+// Render Department Navigation Dock with High-Res Avatars
+function renderOfficeHudChips() {
+  const container = document.getElementById('office3d-emp-chips');
+  if (!container) return;
+
+  container.innerHTML = Object.values(OFFICE_EMPLOYEE_DEFS).map(def => `
+    <button class="emp-jump-chip" data-dept="${def.id}" onclick="focusOnDepartment('${def.id}')" title="ซูมไปยัง ${def.name}">
+      <img src="${def.avatarUrl}" class="chip-avatar-img" alt="${def.name}" onerror="this.src='/static/img/avatars/01_secretary.jpg'" />
+      <span class="chip-label">${def.icon} ${def.name}</span>
+      <span class="chip-dept">${def.shortDept}</span>
+    </button>
+  `).join('');
+}
+
+async function dispatchFromOffice3D() {
+  const input = document.getElementById('office3d-quick-input');
+  if (!input || !input.value.trim()) return;
+
+  const prompt = input.value.trim();
+  input.value = '';
+
+  if (typeof dispatchEnterpriseTask === 'function') {
+    await dispatchEnterpriseTask(prompt);
+  } else {
+    try {
+      await apiPost('/api/simulation/dispatch', { prompt });
+    } catch (err) {
+      console.error('[Office3D] Dispatch error:', err);
+    }
+  }
+
+  setTimeout(syncOfficeWithSimState, 300);
+}
+
+function quickRunOfficePreset(presetKey) {
+  const prompts = {
+    systems_dev: 'พัฒนาระบบ Backend REST API พร้อม JWT Authentication และ Unit Tests',
+    social_content: 'สร้าง Content Social Media: เปิดตัว One-Person AI Enterprise 100% (TikTok & Facebook)',
+    sales: 'จัดทำแผนกลยุทธ์การขาย B2B Solution และระบบตอบกลับลูกค้า 24/7',
+    devops: 'จัดทำแผนกลยุทธ์การขาย B2B Solution และระบบตอบกลับลูกค้า 24/7',
+    data_analyst: 'ตรวจสอบ Code Review ความปลอดภัย และวิเคราะห์ Conversion Rate Funnel',
+    accounting: 'ตรวจสอบรายงานรายรับ-รายจ่ายรายวัน และคำนวณ Token Cost ROI',
+    secretary: 'จัดทำรายงานสรุปความคืบหน้าของทุกแผนก และอัปเดตลง company_memory.md',
+  };
+
+  const p = prompts[presetKey];
+  if (p) {
+    const input = document.getElementById('office3d-quick-input');
+    if (input) input.value = p;
+    dispatchFromOffice3D();
+  }
 }
 
 function inspectAssignTask() {
@@ -1107,112 +1445,28 @@ function inspectChangeAvatar() {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  8. HUD CONTROLS, PRESETS & QUICK DISPATCH
-// ═══════════════════════════════════════════════════════════════
-
-function setOfficeCameraPreset(presetKey, btnEl) {
-  const p = OFFICE_CAMERA_PRESETS[presetKey];
-  if (!p) return;
-
-  _officeCameraTarget = {
-    pos: new THREE.Vector3(...p.pos),
-    lookAt: new THREE.Vector3(...p.target),
-    active: true,
-  };
-
-  document.querySelectorAll('.camera-btn-group .hud-btn').forEach(b => {
-    b.classList.remove('active');
-  });
-  if (btnEl) {
-    btnEl.classList.add('active');
-  } else if (typeof event !== 'undefined' && event && event.target) {
-    event.target.classList.add('active');
-  }
-}
-
-function toggleOfficeFreeRoam() {
-  if (_officeControls) {
-    _officeControls.autoRotate = !_officeControls.autoRotate;
-    _officeControls.autoRotateSpeed = 1.0;
-    const btn = document.getElementById('btn-office-freeroam');
-    if (btn) btn.classList.toggle('active', _officeControls.autoRotate);
-  }
-}
-
-function renderOfficeHudChips() {
-  const container = document.getElementById('office3d-emp-chips');
-  if (!container) return;
-
-  container.innerHTML = Object.values(OFFICE_EMPLOYEE_DEFS).map(def => `
-    <button class="emp-jump-chip" onclick="focusOnEmployee('${def.id}')">
-      <img src="${def.avatarUrl}" class="chip-avatar-img" alt="${def.name}" onerror="this.src='/static/img/avatars/01_secretary.jpg'" />
-      <span>${def.name}</span>
-      <span class="chip-status-dot" id="chip-dot-${def.id}"></span>
-    </button>
-  `).join('');
-}
-
-async function dispatchFromOffice3D() {
-  const input = document.getElementById('office3d-quick-input');
-  if (!input || !input.value.trim()) {
-    if (typeof toast === 'function') toast('กรุณาพิมพ์คำสั่งงานสำหรับทีม AI', 'warning');
-    return;
-  }
-
-  const promptText = input.value.trim();
-  input.value = '';
-
-  try {
-    if (typeof toast === 'function') toast(`🚀 ส่งคำสั่ง "${promptText.slice(0, 30)}..." เข้าสู่ทีม AI`, 'info');
-    await apiPost('/api/simulation/start', {
-      preset: 'custom',
-      prompt: promptText
-    });
-    if (typeof toast === 'function') toast('เลขาอิงฟ้ามอบหมายงานให้ทีม AI แล้ว — ดูพวกเขาเดินไปทำงานได้เลย!', 'success');
-    syncOfficeWithSimState();
-  } catch (err) {
-    if (typeof toast === 'function') toast(`เกิดข้อผิดพลาด: ${err.message}`, 'error');
-  }
-}
-
-async function quickRunOfficePreset(presetKey) {
-  try {
-    if (typeof toast === 'function') toast('🚀 สั่งเริ่มงานด่วน...', 'info');
-    await apiPost('/api/simulation/start', {
-      preset: presetKey,
-      prompt: ''
-    });
-    if (typeof toast === 'function') toast('เริ่มงานเรียบร้อย — พนักงานเดินเข้าโต๊ะทำงานแล้ว!', 'success');
-    syncOfficeWithSimState();
-  } catch (err) {
-    if (typeof toast === 'function') toast(`เกิดข้อผิดพลาด: ${err.message}`, 'error');
-  }
-}
-
 function onOfficeWindowResize() {
   const container = document.getElementById('office3d-canvas-container');
-  if (!container || !_officeRenderer || !_officeCamera) return;
+  if (!container || !_officeCamera || !_officeRenderer) return;
 
-  const w = container.clientWidth;
-  const h = container.clientHeight;
-  if (w && h) {
-    _officeCamera.aspect = w / h;
-    _officeCamera.updateProjectionMatrix();
-    _officeRenderer.setSize(w, h);
-  }
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+  _officeCamera.aspect = width / height;
+  _officeCamera.updateProjectionMatrix();
+  _officeRenderer.setSize(width, height);
 }
 
-// Global Window Exports
+// Window Exports
 if (typeof window !== 'undefined') {
   window.initOffice3D = initOffice3D;
+  window.focusOnDepartment = focusOnDepartment;
+  window.focusOnEmployee = focusOnDepartment; // Backward compatibility
   window.setOfficeCameraPreset = setOfficeCameraPreset;
   window.toggleOfficeFreeRoam = toggleOfficeFreeRoam;
-  window.focusOnEmployee = focusOnEmployee;
+  window.dispatchFromOffice3D = dispatchFromOffice3D;
+  window.quickRunOfficePreset = quickRunOfficePreset;
   window.closeOfficeInspector = closeOfficeInspector;
   window.inspectAssignTask = inspectAssignTask;
   window.inspectViewWorkstation = inspectViewWorkstation;
   window.inspectChangeAvatar = inspectChangeAvatar;
-  window.dispatchFromOffice3D = dispatchFromOffice3D;
-  window.quickRunOfficePreset = quickRunOfficePreset;
 }
