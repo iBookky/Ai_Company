@@ -36,23 +36,15 @@ DEFAULT_DIRECTIVES = {
         "brand_tone": "มืออาชีพ นวัตกรรมสูง จริงใจ เข้าถึงง่าย และสร้างสรรค์"
     },
     "policies": {
-        "hitl_rule": "กฎเหล็ก Human-in-the-Loop: ทุกการส่งมอบงานสำคัญ (การเงิน, โพสต์คอนเทนต์จริง, Deploy ระบบ) ต้องผ่านการยืนยัน (Confirm) จาก Owner เสมอ",
+        "hitl_rule": "กฎเหล็ก Human-in-the-Loop: ทุกการส่งมอบงานสำคัญ (การเงิน, โพสต์คอนเทนต์จริง, Deploy ระบบ) ต้องผ่านการยืนยัน (Confirm) จากพี่บุ๊ค เสมอ",
         "token_cost_policy": "นโยบาย Zero-Token Priority: ให้ความสำคัญกับโมเดลในเครื่อง (Local LLM / Ollama) และสมองกลอัจฉริยะเป็นอันดับแรกเพื่อประหยัดต้นทุน 0 บาท",
         "quality_assurance": "มาตรฐาน Zero-Defect: ซอฟต์แวร์ต้องผ่านการทดสอบครอบคลุม 100% คอนเทนต์ต้อง Hook 3 วินาทีแรกและตรงกลุ่มเป้าหมาย",
         "security_privacy": "รักษาความลับทางการค้าและข้อมูลลูกค้า 100%: ห้าม Hardcode Secrets และปกป้อง API Keys ทุกระดับ"
     },
     "company_model": {
         "model_type": "One-Person AI Enterprise (Solopreneur + Multi-Agent Workforce)",
-        "supreme_leader": "พี่บุ๊ค (Owner & Supreme Decision Maker)",
-        "core_departments": [
-            "01_secretary: สำนักเลขาและ CKO (อิงฟ้า)",
-            "02_marketing: ฝ่ายการตลาดและ Social Media (ลิซ่า)",
-            "03_developer: ฝ่ายพัฒนาระบบซอฟต์แวร์ (บิ๊นท์)",
-            "04_data_analyst: ฝ่ายวิเคราะห์ข้อมูลและ QA (มุก)",
-            "05_accounting: ฝ่ายบัญชีและการเงิน (พลอย)",
-            "06_sales: ฝ่ายขายและบริการลูกค้าสัมพันธ์ (พิมพ์)"
-        ],
-        "workforce_scaling": "หากมีภาระงานเกินขีดจำกัด AI แต่ละแผนกสามารถยื่นคำขอจ้างงาน AI (Hiring Proposal) ให้ Owner พิจารณาอนุมัติได้"
+        "supreme_leader": "พี่บุ๊ค (Supreme Decision Maker)",
+        "workforce_scaling": "หากมีภาระงานเกินขีดจำกัด AI แต่ละแผนกสามารถยื่นคำขอจ้างงาน AI (Hiring Proposal) ให้พี่บุ๊ค พิจารณาอนุมัติได้"
     }
 }
 
@@ -84,6 +76,17 @@ def sync_to_company_memory(data: dict):
     pol = data.get("policies", {})
     cm = data.get("company_model", {})
 
+    dept_lines = []
+    try:
+        from backend.services.agent_service import list_agents
+        active_agents = list_agents()
+        for idx, a in enumerate(active_agents, 1):
+            pm = a.pm_name or a.name
+            dept_lines.append(f"{idx}. {a.name} (ผู้รับผิดชอบ: {pm})")
+    except Exception:
+        pass
+    dept_section = "\n".join(dept_lines) if dept_lines else "ยังไม่มีแผนกที่เปิดทำการ"
+
     content = f"""# Company Memory (คลังปัญญาของบริษัท)
 
 ไฟล์บันทึกความรู้ บริบทองค์กร เวลาทำงาน นโยบาย และทิศทางกลยุทธ์ของบริษัท AI แบบ 100%
@@ -93,7 +96,7 @@ def sync_to_company_memory(data: dict):
 ## [ข้อมูลโปรไฟล์ธุรกิจและเป้าหมายองค์กร]
 - **ชื่อองค์กร**: One-Person AI Enterprise
 - **รูปแบบบริษัท**: {cm.get('model_type', 'One-Person AI Enterprise')}
-- **ผู้มีอำนาจตัดสินใจสูงสุด (Supreme Owner)**: {cm.get('supreme_leader', 'พี่บุ๊ค')}
+- **ผู้มีอำนาจตัดสินใจสูงสุด (Supreme Leader)**: {cm.get('supreme_leader', 'พี่บุ๊ค')}
 - **วิสัยทัศน์**: {sd.get('vision', '')}
 - **ทิศทางและภารกิจหลัก**: {sd.get('primary_focus', '')}
 - **เป้าหมายประจำไตรมาส/ปี**: {sd.get('quarterly_goals', '')}
@@ -121,16 +124,11 @@ def sync_to_company_memory(data: dict):
 
 ---
 
-## [โครงสร้างองค์กร 6 แผนกหลัก]
-1. สำนักเลขาและ CKO (อิงฟ้า)
-2. ฝ่ายการตลาดและ Social Media Content (ลิซ่า)
-3. ฝ่ายพัฒนาระบบซอฟต์แวร์ (บิ๊นท์)
-4. ฝ่ายวิเคราะห์ข้อมูลและ QA (มุก)
-5. ฝ่ายบัญชีและการเงิน (พลอย)
-6. ฝ่ายขายและบริการลูกค้าสัมพันธ์ (พิมพ์)
+## [โครงสร้างองค์กรและทีมงาน AI ประจำการจริง]
+{dept_section}
 
 ---
-*บันทึกข้อมูลล่าสุด: ปรับปรุงตามการกำหนดทิศทางของ Owner*
+*บันทึกข้อมูลล่าสุด: ปรับปรุงตามการกำหนดทิศทางของพี่บุ๊ค*
 """
     COMPANY_MEMORY_FILE.write_text(content, encoding="utf-8")
 
@@ -204,7 +202,7 @@ async def start_shift():
     for agent_id, state in simulation_service._agent_states.items():
         if state.status in ["standby", "off_duty"]:
             state.status = "idle"
-            state.current_action = "พร้อมรับคำสั่งจาก Owner ประจำวัน"
+            state.current_action = "พร้อมรับคำสั่งจากพี่บุ๊ค ประจำวัน"
             state.current_thought = "เปิดกะการทำงาน เริ่มต้นวันใหม่พร้อมลุยทุกโปรเจกต์"
 
     # Write log
@@ -213,7 +211,7 @@ async def start_shift():
         agent_name="เลขา AI (อิงฟ้า)",
         level=LogLevel.SUCCESS,
         message="🚀 [เริ่มงาน] เปิดกะทำงานประจำวัน — ทีมงาน AI ทั้ง 6 แผนกพร้อมปฏิบัติการ",
-        thought_process="Owner เริ่มงานประจำวัน รวบรวมงานค้างและแจ้งเตือนวาระสำคัญ"
+        thought_process="พี่บุ๊ค เริ่มงานประจำวัน รวบรวมงานค้างและแจ้งเตือนวาระสำคัญ"
     ))
 
     # Send briefing in background
@@ -259,7 +257,7 @@ async def end_shift():
         agent_name="เลขา AI (อิงฟ้า)",
         level=LogLevel.INFO,
         message="🌇 [เลิกงาน] ปิดกะทำงานประจำวัน — เลขาอิงฟ้ารวบรวมผลงานปิดวันเรียบร้อย",
-        thought_process="Owner กดเลิกงาน ปิดกะการทำงานประจำวัน และสรุปผลส่ง Telegram"
+        thought_process="พี่บุ๊ค กดเลิกงาน ปิดกะการทำงานประจำวัน และสรุปผลส่ง Telegram"
     ))
 
     # Send summary in background

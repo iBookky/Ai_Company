@@ -58,14 +58,9 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
     if not avatar_url:
         default_avatars = {
             "01_secretary": "/static/img/avatars/01_secretary.jpg",
-            "02_การตลาด_ai": "/static/img/avatars/02_marketing.jpg",
-            "02_marketing": "/static/img/avatars/02_marketing.jpg",
-            "03_developer": "/static/img/avatars/03_developer.jpg",
-            "04_data_analyst": "/static/img/avatars/04_data_analyst.jpg",
-            "05_accounting": "/static/img/avatars/05_accounting.jpg",
-            "06_sales": "/static/img/avatars/06_sales.jpg",
+            "07_business_analyst": "/static/img/avatars/07_business_analyst.jpg",
         }
-        avatar_url = default_avatars.get(dept_dir.name, "/static/img/avatars/01_secretary.jpg")
+        avatar_url = default_avatars.get(dept_dir.name, f"/static/img/avatars/{dept_dir.name}.jpg")
 
     return AgentRead(
         id=dept_dir.name,
@@ -229,9 +224,8 @@ def update_agent(agent_id: str, data: AgentUpdate) -> Optional[AgentRead]:
 
 def delete_agent(agent_id: str) -> bool:
     """ลบ Agent และโฟลเดอร์อย่างปลอดภัย (ป้องกันการลบแผนกหลักและ Path Traversal)"""
-    # ป้องกันการลบแผนกหลัก 6 แผนก
-    CORE_DEPTS = {"01_secretary", "02_การตลาด_ai", "03_developer", "04_data_analyst", "05_accounting", "06_sales"}
-    if agent_id in CORE_DEPTS:
+    # ป้องกันเฉพาะ 01_secretary ที่เป็น Orchestrator กลางของระบบ
+    if agent_id == "01_secretary":
         return False
 
     if not re.match(r"^[a-zA-Z0-9_\-\u0E00-\u0E7F]+$", agent_id):
@@ -243,6 +237,13 @@ def delete_agent(agent_id: str) -> bool:
 
     try:
         shutil.rmtree(dept_dir)
+        try:
+            from backend.services import simulation_service, telegram_service
+            simulation_service.remove_agent_or_department(agent_id)
+            if agent_id in telegram_service.TELEGRAM_OPS_CHAT_IDS:
+                del telegram_service.TELEGRAM_OPS_CHAT_IDS[agent_id]
+        except Exception:
+            pass
         return True
     except Exception:
         return False

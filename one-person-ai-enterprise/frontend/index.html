@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="/static/css/simulation.css" />
   <link rel="stylesheet" href="/static/css/kanban.css" />
   <link rel="stylesheet" href="/static/css/workstation.css" />
-  <link rel="stylesheet" href="/static/css/office3d.css" />
 </head>
 <body>
 
@@ -29,7 +28,7 @@
 
     <form class="login-form" id="login-form" onsubmit="handleLoginSubmit(event)">
       <div class="login-field">
-        <label class="login-label">ชื่อผู้ใช้ (Owner / Admin)</label>
+        <label class="login-label">ชื่อผู้ใช้ (พี่บุ๊ค / Admin)</label>
         <div class="login-input-wrap">
           <span class="login-input-icon">👤</span>
           <input type="text" class="login-input" id="login-username" placeholder="admin หรือ พี่บุ๊ค" required autocomplete="username" value="admin" />
@@ -88,15 +87,10 @@
       <span class="nav-label">บอร์ดสั่งการ (Kanban)</span>
       <span class="nav-badge pending" id="badge-kanban-pending" style="display:none">0</span>
     </a>
-    <a class="nav-item" data-page="office3d" href="#/office3d" id="nav-office3d">
-      <span class="nav-icon">🏢</span>
-      <span class="nav-label">ออฟฟิศเสมือนจริง 3D</span>
-      <span class="nav-badge" style="background:rgba(99,102,241,0.25); color:#a5b4fc; border:1px solid rgba(99,102,241,0.4);">3D</span>
-    </a>
     <a class="nav-item" data-page="workstations" href="#/workstations" id="nav-workstations">
       <span class="nav-icon">👤</span>
       <span class="nav-label">โต๊ะทำงานพนักงาน AI</span>
-      <span class="nav-badge" id="badge-workstations">6</span>
+      <span class="nav-badge" id="badge-workstations">—</span>
     </a>
     <a class="nav-item" data-page="boardroom" href="#/boardroom" id="nav-boardroom">
       <span class="nav-icon">🏛️</span>
@@ -105,7 +99,7 @@
     <a class="nav-item" data-page="teams" href="#/teams" id="nav-teams">
       <span class="nav-icon">👥</span>
       <span class="nav-label">ทีมปฏิบัติการ AI</span>
-      <span class="nav-badge" id="badge-teams">6</span>
+      <span class="nav-badge" id="badge-teams">—</span>
     </a>
     <a class="nav-item" data-page="directives" href="#/directives" id="nav-directives">
       <span class="nav-icon">🏢</span>
@@ -180,7 +174,7 @@
             <p>สั่งงาน ติดตามการทำงานสดของทีม AI และกดยืนยันอนุมัติปิดงาน (HITL) ทั้งหมดในหน้าเดียว</p>
           </div>
           <div class="executive-stat-pills">
-            <span class="stat-pill">🤖 ทีม AI: <strong>6</strong> ตำแหน่ง</span>
+            <span class="stat-pill">🤖 ทีม AI: <strong id="stat-ai-team-count">0</strong> ตำแหน่ง</span>
             <span class="stat-pill active">⚡ กำลังทำ: <strong id="kb-count-active">0</strong> งาน</span>
             <span class="stat-pill pending">🚨 รอยืนยันอนุมัติ: <strong id="kb-count-pending">0</strong> งาน</span>
             <span class="stat-pill done">✅ เสร็จแล้ว: <strong id="kb-count-done">0</strong> งาน</span>
@@ -199,7 +193,7 @@
           <div class="guide-item">
             <span class="guide-num">2</span>
             <div class="guide-content">
-              <strong>สั่งตรงรายแผนก 1-Click:</strong> ดูการ์ดทีมงาน AI ทั้ง 6 แผนกด้านล่าง แล้วกดปุ่ม <code>🚀 สั่งงานแผนกนี้</code> หรือคลิกคำสั่งด่วนบนการ์ด
+              <strong>สั่งตรงรายแผนก 1-Click:</strong> ดูการ์ดทีมงาน AI ด้านล่าง แล้วกดปุ่ม <code>🚀 สั่งงานแผนกนี้</code> หรือคลิกคำสั่งด่วนบนการ์ด
             </div>
           </div>
           <div class="guide-item">
@@ -219,25 +213,10 @@
         </div>
 
         <!-- 1-Click Launch Presets Row -->
-        <div class="preset-pills-row">
+        <div class="preset-pills-row" id="preset-pills-row">
           <span class="preset-pill-label">คำสั่งด่วน 1-Click:</span>
-          <div class="preset-chip" onclick="launchSimulationPreset('systems_dev')">
-            <span>💻</span> พัฒนาระบบ API (บิ๊นท์)
-          </div>
-          <div class="preset-chip" onclick="launchSimulationPreset('social_content')">
-            <span>📣</span> ผลิต Content Social (ลิซ่า)
-          </div>
-          <div class="preset-chip" onclick="launchSimulationPreset('sales')">
-            <span>🤝</span> ปิดการขาย & บริการลูกค้า (พิมพ์)
-          </div>
-          <div class="preset-chip" onclick="launchSimulationPreset('data_analyst')">
-            <span>📊</span> ตรวจ QA & วิเคราะห์ Funnel (มุก)
-          </div>
-          <div class="preset-chip" onclick="launchSimulationPreset('accounting')">
-            <span>💰</span> สรุปค่า Token & บัญชี (พลอย)
-          </div>
-          <div class="preset-chip" onclick="launchSimulationPreset('collaborative')">
-            <span>🌐</span> Full Launch (Dev + Social)
+          <div id="dynamic-preset-chips" style="display:inline-flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+            <!-- Dynamically populated from active departments -->
           </div>
           <div class="preset-chip highlight" onclick="launchSimulationPreset('hiring_request')">
             <span>👥</span> ขอเสนอจ้างทีมเพิ่ม
@@ -259,7 +238,7 @@
         <div class="dept-hub-header">
           <div class="dept-hub-title">
             <span>🏢</span>
-            <span>ศูนย์สั่งการทีมงาน AI ทั้ง 6 แผนก — สั่งงานตรง 1-Click</span>
+            <span id="dept-command-hub-title-text">ศูนย์สั่งการทีมงาน AI ทุกแผนก — สั่งงานตรง 1-Click</span>
           </div>
           <div class="dept-hub-sub">
             💡 กดปุ่ม <strong style="color:#a5b4fc;">🚀 สั่งงานแผนกนี้</strong> เพื่อสั่งงานเฉพาะทาง หรือกดชิปคำสั่งด่วน
@@ -276,7 +255,7 @@
           <span>👥</span>
           <span>สถานะทีมงาน AI:</span>
         </div>
-        <div id="workforce-strip-agents" style="display:flex; gap:0.6rem; align-items:center;">
+        <div id="workforce-strip-agents" style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
           <!-- Loaded dynamically -->
         </div>
       </div>
@@ -343,106 +322,6 @@
     </div>
 
     <!-- ══════════════════════════════════════════════ -->
-    <!--  PAGE: 3D VIRTUAL AI OFFICE                   -->
-    <!-- ══════════════════════════════════════════════ -->
-    <div class="page" id="page-office3d">
-      <div class="office3d-wrapper">
-        <!-- 3D WebGL Canvas Container -->
-        <div id="office3d-canvas-container"></div>
-
-        <!-- 3D Office Overlay Controls & HUD -->
-        <div class="office3d-hud">
-          <!-- Top Row -->
-          <div class="office3d-top-row">
-            <!-- Top Left: Office Title & Live Stats -->
-            <div class="office3d-hud-card office3d-header-card">
-              <div class="office3d-title-row">
-                <span class="office3d-live-dot"></span>
-                <h3>🏢 Real-World 3D AI Enterprise Headquarters</h3>
-              </div>
-              <p class="office3d-sub">ออฟฟิศเสมือนจริงสไตล์โมเดิร์น — ป้ายสถานะลอยบอกงานสดทุกแผนก และคลิกซูมเข้าแต่ละโต๊ะได้ทันที</p>
-              <div class="office3d-meta-pills">
-                <span class="office3d-pill">👥 AI ประจำการ: <strong>6 แผนก</strong></span>
-                <span class="office3d-pill active" id="office3d-active-count">⚡ กำลังทำงาน: <strong>0 คน</strong></span>
-                <span class="office3d-pill">💡 คลิกที่โต๊ะหรือเลือกแผนกด้านล่างเพื่อซูมดูงาน</span>
-              </div>
-            </div>
-
-            <!-- Top Right: Camera Presets & Orbit Controls -->
-            <div class="office3d-hud-card office3d-camera-presets">
-              <span class="hud-label">🎥 มุมมองกล้อง (Camera Presets):</span>
-              <div class="camera-btn-group">
-                <button class="hud-btn active" onclick="setOfficeCameraPreset('isometric', this)">🌐 ภาพรวม (Isometric)</button>
-                <button class="hud-btn" onclick="setOfficeCameraPreset('top', this)">📐 ผังออฟฟิศ (Top-Down)</button>
-                <button class="hud-btn" onclick="setOfficeCameraPreset('boardroom', this)">🏛️ ห้องประชุม</button>
-                <button class="hud-btn" onclick="setOfficeCameraPreset('lounge', this)">☕ มุมกาแฟ</button>
-                <button class="hud-btn" onclick="toggleOfficeFreeRoam()" id="btn-office-freeroam">🎮 หมุนรอบ (Auto Orbit)</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Bottom Row -->
-          <div class="office3d-bottom-row">
-            <!-- Bottom Left: Quick Jump to AI Employees -->
-            <div class="office3d-hud-card office3d-employee-quickjump">
-              <span class="hud-label">⚡ เลือกแผนก (คลิกเพื่อซูมเข้าโต๊ะทำงานทันที):</span>
-              <div class="emp-jump-chips" id="office3d-emp-chips">
-                <!-- Loaded dynamically via renderOfficeHudChips() -->
-              </div>
-            </div>
-
-            <!-- Bottom Right: Quick Dispatch in 3D -->
-            <div class="office3d-hud-card office3d-quick-dispatch">
-              <span class="hud-label">⚡ สั่งงานด่วนในออฟฟิศ 3D:</span>
-              <div class="dispatch-3d-row">
-                <input type="text" id="office3d-quick-input" placeholder="พิมพ์สั่งงาน AI... ดูพวกเขาเดินไปทำงานทันที!" onkeydown="if(event.key==='Enter') dispatchFromOffice3D()" />
-                <button class="btn btn-sm btn-primary" onclick="dispatchFromOffice3D()">🚀 สั่งงาน</button>
-              </div>
-              <div class="dispatch-3d-presets">
-                <button class="mini-chip" onclick="quickRunOfficePreset('systems_dev')">💻 บิ๊นท์เขียนโค้ด</button>
-                <button class="mini-chip" onclick="quickRunOfficePreset('social_content')">📣 ลิซ่าทำคอนเทนต์</button>
-                <button class="mini-chip" onclick="quickRunOfficePreset('sales')">🤝 พิมพ์ปิดการขาย & CS</button>
-                <button class="mini-chip" onclick="quickRunOfficePreset('data_analyst')">📊 มุกตรวจ QA</button>
-                <button class="mini-chip" onclick="quickRunOfficePreset('accounting')">💰 พลอยสรุปงบ</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Center/Right: Floating Employee Inspector Overlay -->
-          <div class="office3d-inspector-card" id="office3d-inspector" style="display:none;">
-            <button class="inspector-close" onclick="closeOfficeInspector()">✕</button>
-            <div class="inspector-header">
-              <div class="inspector-avatar">
-                <img id="inspector-img" src="/static/img/avatars/03_developer.jpg" alt="AI Employee" />
-                <span class="inspector-pip" id="inspector-pip"></span>
-              </div>
-              <div class="inspector-info">
-                <div class="inspector-name" id="inspector-name">บิ๊นท์</div>
-                <div class="inspector-role" id="inspector-role">Lead Full-Stack Developer</div>
-                <div class="inspector-dept" id="inspector-dept">🏢 ฝ่ายพัฒนาระบบซอฟต์แวร์</div>
-              </div>
-            </div>
-            <div class="inspector-status-box">
-              <div class="inspector-status-title">
-                <span id="inspector-status-dot">🟢</span>
-                <span id="inspector-status-text">พร้อมปฏิบัติงาน (Standby)</span>
-              </div>
-              <div class="inspector-thought" id="inspector-thought">
-                "พร้อมรับมอบหมายงานใหม่จากท่าน Owner"
-              </div>
-            </div>
-            <div class="inspector-actions">
-              <button class="btn btn-sm btn-primary" id="inspector-btn-assign" onclick="inspectAssignTask()">🚀 สั่งงานพนักงานคนนี้</button>
-              <button class="btn btn-sm btn-secondary" id="inspector-btn-workstation" onclick="inspectViewWorkstation()">👤 ดูโต๊ะทำงาน</button>
-              <button class="btn btn-sm btn-ghost" id="inspector-btn-avatar" onclick="inspectChangeAvatar()">📷 เปลี่ยนรูป AI</button>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-
-    <!-- ══════════════════════════════════════════════ -->
     <!--  PAGE: WORKSTATIONS (Virtual Cockpit)         -->
     <!-- ══════════════════════════════════════════════ -->
     <div class="page" id="page-workstations">
@@ -486,7 +365,7 @@
           <div class="participants-list" id="participants-list">
             <div class="participant-row owner">
               <span class="p-avatar">👑</span>
-              <div><div class="p-name">Owner (คุณ)</div><div class="p-role">ผู้บริหารสูงสุด</div></div>
+              <div><div class="p-name">พี่บุ๊ค (คุณ)</div><div class="p-role">ผู้บริหารสูงสุด</div></div>
               <span class="p-status online">•</span>
             </div>
             <div class="participant-row secretary">
@@ -516,7 +395,7 @@
             </div>
           </div>
           <div class="chat-input-bar">
-            <textarea id="boardroom-input" class="chat-textarea" placeholder="พิมพ์วาระประชุม หรือ @PMลิซ่า สั่งงานตรงได้เลย..." rows="2" onkeydown="handleBoardroomKey(event)"></textarea>
+            <textarea id="boardroom-input" class="chat-textarea" placeholder="พิมพ์วาระประชุม หรือ @น้องบิ๊นท์ สั่งงานตรงได้เลย..." rows="2" onkeydown="handleBoardroomKey(event)"></textarea>
             <button class="btn btn-primary btn-send" id="btn-boardroom-send" onclick="sendBoardroomMessage()">ส่ง ↵</button>
           </div>
         </div>
@@ -633,7 +512,7 @@
 
             <div class="directive-field">
               <label class="directive-label">🌙 นโยบายการตอบสนองนอกเวลาทำการ (Off-hours Behavior)</label>
-              <textarea class="directive-textarea" id="dir-hours-off" rows="2" placeholder="อธิบายสิ่งที่ AI ควรทำนอกเวลาทำการ">AI ปฏิบัติงานเบื้องหลัง สรุปข้อมูล และสแตนด์บายรับคำสั่งด่วน 24/7 หากมีงานที่ต้องการยืนยันจะเตรียมดราฟต์ไว้รอ Owner อนุมัติในรอบเช้า</textarea>
+              <textarea class="directive-textarea" id="dir-hours-off" rows="2" placeholder="อธิบายสิ่งที่ AI ควรทำนอกเวลาทำการ">AI ปฏิบัติงานเบื้องหลัง สรุปข้อมูล และสแตนด์บายรับคำสั่งด่วน 24/7 หากมีงานที่ต้องการยืนยันจะเตรียมดราฟต์ไว้รอพี่บุ๊ค อนุมัติในรอบเช้า</textarea>
             </div>
           </div>
         </div>
@@ -695,7 +574,7 @@
               <span class="policy-badge gold">กฎเหล็กข้อที่ 1 • Human-in-the-Loop Mandatory</span>
               <div class="directive-field">
                 <label class="directive-label">นโยบายการอนุมัติก่อนปิดงาน (HITL Safeguard)</label>
-                <textarea class="directive-textarea" id="dir-pol-hitl" rows="2">กฎเหล็ก Human-in-the-Loop: ทุกการส่งมอบงานสำคัญ (การเงิน, โพสต์คอนเทนต์จริง, Deploy ระบบ) ต้องผ่านการยืนยัน (Confirm) จาก Owner เสมอ ห้าม AI ปิดงานเองเด็ดขาด</textarea>
+                <textarea class="directive-textarea" id="dir-pol-hitl" rows="2">กฎเหล็ก Human-in-the-Loop: ทุกการส่งมอบงานสำคัญ (การเงิน, โพสต์คอนเทนต์จริง, Deploy ระบบ) ต้องผ่านการยืนยัน (Confirm) จากพี่บุ๊ค เสมอ ห้าม AI ปิดงานเองเด็ดขาด</textarea>
               </div>
             </div>
 
@@ -744,24 +623,19 @@
 
               <div class="directive-field">
                 <label class="directive-label">ผู้มีอำนาจตัดสินใจสูงสุด (Supreme Decision Maker)</label>
-                <input type="text" class="directive-input" id="dir-model-leader" value="พี่บุ๊ค (Owner & Supreme Decision Maker)" />
+                <input type="text" class="directive-input" id="dir-model-leader" value="พี่บุ๊ค (Supreme Decision Maker)" />
               </div>
             </div>
 
             <div class="directive-field">
               <label class="directive-label">กลไกการขยายกำลังคน AI อัตโนมัติ (AI Workforce Scaling Policy)</label>
-              <textarea class="directive-textarea" id="dir-model-scaling" rows="2">หากมีภาระงานเกินขีดจำกัด AI แต่ละแผนกสามารถยื่นคำขอจ้างงาน AI (Hiring Proposal) ระบุบทบาท ทักษะ และเหตุผล ให้ Owner พิจารณาอนุมัติผ่านหน้าเว็บหรือ Telegram ได้ทันที</textarea>
+              <textarea class="directive-textarea" id="dir-model-scaling" rows="2">หากมีภาระงานเกินขีดจำกัด AI แต่ละแผนกสามารถยื่นคำขอจ้างงาน AI (Hiring Proposal) ระบุบทบาท ทักษะ และเหตุผล ให้พี่บุ๊ค พิจารณาอนุมัติผ่านหน้าเว็บหรือ Telegram ได้ทันที</textarea>
             </div>
 
             <div class="directive-field">
-              <label class="directive-label">โครงสร้าง 6 แผนกหลักปัจจุบัน</label>
-              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:10px; margin-top:4px;">
-                <div style="background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:6px; border:1px solid var(--border);">1. 🗂️ <b>01_secretary:</b> สำนักเลขาและ CKO (อิงฟ้า)</div>
-                <div style="background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:6px; border:1px solid var(--border);">2. 📣 <b>02_การตลาด_ai:</b> ฝ่ายการตลาด & Social Media (ลิซ่า)</div>
-                <div style="background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:6px; border:1px solid var(--border);">3. 💻 <b>03_developer:</b> ฝ่ายพัฒนาระบบซอฟต์แวร์ (บิ๊นท์)</div>
-                <div style="background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:6px; border:1px solid var(--border);">4. 📊 <b>04_data_analyst:</b> ฝ่ายวิเคราะห์ข้อมูล & QA (มุก)</div>
-                <div style="background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:6px; border:1px solid var(--border);">5. 💰 <b>05_accounting:</b> ฝ่ายบัญชี & การเงิน (พลอย)</div>
-                <div style="background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:6px; border:1px solid var(--border);">6. 🤝 <b>06_sales:</b> ฝ่ายขาย & บริการลูกค้า (พิมพ์)</div>
+              <label class="directive-label">โครงสร้างทีมงาน AI ประจำการจริง</label>
+              <div id="dir-active-depts-container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:10px; margin-top:4px;">
+                <div class="loading-text">กำลังโหลดรายชื่อทีม...</div>
               </div>
             </div>
           </div>
@@ -818,6 +692,8 @@
               <label class="form-label">Gemini API Key <a href="https://aistudio.google.com/app/apikey" target="_blank" class="link-hint">ขอ Key ฟรีที่นี่ →</a></label>
               <div class="input-row">
                 <input type="password" class="form-input mono" id="s-gemini-key" placeholder="AIzaSy..." autocomplete="off" />
+                <button type="button" class="btn btn-sm btn-input-action" onclick="toggleSecretVisibility('s-gemini-key')" id="btn-toggle-s-gemini-key" title="กดเพื่อดู/ซ่อน Key">👁️ ดู</button>
+                <button type="button" class="btn btn-sm btn-input-action btn-clear-action" onclick="clearSecretInput('s-gemini-key')" id="btn-clear-s-gemini-key" title="ล้างค่า / ยกเลิกใช้งาน">✕ ล้างค่า</button>
                 <span class="config-badge" id="s-gemini-status">—</span>
               </div>
             </div>
@@ -825,6 +701,8 @@
               <label class="form-label">Claude (Anthropic) API Key <span class="optional">(ไม่บังคับ)</span></label>
               <div class="input-row">
                 <input type="password" class="form-input mono" id="s-claude-key" placeholder="sk-ant-..." autocomplete="off" />
+                <button type="button" class="btn btn-sm btn-input-action" onclick="toggleSecretVisibility('s-claude-key')" id="btn-toggle-s-claude-key" title="กดเพื่อดู/ซ่อน Key">👁️ ดู</button>
+                <button type="button" class="btn btn-sm btn-input-action btn-clear-action" onclick="clearSecretInput('s-claude-key')" id="btn-clear-s-claude-key" title="ล้างค่า / ยกเลิกใช้งาน">✕ ล้างค่า</button>
                 <span class="config-badge" id="s-claude-status">—</span>
               </div>
             </div>
@@ -845,31 +723,35 @@
           </div>
         </section>
 
-        <!-- Section 2: Secretary Telegram Bot -->
+        <!-- Section 2: Enterprise Telegram Single-Bot Hub -->
         <section class="settings-section card" id="section-telegram">
           <div class="card-header">
-            <span class="card-icon">🗂️</span>
-            <h2>เลขา AI อิงฟ้า — Telegram 1-on-1</h2>
+            <span class="card-icon">🤖</span>
+            <h2>Telegram Enterprise Bot (ศูนย์กลางเชื่อมต่อทีมงาน AI ทุกคน)</h2>
             <span class="badge" id="tg-status">กำลังตรวจสอบ...</span>
           </div>
           <div class="settings-body">
-            <div class="settings-hint">
-              💡 สร้าง Bot ใหม่ที่ <strong>@BotFather</strong> ใน Telegram → <code>/newbot</code> → รับ Token มากรอกด้านล่าง
+            <div class="settings-hint" style="line-height:1.6;">
+              💡 <strong>ระบบ Single Bot Hub:</strong> สร้างบอทเพียง <strong>1 ตัว</strong> ที่ <strong>@BotFather</strong> ใน Telegram → <code>/newbot</code> → รับ Token มากรอกด้านล่าง<br>
+              พี่บุ๊คสามารถใช้บอทตัวนี้ตัวเดียวในการสั่งงานและสื่อสารกับ Agent ทุกคนในองค์กรได้ทันที (เพียงพิมพ์ชื่อ เช่น <em>"บิ๊นท์..."</em> หรือ <em>"คุยกับบิ๊นท์"</em>) โดยไม่ต้องสร้างหรือกรอก Bot Token แยกรายคนอีกต่อไป!
             </div>
             <div class="form-group">
-              <label class="form-label">Telegram Bot Token ของเลขาอิงฟ้า (Main Secretary Bot)</label>
+              <label class="form-label">Telegram Bot Token (บอทศูนย์กลางองค์กร)</label>
               <div class="input-row">
                 <input type="password" class="form-input mono" id="s-tg-token" placeholder="123456789:ABCdefGHI..." autocomplete="off" />
+                <button type="button" class="btn btn-sm btn-input-action" onclick="toggleSecretVisibility('s-tg-token')" id="btn-toggle-s-tg-token" title="กดเพื่อดู/ซ่อน Token">👁️ ดู</button>
+                <button type="button" class="btn btn-sm btn-input-action btn-clear-action" onclick="clearSecretInput('s-tg-token')" id="btn-clear-s-tg-token" title="ล้างค่า / ยกเลิกใช้งาน">✕ ล้างค่า</button>
                 <span class="config-badge" id="s-tg-token-status">—</span>
               </div>
             </div>
             <div class="form-group">
-              <label class="form-label">Direct Chat ID ของท่าน Owner (1-on-1 กับเลขาและ PM)</label>
+              <label class="form-label">Direct Chat ID ของพี่บุ๊ค (สำหรับรับแจ้งเตือนและส่งคำสั่งงาน)</label>
               <div class="input-row">
                 <input type="text" class="form-input mono" id="s-direct-chat" placeholder="เช่น 123456789 (หาได้จาก @userinfobot)" />
-                <button class="btn btn-sm" onclick="testTelegramMessage()">📨 ทดสอบ</button>
+                <button type="button" class="btn btn-sm btn-input-action btn-clear-action" onclick="clearSecretInput('s-direct-chat')" id="btn-clear-s-direct-chat" title="ล้างค่า Chat ID">✕ ล้างค่า</button>
+                <button class="btn btn-sm" onclick="testTelegramMessage()">📨 ทดสอบส่งข้อความ</button>
               </div>
-              <span class="form-hint">หาได้ง่ายๆ โดยทักแชทหาบอท <strong>@userinfobot</strong> ใน Telegram</span>
+              <span class="form-hint">หา Chat ID ได้ง่ายๆ โดยทักแชทหาบอท <strong>@userinfobot</strong> ใน Telegram</span>
             </div>
           </div>
           <div class="section-save-bar">
@@ -878,49 +760,28 @@
           </div>
         </section>
 
-        <!-- Section 3: PM Bot Tokens (Dynamic) -->
-        <section class="settings-section card" id="section-pm-tokens">
-          <div class="card-header">
-            <span class="card-icon">🤖</span>
-            <h2>PM Bot Tokens ของหัวหน้าทีม</h2>
-            <button class="btn btn-sm" onclick="loadSettings()">🔄 รีเฟรช</button>
-          </div>
-          <div class="settings-body">
-            <div class="settings-hint">
-              💡 กรอก Bot Token ของ PM แต่ละทีม แล้วกด <strong>บันทึก</strong> — PM จะรับคำสั่งและส่งรายงานกลับทาง Telegram 1-on-1
-            </div>
-            <div id="pm-tokens-container">
-              <div class="loading-text">กำลังโหลดทีม...</div>
-            </div>
-          </div>
-          <div class="section-save-bar">
-            <button class="btn btn-primary" onclick="savePmTokens()" id="btn-save-pm">💾 บันทึก PM Bot Tokens</button>
-            <span class="save-status" id="save-status-pm"></span>
-          </div>
-        </section>
-
         <!-- Section 4: Owner Profile -->
         <section class="settings-section card" id="section-owner-profile">
           <div class="card-header">
             <span class="card-icon">👤</span>
-            <h2>ข้อมูลประวัติท่าน Owner</h2>
+            <h2>ข้อมูลประวัติพี่บุ๊ค</h2>
           </div>
           <div class="settings-body">
             <div class="form-group">
-              <label class="form-label">ชื่อจริงของท่าน Owner</label>
+              <label class="form-label">ชื่อจริงของพี่บุ๊ค</label>
               <input type="text" class="form-input" id="s-owner-name" placeholder="เช่น คุณบุ๊ค" />
             </div>
             <div class="form-group">
-              <label class="form-label">Identity (บทบาทและตัวตนของ Owner)</label>
+              <label class="form-label">Identity (บทบาทและตัวตนของพี่บุ๊ค)</label>
               <textarea class="form-textarea" id="s-owner-identity" rows="3" placeholder="เช่น เจ้าของบริษัท เป็นคนใจดี ชอบงานรวดเร็วและมีประสิทธิภาพสูงสุด"></textarea>
             </div>
             <div class="form-group">
-              <label class="form-label">Skills (ความรู้และทักษะความเชี่ยวชาญของ Owner)</label>
+              <label class="form-label">Skills (ความรู้และทักษะความเชี่ยวชาญของพี่บุ๊ค)</label>
               <textarea class="form-textarea" id="s-owner-skill" rows="3" placeholder="เช่น การเขียนโค้ดภาษา Python, การวางแผนกลยุทธ์การตลาด, การขาย"></textarea>
             </div>
           </div>
           <div class="section-save-bar">
-            <button class="btn btn-primary" onclick="saveOwnerSection()" id="btn-save-owner">💾 บันทึก Owner Profile</button>
+            <button class="btn btn-primary" onclick="saveOwnerSection()" id="btn-save-owner">💾 บันทึกข้อมูลพี่บุ๊ค</button>
             <span class="save-status" id="save-status-owner"></span>
           </div>
         </section>
@@ -939,11 +800,17 @@
             <div class="directives-grid-2">
               <div class="form-group">
                 <label class="form-label">รหัสผ่านปัจจุบัน (Current Password)</label>
-                <input type="password" class="form-input mono" id="sec-current-pass" placeholder="ใส่รหัสผ่านปัจจุบัน (ค่าเริ่มต้น: admin1234)" />
+                <div class="input-row">
+                  <input type="password" class="form-input mono" id="sec-current-pass" placeholder="ใส่รหัสผ่านปัจจุบัน (ค่าเริ่มต้น: admin1234)" />
+                  <button type="button" class="btn btn-sm btn-input-action" onclick="togglePasswordVisibility('sec-current-pass')" id="btn-toggle-sec-current-pass" title="ดู/ซ่อนรหัสผ่าน">👁️ ดู</button>
+                </div>
               </div>
               <div class="form-group">
                 <label class="form-label">รหัสผ่านใหม่ (New Password)</label>
-                <input type="password" class="form-input mono" id="sec-new-pass" placeholder="ใส่รหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)" />
+                <div class="input-row">
+                  <input type="password" class="form-input mono" id="sec-new-pass" placeholder="ใส่รหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)" />
+                  <button type="button" class="btn btn-sm btn-input-action" onclick="togglePasswordVisibility('sec-new-pass')" id="btn-toggle-sec-new-pass" title="ดู/ซ่อนรหัสผ่าน">👁️ ดู</button>
+                </div>
               </div>
             </div>
           </div>
@@ -1014,7 +881,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">ชื่อ PM หัวหน้าทีม</label>
-        <input type="text" class="form-input" id="ct-pm" placeholder="เช่น PM ลิซ่า (ถ้าไม่ระบุจะตั้งให้อัตโนมัติ)" />
+        <input type="text" class="form-input" id="ct-pm" placeholder="เช่น PM ปฏิบัติการ (ถ้าไม่ระบุจะตั้งให้อัตโนมัติ)" />
       </div>
 
       <!-- AI Propose Button -->
@@ -1063,12 +930,14 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">โมเดล AI</label>
+          <label class="form-label">โมเดล AI (เลือกอิสระเฉพาะคนนี้)</label>
           <select class="form-select" id="ca-model">
-            <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash</option>
-            <option value="gemini-1.5-pro">🧠 Gemini 1.5 Pro</option>
-            <option value="claude-3-5-sonnet-20241022">🎭 Claude 3.5 Sonnet</option>
-            <option value="claude-3-haiku-20240307">⚡ Claude 3 Haiku</option>
+            <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash (เร็ว / ประหยัด / งานทั่วไป)</option>
+            <option value="gemini-1.5-pro">🧠 Gemini 1.5 Pro (ฉลาด / วิเคราะห์ลึก)</option>
+            <option value="gemini-2.0-flash-exp">🚀 Gemini 2.0 Flash (โมเดลล่าสุด เร็วพิเศษ)</option>
+            <option value="claude-3-5-sonnet-20241022">🎭 Claude 3.5 Sonnet (งานเขียน / โค้ดดิ้ง)</option>
+            <option value="claude-3-haiku-20240307">⚡ Claude 3 Haiku (รวดเร็ว / สรุปย่อ)</option>
+            <option value="llama3:latest">🦙 Llama 3 (Local Ollama ฟรี 100%)</option>
           </select>
         </div>
         <div class="form-group">
@@ -1247,7 +1116,7 @@
         <p id="modal-del-summary" style="font-size: 0.9rem; line-height: 1.6; color: var(--text-primary);"></p>
       </div>
       <div style="background: rgba(16,185,129,0.08); border-left: 3px solid #10b981; border-radius: 0 8px 8px 0; padding: 1rem; margin-bottom: 1rem;">
-        <strong style="color: #34d399; font-size: 0.85rem; display: block; margin-bottom: 4px;">🧪 ผลการประเมินคุณภาพ (QA Review by มุก)</strong>
+        <strong style="color: #34d399; font-size: 0.85rem; display: block; margin-bottom: 4px;">🧪 ผลการประเมินคุณภาพ (Automated QA & Quality Review)</strong>
         <span id="modal-del-qa" style="font-size: 0.85rem; color: #d1fae5;"></span>
       </div>
       <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
@@ -1351,20 +1220,8 @@
           <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/01_secretary.jpg', this)" title="01 Secretary (อิงฟ้า)">
             <img src="/static/img/avatars/01_secretary.jpg" alt="Preset Secretary" />
           </div>
-          <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/02_marketing.jpg', this)" title="02 Marketing (ลิซ่า)">
-            <img src="/static/img/avatars/02_marketing.jpg" alt="Preset Marketing" />
-          </div>
-          <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/03_developer.jpg', this)" title="03 IT & Developer (บิ๊นท์)">
-            <img src="/static/img/avatars/03_developer.jpg" alt="Preset Developer" />
-          </div>
-          <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/04_data_analyst.jpg', this)" title="04 Data Analyst (มุก)">
-            <img src="/static/img/avatars/04_data_analyst.jpg" alt="Preset Data Analyst" />
-          </div>
-          <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/05_accounting.jpg', this)" title="05 Accounting (พลอย)">
-            <img src="/static/img/avatars/05_accounting.jpg" alt="Preset Accounting" />
-          </div>
-          <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/06_sales.jpg', this)" title="06 Sales & Customer Service (พิมพ์)">
-            <img src="/static/img/avatars/06_sales.jpg" alt="Preset Sales & CS" />
+          <div class="avatar-preset-item" onclick="selectPresetAvatar('/static/img/avatars/07_business_analyst.jpg', this)" title="07 Business Analyst (น้องบิ๊นท์)">
+            <img src="/static/img/avatars/07_business_analyst.jpg" alt="Preset Business Analyst" />
           </div>
         </div>
       </div>
@@ -1393,7 +1250,7 @@
         <span style="font-size: 1.5rem;">🧠</span>
         <div>
           <h3 style="font-size: 1.15rem; font-weight: 700; color: #fff;" id="memory-modal-title">ความจำระยะยาว & พฤติกรรมที่เรียนรู้</h3>
-          <p style="font-size: 0.78rem; color: var(--text-muted);" id="memory-modal-sub">บันทึกความเข้าใจพฤติกรรมของ Owner, บทเรียนที่ผ่านมา, และทักษะที่ปลดล็อก</p>
+          <p style="font-size: 0.78rem; color: var(--text-muted);" id="memory-modal-sub">บันทึกความเข้าใจพฤติกรรมของพี่บุ๊ค, บทเรียนที่ผ่านมา, และทักษะที่ปลดล็อก</p>
         </div>
       </div>
       <button class="modal-close" onclick="closeModal('modal-agent-memory')">✕</button>
@@ -1417,12 +1274,12 @@
   <div class="tg-drawer-header">
     <div class="tg-drawer-title">
       <span>🔔</span>
-      <span>Telegram Alerts (Owner Feed)</span>
+      <span>Telegram Alerts (พี่บุ๊ค Feed)</span>
     </div>
     <button class="tg-drawer-close" onclick="toggleTelegramDrawer()" title="ปิดแถบแจ้งเตือน">✕</button>
   </div>
   <div style="padding: 0.75rem 1.25rem; font-size: 0.78rem; color: var(--text-muted); background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.05);">
-    ข้อความและการแจ้งเตือนที่ระบบส่งตรงไปยัง Telegram ของ Owner แบบ Real-Time
+    ข้อความและการแจ้งเตือนที่ระบบส่งตรงไปยัง Telegram ของพี่บุ๊ค แบบ Real-Time
   </div>
   <div class="tg-drawer-body" id="telegram-drawer-list">
     <div style="text-align: center; padding: 2rem; opacity: 0.5;">กำลังโหลดประวัติการแจ้งเตือน...</div>
@@ -1433,11 +1290,8 @@
 <div id="toast-container"></div>
 
 <!-- Scripts -->
-<script src="/static/js/libs/three.min.js"></script>
-<script src="/static/js/libs/OrbitControls.js"></script>
 <script src="/static/js/simulation.js"></script>
 <script src="/static/js/workstation.js"></script>
-<script src="/static/js/office3d.js"></script>
 <script src="/static/js/main.js"></script>
 
 </body>

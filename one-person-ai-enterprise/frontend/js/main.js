@@ -17,6 +17,7 @@ let _pendingProposal = null;
 // ─── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   checkEnterpriseAuth();
+  updateSidebarBadges();
 
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', (e) => {
@@ -34,11 +35,29 @@ document.addEventListener('DOMContentLoaded', () => {
   connectLogWS();
   initCompanyShift();
 
-  window.addEventListener('hashchange', routeFromHash);
+  window.addEventListener('hashchange', () => {
+    routeFromHash();
+    updateSidebarBadges();
+  });
   window.addEventListener('resize', () => {
     if (window.innerWidth < 780) collapseSidebar();
   });
 });
+
+async function updateSidebarBadges() {
+  try {
+    const agents = await apiGet('/api/agents').catch(() => []);
+    const deptCount = new Set((agents || []).map(a => a.department)).size;
+    const badgeTeams = document.getElementById('badge-teams');
+    if (badgeTeams) badgeTeams.textContent = deptCount;
+    const badgeWorkstations = document.getElementById('badge-workstations');
+    if (badgeWorkstations) badgeWorkstations.textContent = (agents || []).length;
+    const statTeamCount = document.getElementById('stat-ai-team-count');
+    if (statTeamCount) statTeamCount.textContent = (agents || []).length;
+  } catch (err) {
+    console.warn('Failed to update sidebar badges:', err);
+  }
+}
 
 // ─── Routing ──────────────────────────────────────────────────
 const PAGES = {
@@ -48,15 +67,6 @@ const PAGES = {
     load: () => {
       loadDashboard();
       if (typeof fetchSimulationState === 'function') fetchSimulationState();
-    }
-  },
-  office3d: {
-    title: 'ออฟฟิศเสมือนจริง 3D (Virtual AI Office)',
-    sub: 'ติดตามชีวิตและการปฏิบัติงานสดของทีมงาน AI ทั้ง 6 แผนกในสำนักงาน 3D แบบเรียลไทม์',
-    load: () => {
-      if (typeof initOffice3D === 'function') {
-        setTimeout(initOffice3D, 50);
-      }
     }
   },
   workstations: {
@@ -75,7 +85,7 @@ const PAGES = {
     sub: 'One-Person AI Enterprise Command Center',
     load: () => { navigateTo('dashboard'); }
   },
-  teams:      { title: 'ทีมปฏิบัติการ AI', sub: 'จัดการทีม Agent และ PM Bots', load: loadTeams },
+  teams:      { title: 'ทีมปฏิบัติการ AI', sub: 'จัดการโครงสร้างทีมและพนักงาน AI', load: loadTeams },
   directives: { title: 'ทิศทาง & นโยบายบริษัท', sub: 'กำหนดเวลาทำงาน ทิศทางองค์กร นโยบายความปลอดภัย และรูปแบบบริษัท', load: loadDirectivesPage },
   logs:       { title: 'Logs การทำงาน', sub: 'ติดตาม Log ระบบ Real-time', load: loadLogs },
   settings:   { title: 'ตั้งค่าระบบ', sub: 'API Keys, Bot Token, ความปลอดภัย, การเชื่อมต่อ', load: loadSettings },
@@ -276,7 +286,9 @@ async function loadDashboard() {
     const statTg = document.getElementById('stat-telegram');
     if (statTg) statTg.textContent = rooms?.bot_configured ? '✓ เชื่อมต่อ' : '✗ ยังไม่ตั้งค่า';
     const badgeTeams = document.getElementById('badge-teams');
-    if (badgeTeams) badgeTeams.textContent = depts || 6;
+    if (badgeTeams) badgeTeams.textContent = depts;
+    const badgeWorkstations = document.getElementById('badge-workstations');
+    if (badgeWorkstations) badgeWorkstations.textContent = (agents || []).length;
 
     // Quick teams
     renderQuickTeams(rooms || {});
@@ -448,6 +460,13 @@ async function loadTeams() {
     allRooms  = rooms;
     renderTeams(agents, rooms);
     updateAgentDeptSelect(rooms);
+
+    // Sync sidebar badges
+    const deptCount = new Set((agents || []).map(a => a.department)).size;
+    const badgeTeams = document.getElementById('badge-teams');
+    if (badgeTeams) badgeTeams.textContent = deptCount;
+    const badgeWorkstations = document.getElementById('badge-workstations');
+    if (badgeWorkstations) badgeWorkstations.textContent = (agents || []).length;
   } catch (err) {
     console.error(err);
     document.getElementById('teams-grid').innerHTML = `<div class="empty-state">❌ โหลดข้อมูลไม่สำเร็จ</div>`;
@@ -493,9 +512,7 @@ function renderTeams(agents, rooms, filter = '') {
     const isSecretary = deptId === '01_secretary';
 
     const avatarEmoji = isSecretary ? '🗂️' : '🏢';
-    const tokenBadge  = token
-      ? `<span class="team-token-badge ok">🤖 Bot OK</span>`
-      : `<span class="team-token-badge missing">⚠️ ยังไม่มี Token</span>`;
+    const tokenBadge  = `<span class="team-token-badge ok" title="สั่งงานได้โดยตรงผ่าน Telegram Enterprise Bot">🤖 สั่งงานผ่าน Telegram</span>`;
 
     const agentRows = dAgents.map(a => `
       <div class="agent-row">
@@ -646,6 +663,9 @@ async function deleteTeam(deptId, name) {
     toast(`ลบทีม "${name}" เรียบร้อย`, 'success');
     await loadTeams();
     await loadDashboard();
+    if (typeof fetchSimulationState === 'function') await fetchSimulationState();
+    if (typeof loadWorkstations === 'function') await loadWorkstations();
+    if (typeof syncOfficeWithSimState === 'function') syncOfficeWithSimState();
   } catch (err) {
     toast('ลบทีมไม่สำเร็จ: ' + err.message, 'error');
   }
@@ -745,6 +765,9 @@ async function submitAgent() {
     closeModal('modal-create-agent');
     await loadTeams();
     await loadDashboard();
+    if (typeof loadWorkstation === 'function') {
+      try { await loadWorkstation(); } catch (e) {}
+    }
   } catch (err) {
     toast('บันทึก Agent ไม่สำเร็จ: ' + err.message, 'error');
   } finally {
@@ -759,6 +782,9 @@ async function deleteAgent(agentId) {
     toast('ลบ Agent เรียบร้อย', 'success');
     await loadTeams();
     await loadDashboard();
+    if (typeof fetchSimulationState === 'function') await fetchSimulationState();
+    if (typeof loadWorkstations === 'function') await loadWorkstations();
+    if (typeof syncOfficeWithSimState === 'function') syncOfficeWithSimState();
   } catch (err) {
     toast('ลบ Agent ไม่สำเร็จ: ' + err.message, 'error');
   }
@@ -916,7 +942,16 @@ function clearLogFilter() {
 // Track which settings are already configured (masked)
 let _settingsState = {};
 
-let allAvailableModels = [];
+const AVAILABLE_MODEL_OPTIONS = [
+  { id: 'gemini-1.5-flash', label: '⚡ Gemini 1.5 Flash (เร็ว / ประหยัด / งานทั่วไป)' },
+  { id: 'gemini-1.5-pro', label: '🧠 Gemini 1.5 Pro (ฉลาด / วิเคราะห์ลึก)' },
+  { id: 'gemini-2.0-flash-exp', label: '🚀 Gemini 2.0 Flash (โมเดลล่าสุด เร็วพิเศษ)' },
+  { id: 'claude-3-5-sonnet-20241022', label: '🎭 Claude 3.5 Sonnet (งานเขียน / โค้ดดิ้ง)' },
+  { id: 'claude-3-haiku-20240307', label: '⚡ Claude 3 Haiku (รวดเร็ว / สรุปย่อ)' },
+  { id: 'llama3:latest', label: '🦙 Llama 3 (Local Ollama ฟรี 100%)' }
+];
+
+let allAvailableModels = AVAILABLE_MODEL_OPTIONS.map(m => m.id);
 
 async function loadSettings() {
   try {
@@ -933,6 +968,7 @@ async function loadSettings() {
       telegram_bot_token:         !!s.telegram_configured,
       telegram_owner_direct_chat_id: !!(s.telegram_owner_direct_chat_id),
     };
+    _revealedSecrets = {};
 
     // Show masked placeholder for sensitive fields
     setMaskedInput('s-gemini-key', s.gemini_configured, s.gemini_api_key, 's-gemini-status');
@@ -940,7 +976,11 @@ async function loadSettings() {
     setMaskedInput('s-tg-token',   s.telegram_configured,  s.telegram_bot_token, 's-tg-token-status');
 
     // Plain text fields — fill directly
-    document.getElementById('s-direct-chat').value = s.telegram_owner_direct_chat_id || '';
+    const directChatInp = document.getElementById('s-direct-chat');
+    if (directChatInp) {
+      directChatInp.value = s.telegram_owner_direct_chat_id || '';
+      delete directChatInp.dataset.action;
+    }
     document.getElementById('s-owner-name').value = s.owner_name || '';
     document.getElementById('s-owner-identity').value = s.owner_identity || '';
     document.getElementById('s-owner-skill').value = s.owner_skill || '';
@@ -963,29 +1003,45 @@ async function loadSettings() {
     const tgOk = s.telegram_configured;
     document.getElementById('tg-status').className = `badge ${tgOk ? 'badge-online' : ''}`;
     document.getElementById('tg-status').textContent = tgOk ? '✓ ตั้งค่าแล้ว' : '✗ ยังไม่ตั้งค่า';
-
-    // PM Tokens
-    renderPmTokens(rooms.department_rooms || {});
   } catch (err) {
     console.error('[loadSettings]', err);
     toast('โหลดการตั้งค่าไม่สำเร็จ: ' + err.message, 'error');
   }
 }
 
+let _revealedSecrets = {};
+
 function renderModelSelect(selectId, selectedValue = '') {
   const sel = document.getElementById(selectId);
   if (!sel) return;
-  
-  sel.innerHTML = allAvailableModels.map(m => {
-    // ใส่ emoji แนะนำความเร็ว/ความฉลาดเพื่อความสวยงาม
-    let emoji = '🤖';
-    if (m.includes('flash')) emoji = '⚡';
-    else if (m.includes('pro')) emoji = '🧠';
-    else if (m.includes('sonnet')) emoji = '🎭';
-    
-    return `<option value="${m}">${emoji} ${m}</option>`;
+
+  const modelMap = {};
+  AVAILABLE_MODEL_OPTIONS.forEach(m => { modelMap[m.id] = m.label; });
+
+  let models = (allAvailableModels && allAvailableModels.length > 0)
+    ? [...allAvailableModels]
+    : AVAILABLE_MODEL_OPTIONS.map(m => m.id);
+
+  // If selectedValue is not in list, add it at the top so it's not lost
+  if (selectedValue && !models.includes(selectedValue)) {
+    models.unshift(selectedValue);
+  }
+
+  sel.innerHTML = models.map(m => {
+    let label = modelMap[m];
+    if (!label) {
+      if (m.includes('flash-exp') || m.includes('2.0-flash')) label = `🚀 ${m} (ล่าสุด / เร็วพิเศษ)`;
+      else if (m.includes('flash')) label = `⚡ ${m} (เร็ว / ประหยัด)`;
+      else if (m.includes('pro')) label = `🧠 ${m} (ฉลาด / ละเอียด)`;
+      else if (m.includes('sonnet')) label = `🎭 ${m} (Anthropic Premium)`;
+      else if (m.includes('haiku')) label = `⚡ ${m} (Anthropic เร็ว)`;
+      else if (m.includes('llama')) label = `🦙 ${m} (Local Ollama ฟรี)`;
+      else label = `🤖 ${m}`;
+    }
+    const isSel = (m === selectedValue) ? ' selected' : '';
+    return `<option value="${escHtml(m)}"${isSel}>${escHtml(label)}</option>`;
   }).join('');
-  
+
   if (selectedValue) {
     sel.value = selectedValue;
   }
@@ -994,15 +1050,19 @@ function renderModelSelect(selectId, selectedValue = '') {
 function setMaskedInput(inputId, isConfigured, maskedValue, badgeId) {
   const input = document.getElementById(inputId);
   const badge = document.getElementById(badgeId);
+  const btnToggle = document.getElementById('btn-toggle-' + inputId);
   if (!input || !badge) return;
 
-  // Clear actual value (user must re-type to change)
+  // Clear actual value (user must re-type or click reveal)
   input.value = '';
+  input.type = 'password';
+  delete input.dataset.action;
+  if (btnToggle) btnToggle.textContent = '👁️ ดู';
 
   if (isConfigured) {
     // Show last 6 chars hint in placeholder
     const hint = maskedValue ? maskedValue.replace(/•+/, '').slice(-6) : '...';
-    input.placeholder = `ตั้งค่าแล้ว (••••••${hint}) — พิมพ์ใหม่เพื่อเปลี่ยน`;
+    input.placeholder = `ตั้งค่าแล้ว (••••••${hint}) — พิมพ์ใหม่หรือกดดู/ล้างค่า`;
     badge.className   = 'config-badge ok';
     badge.textContent = '✓ ตั้งค่าแล้ว';
   } else {
@@ -1012,33 +1072,105 @@ function setMaskedInput(inputId, isConfigured, maskedValue, badgeId) {
     badge.className   = 'config-badge warn';
     badge.textContent = '✗ ยังไม่ตั้งค่า';
   }
+
+  input.oninput = () => {
+    onSecretInputChange(input, badgeId, isConfigured);
+  };
 }
 
-function renderPmTokens(depts) {
-  const el = document.getElementById('pm-tokens-container');
-  const deptKeys = Object.keys(depts).filter(k => k !== '01_secretary');
-  if (deptKeys.length === 0) {
-    el.innerHTML = `<div class="empty-state">ยังไม่มีทีม — ไปที่ <a href="#/teams" onclick="navigateTo('teams')">ทีมปฏิบัติการ</a> เพื่อสร้างทีมค่ะ</div>`;
-    return;
+function onSecretInputChange(input, badgeId, isConfigured) {
+  delete input.dataset.action;
+  const badge = document.getElementById(badgeId);
+  if (input.value.trim().length > 0) {
+    if (badge) {
+      badge.className = 'config-badge ok';
+      badge.textContent = '✏️ แก้ไขแล้ว (รอกดบันทึก)';
+    }
+  } else if (!isConfigured) {
+    if (badge) {
+      badge.className = 'config-badge warn';
+      badge.textContent = '✗ ยังไม่ตั้งค่า';
+    }
+  } else {
+    if (badge) {
+      badge.className = 'config-badge ok';
+      badge.textContent = '✓ ตั้งค่าแล้ว';
+    }
+  }
+}
+
+// ─── Toggle Secret Visibility (👁️ / 🙈) ────────────────────────
+async function toggleSecretVisibility(inputId) {
+  const input = document.getElementById(inputId);
+  const btn = document.getElementById('btn-toggle-' + inputId);
+  if (!input) return;
+
+  if (input.type === 'password') {
+    // If input is empty and not actively cleared, try fetching stored secret to show
+    if (!input.value && input.dataset.action !== 'clear') {
+      try {
+        if (!Object.keys(_revealedSecrets).length) {
+          if (btn) btn.textContent = '⏳...';
+          _revealedSecrets = await apiGet('/api/settings/reveal');
+        }
+        let secret = '';
+        if (inputId === 's-gemini-key') secret = _revealedSecrets.gemini_api_key || '';
+        else if (inputId === 's-claude-key') secret = _revealedSecrets.anthropic_api_key || '';
+        else if (inputId === 's-tg-token') secret = _revealedSecrets.telegram_bot_token || '';
+        if (secret) {
+          input.value = secret;
+        }
+      } catch (e) {
+        console.error('Error revealing secret:', e);
+      }
+    }
+    input.type = 'text';
+    if (btn) btn.textContent = '🙈 ซ่อน';
+  } else {
+    input.type = 'password';
+    if (btn) btn.textContent = '👁️ ดู';
+  }
+}
+
+function togglePasswordVisibility(inputId) {
+  const input = document.getElementById(inputId);
+  const btn = document.getElementById('btn-toggle-' + inputId);
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (btn) btn.textContent = '🙈 ซ่อน';
+  } else {
+    input.type = 'password';
+    if (btn) btn.textContent = '👁️ ดู';
+  }
+}
+
+// ─── Clear Secret Input (✕ ล้างค่า) ───────────────────────────
+function clearSecretInput(inputId, deptId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  input.value = '';
+  input.dataset.action = 'clear';
+  input.placeholder = '✕ ล้างค่าแล้ว — กดบันทึกเพื่อยกเลิกใช้งาน';
+
+  let badgeId = '';
+  if (inputId === 's-gemini-key') badgeId = 's-gemini-status';
+  else if (inputId === 's-claude-key') badgeId = 's-claude-status';
+  else if (inputId === 's-tg-token') badgeId = 's-tg-token-status';
+
+  if (badgeId) {
+    const badge = document.getElementById(badgeId);
+    if (badge) {
+      badge.className = 'config-badge warn';
+      badge.textContent = '🗑️ ล้างค่า (กดบันทึกเพื่อยกเลิก)';
+    }
   }
 
-  el.innerHTML = deptKeys.map(id => {
-    const d = depts[id];
-    const hasToken = !!d.bot_token;
-    const tokenHint = hasToken ? d.bot_token.replace(/•+/, '').slice(-6) : '';
-    return `
-      <div class="pm-token-item">
-        <div class="pm-token-label">
-          <span class="pm-token-name">🤖 PM ทีม ${escHtml(d.name)}</span>
-          <span class="config-badge ${hasToken ? 'ok' : 'warn'}">${hasToken ? '✓ ตั้งค่าแล้ว' : '✗ ยังไม่มี Token'}</span>
-        </div>
-        <div class="input-row">
-          <input type="password" class="form-input mono" id="pm-token-${id}"
-            placeholder="${hasToken ? `ตั้งค่าแล้ว (••••••${tokenHint}) — พิมพ์ใหม่เพื่อเปลี่ยน` : 'Bot Token จาก @BotFather...'}" autocomplete="off" />
-          <span class="form-hint" style="flex-shrink:0">PM: ${escHtml(d.pm_name || '—')}</span>
-        </div>
-      </div>`;
-  }).join('');
+  const btnToggle = document.getElementById('btn-toggle-' + inputId);
+  if (btnToggle) btnToggle.textContent = '👁️ ดู';
+
+  toast('ล้างข้อมูลในช่องแล้ว — กดปุ่มบันทึกเพื่อยกเลิกการใช้งานออกจากระบบค่ะ', 'info');
 }
 
 // ─── Helper: call PUT /api/settings and show save result ──────
@@ -1048,16 +1180,16 @@ async function _doSaveSettings(body, btnId, statusId, btnLabel) {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
   if (status) status.textContent = '';
 
-  // Remove any empty or untouched fields
+  // Remove any untouched fields (keep empty strings "" if user explicitly cleared a field)
   const cleaned = {};
   Object.entries(body).forEach(([k, v]) => {
-    if (v !== null && v !== undefined && String(v).trim() !== '') {
+    if (v !== null && v !== undefined) {
       cleaned[k] = v;
     }
   });
 
   if (Object.keys(cleaned).length === 0) {
-    toast('ไม่มีข้อมูลใหม่ให้บันทึก — กรุณาพิมพ์ค่าใหม่ก่อนค่ะ', 'warning');
+    toast('ไม่มีข้อมูลใหม่ให้บันทึก — กรุณาพิมพ์ค่าใหม่หรือกดล้างค่าก่อนค่ะ', 'warning');
     if (btn) { btn.disabled = false; btn.textContent = btnLabel; }
     return false;
   }
@@ -1079,22 +1211,45 @@ async function _doSaveSettings(body, btnId, statusId, btnLabel) {
 
 // ─── Per-section save functions ───────────────────────────────
 async function saveLLMSection() {
-  const body = {
-    gemini_api_key:         document.getElementById('s-gemini-key').value.trim() || null,
-    anthropic_api_key:      document.getElementById('s-claude-key').value.trim() || null,
-    default_model:          document.getElementById('s-default-model').value || null,
-  };
-  // Remove nulls
-  Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
+  const geminiInp = document.getElementById('s-gemini-key');
+  const claudeInp = document.getElementById('s-claude-key');
+  const body = {};
+
+  if (geminiInp && geminiInp.dataset.action === 'clear') {
+    body.gemini_api_key = "";
+  } else if (geminiInp && geminiInp.value.trim()) {
+    body.gemini_api_key = geminiInp.value.trim();
+  }
+
+  if (claudeInp && claudeInp.dataset.action === 'clear') {
+    body.anthropic_api_key = "";
+  } else if (claudeInp && claudeInp.value.trim()) {
+    body.anthropic_api_key = claudeInp.value.trim();
+  }
+
+  const defaultModel = document.getElementById('s-default-model')?.value;
+  if (defaultModel) body.default_model = defaultModel;
+
   await _doSaveSettings(body, 'btn-save-llm', 'save-status-llm', '💾 บันทึก LLM Keys');
 }
 
 async function saveTelegramSection() {
-  const body = {
-    telegram_bot_token:            document.getElementById('s-tg-token').value.trim() || null,
-    telegram_owner_direct_chat_id: document.getElementById('s-direct-chat').value.trim() || null,
-  };
-  Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
+  const tgInp = document.getElementById('s-tg-token');
+  const directInp = document.getElementById('s-direct-chat');
+  const body = {};
+
+  if (tgInp && tgInp.dataset.action === 'clear') {
+    body.telegram_bot_token = "";
+  } else if (tgInp && tgInp.value.trim()) {
+    body.telegram_bot_token = tgInp.value.trim();
+  }
+
+  if (directInp && directInp.dataset.action === 'clear') {
+    body.telegram_owner_direct_chat_id = "";
+  } else if (directInp && directInp.value.trim() !== '') {
+    body.telegram_owner_direct_chat_id = directInp.value.trim();
+  }
+
   await _doSaveSettings(body, 'btn-save-tg', 'save-status-tg', '💾 บันทึก Telegram Settings');
 }
 
@@ -1108,102 +1263,63 @@ async function saveOwnerSection() {
   await _doSaveSettings(body, 'btn-save-owner', 'save-status-owner', '💾 บันทึก Owner Profile');
 }
 
-async function savePmTokens() {
-  const btn    = document.getElementById('btn-save-pm');
-  const status = document.getElementById('save-status-pm');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
-  if (status) status.textContent = '';
-
-  const pmInputs = document.querySelectorAll('[id^="pm-token-"]');
-  const promises = [];
-  let count = 0;
-
-  pmInputs.forEach(inp => {
-    const val = inp.value.trim();
-    if (val) {  // user actually typed something
-      count++;
-      const deptId = inp.id.replace('pm-token-', '');
-      const room = (allRooms.department_rooms || {})[deptId];
-      if (room) {
-        promises.push(
-          apiPost('/api/telegram/rooms', {
-            name: room.name, pm_name: room.pm_name || '', id: deptId, bot_token: val
-          }).catch(e => ({ error: e.message }))
-        );
-      }
-    }
-  });
-
-  if (count === 0) {
-    toast('ไม่มี Token ใหม่ให้บันทึก — กรุณาพิมพ์ Token ในช่องที่ต้องการเปลี่ยนค่ะ', 'warning');
-    if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึก PM Bot Tokens'; }
-    return;
-  }
-
-  try {
-    await Promise.all(promises);
-    toast(`✅ บันทึก PM Bot Token สำเร็จ ${count} ทีม!`, 'success');
-    if (status) { status.textContent = `✅ บันทึก ${count} ทีม`; setTimeout(() => { if (status) status.textContent = ''; }, 3000); }
-    await loadSettings();
-  } catch (err) {
-    toast('บันทึก PM Token ไม่สำเร็จ: ' + err.message, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึก PM Bot Tokens'; }
-  }
-}
-
-// ─── Save All (runs all 3 sections) ──────────────────────────
+// ─── Save All Settings ───────────────────────────────────────
 async function saveSettings() {
   const btn    = document.getElementById('btn-save');
   const status = document.getElementById('save-status');
   btn.disabled = true; btn.textContent = '⏳ กำลังบันทึกทั้งหมด...';
   status.textContent = '';
 
-  const body = {
-    gemini_api_key:                document.getElementById('s-gemini-key').value.trim() || null,
-    anthropic_api_key:             document.getElementById('s-claude-key').value.trim() || null,
-    default_model:                 document.getElementById('s-default-model').value || null,
-    telegram_bot_token:            document.getElementById('s-tg-token').value.trim() || null,
-    telegram_owner_direct_chat_id: document.getElementById('s-direct-chat').value.trim() || null,
-    owner_name:                    document.getElementById('s-owner-name').value.trim() || null,
-    owner_identity:                document.getElementById('s-owner-identity').value.trim() || null,
-    owner_skill:                   document.getElementById('s-owner-skill').value.trim() || null,
-  };
-  // Remove nulls (only send fields user actually typed)
-  Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
+  const body = {};
+  const geminiInp = document.getElementById('s-gemini-key');
+  const claudeInp = document.getElementById('s-claude-key');
+  const tgInp = document.getElementById('s-tg-token');
+  const directInp = document.getElementById('s-direct-chat');
 
-  // PM tokens
-  const pmInputs = document.querySelectorAll('[id^="pm-token-"]');
-  const pmPromises = [];
-  pmInputs.forEach(inp => {
-    const val = inp.value.trim();
-    if (val) {
-      const deptId = inp.id.replace('pm-token-', '');
-      const room = (allRooms.department_rooms || {})[deptId];
-      if (room) {
-        pmPromises.push(
-          apiPost('/api/telegram/rooms', {
-            name: room.name, pm_name: room.pm_name || '', id: deptId, bot_token: val
-          }).catch(() => {})
-        );
-      }
-    }
-  });
+  if (geminiInp && geminiInp.dataset.action === 'clear') {
+    body.gemini_api_key = "";
+  } else if (geminiInp && geminiInp.value.trim()) {
+    body.gemini_api_key = geminiInp.value.trim();
+  }
 
-  const hasMainSettings = Object.keys(body).length > 0;
-  const hasPmTokens     = pmPromises.length > 0;
+  if (claudeInp && claudeInp.dataset.action === 'clear') {
+    body.anthropic_api_key = "";
+  } else if (claudeInp && claudeInp.value.trim()) {
+    body.anthropic_api_key = claudeInp.value.trim();
+  }
 
-  if (!hasMainSettings && !hasPmTokens) {
-    toast('ไม่มีข้อมูลใหม่ให้บันทึก — กรุณาพิมพ์ค่าใหม่ในช่องที่ต้องการก่อนค่ะ', 'warning');
+  const defaultModel = document.getElementById('s-default-model')?.value;
+  if (defaultModel) body.default_model = defaultModel;
+
+  if (tgInp && tgInp.dataset.action === 'clear') {
+    body.telegram_bot_token = "";
+  } else if (tgInp && tgInp.value.trim()) {
+    body.telegram_bot_token = tgInp.value.trim();
+  }
+
+  if (directInp && directInp.dataset.action === 'clear') {
+    body.telegram_owner_direct_chat_id = "";
+  } else if (directInp && directInp.value.trim() !== '') {
+    body.telegram_owner_direct_chat_id = directInp.value.trim();
+  }
+
+  const ownerName = document.getElementById('s-owner-name')?.value.trim();
+  if (ownerName !== undefined && ownerName !== '') body.owner_name = ownerName;
+
+  const ownerIdent = document.getElementById('s-owner-identity')?.value.trim();
+  if (ownerIdent !== undefined && ownerIdent !== '') body.owner_identity = ownerIdent;
+
+  const ownerSkill = document.getElementById('s-owner-skill')?.value.trim();
+  if (ownerSkill !== undefined && ownerSkill !== '') body.owner_skill = ownerSkill;
+
+  if (Object.keys(body).length === 0) {
+    toast('ไม่มีข้อมูลใหม่หรือคำสั่งล้างค่าให้บันทึก — กรุณาพิมพ์ค่าใหม่หรือกดล้างค่าก่อนค่ะ', 'warning');
     btn.disabled = false; btn.textContent = '💾 บันทึกทั้งหมด';
     return;
   }
 
   try {
-    const tasks = [];
-    if (hasMainSettings) tasks.push(apiPut('/api/settings', body));
-    tasks.push(...pmPromises);
-    await Promise.all(tasks);
+    await apiPut('/api/settings', body);
     toast('✅ บันทึกการตั้งค่าทั้งหมดสำเร็จ!', 'success');
     status.textContent = '✅ บันทึกเรียบร้อย';
     await loadSettings();
@@ -1607,14 +1723,41 @@ let _cachedDirectives = null;
 
 async function loadDirectivesPage() {
   try {
-    const res = await fetch('/api/company/directives');
+    const [res, agents] = await Promise.all([
+      fetch('/api/company/directives'),
+      apiGet('/api/agents').catch(() => [])
+    ]);
     if (!res.ok) throw new Error(await res.text());
     _cachedDirectives = await res.json();
     populateDirectivesForm(_cachedDirectives);
+    renderDirectivesActiveDepts(agents || []);
   } catch (err) {
     console.error('Failed to load directives:', err);
     if (typeof toast === 'function') toast('เกิดข้อผิดพลาดในการโหลดนโยบายบริษัท', 'error');
   }
+}
+
+function renderDirectivesActiveDepts(agents) {
+  const container = document.getElementById('dir-active-depts-container');
+  if (!container) return;
+  if (!agents || !agents.length) {
+    container.innerHTML = '<div class="empty-state">ยังไม่มีข้อมูลทีมงาน</div>';
+    return;
+  }
+  container.innerHTML = agents.map((a, idx) => {
+    const isSecretary = a.id === '01_secretary';
+    const icon = isSecretary ? '🗂️' : '🏢';
+    const pm = a.pm_name || a.name;
+    return `
+      <div style="background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:6px; border:1px solid var(--border); display:flex; align-items:center; gap:8px;">
+        <span>${icon}</span>
+        <div>
+          <div style="font-weight:600; font-size:13px; color:var(--text-primary);">${idx + 1}. <b>${escHtml(a.name)}</b></div>
+          <div style="font-size:11px; color:var(--text-muted);">ผู้รับผิดชอบ: <span style="color:#60a5fa;">${escHtml(pm)}</span> • โมเดล: <code>${escHtml(a.model || 'gemini-1.5-flash')}</code></div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 function populateDirectivesForm(d) {

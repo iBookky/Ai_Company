@@ -103,6 +103,32 @@ async def get_settings():
     }
 
 
+@router.get("/reveal")
+async def reveal_settings():
+    """ดึงค่าคอนฟิกจริง (ไม่ Mask) สำหรับปุ่มดูข้อมูล (Eye Reveal) และการตรวจสอบของ Owner"""
+    settings = _load_settings()
+    pm_tokens = {}
+    if DEPARTMENTS_DIR.exists():
+        for dept_dir in DEPARTMENTS_DIR.iterdir():
+            if dept_dir.is_dir() and not dept_dir.name.startswith("."):
+                config_file = dept_dir / "config.json"
+                if config_file.exists():
+                    try:
+                        cfg = json.loads(config_file.read_text(encoding="utf-8"))
+                        if cfg.get("bot_token"):
+                            pm_tokens[dept_dir.name] = cfg["bot_token"]
+                    except Exception:
+                        pass
+
+    return {
+        "gemini_api_key": settings.gemini_api_key,
+        "anthropic_api_key": settings.anthropic_api_key,
+        "telegram_bot_token": settings.telegram_bot_token,
+        "telegram_owner_direct_chat_id": settings.telegram_owner_direct_chat_id,
+        "pm_tokens": pm_tokens
+    }
+
+
 @router.put("", response_model=ApiResponse)
 async def update_settings(data: SettingsUpdate):
     """บันทึกการตั้งค่าใหม่ลง .env และ sync กับ config.json ใน departments/"""
@@ -132,6 +158,7 @@ async def update_settings(data: SettingsUpdate):
         if value is not None and not str(value).startswith("••••••••"):
             env_value = value.value if hasattr(value, "value") else str(value)
             set_key(str(ENV_FILE), env_key, env_value)
+            os.environ[env_key] = env_value
             updated.append(field)
 
     # อัปเดต telegram_ops_chat_ids (Multi-Room Operations)

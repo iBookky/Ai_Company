@@ -42,114 +42,26 @@ const ENTERPRISE_DEPARTMENTS = {
       'วิเคราะห์และวางโครงสร้างการแบ่งงานระหว่างทีม Dev และ Marketing สำหรับโปรเจกต์ใหม่'
     ]
   },
-  '03_developer': {
-    id: '03_developer',
-    name: 'ฝ่ายพัฒนาระบบซอฟต์แวร์',
-    pm: 'บิ๊นท์ (Lead Dev)',
-    avatar: '💻',
-    role: 'Lead Software & Systems Dev',
-    color: '#818cf8',
-    glow: 'rgba(129, 140, 248, 0.25)',
-    btnBorder: 'rgba(129, 140, 248, 0.4)',
-    btnBg: 'linear-gradient(135deg, rgba(129, 140, 248, 0.2), rgba(99, 102, 241, 0.35))',
-    btnHover: 'linear-gradient(135deg, rgba(129, 140, 248, 0.4), rgba(99, 102, 241, 0.6))',
-    btnColor: '#c7d2fe',
-    skills: 'Full-Stack Web, REST API, Database, Authentication, Automation Scripts',
-    preset: 'systems_dev',
-    quickAction: '🔑 สร้าง API + Auth',
-    quickPrompt: 'พัฒนาระบบ Backend REST API พร้อม JWT Authentication และ Unit Tests',
-    templates: [
-      'พัฒนาระบบ Backend REST API พร้อม JWT Authentication และ Unit Tests',
-      'ออกแบบและสร้าง Microservice Database พร้อมระบบ Rate Limiting',
-      'พัฒนา Webhook สำหรับเชื่อมต่อระบบชำระเงินและแจ้งเตือนอัตโนมัติ'
-    ]
-  },
-  '02_การตลาด_ai': {
-    id: '02_การตลาด_ai',
-    name: 'ฝ่ายการตลาด & Social Content',
-    pm: 'ลิซ่า (Content Lead)',
-    avatar: '📣',
-    role: 'Head of Marketing & Content',
-    color: '#f472b6',
-    glow: 'rgba(244, 114, 182, 0.25)',
-    btnBorder: 'rgba(244, 114, 182, 0.4)',
-    btnBg: 'linear-gradient(135deg, rgba(244, 114, 182, 0.2), rgba(236, 72, 153, 0.35))',
-    btnHover: 'linear-gradient(135deg, rgba(244, 114, 182, 0.4), rgba(236, 72, 153, 0.6))',
-    btnColor: '#fbcfe8',
-    skills: 'สคริปต์วิดีโอสั้น TikTok/Reels, บทความ Facebook/LinkedIn, AI Visual Prompts',
-    preset: 'social_content',
-    quickAction: '🎬 คลิป TikTok 45 วิ',
-    quickPrompt: 'สร้าง Content Social Media: เปิดตัว One-Person AI Enterprise 100% (TikTok & Facebook)',
-    templates: [
-      'สร้าง Content Social Media: เปิดตัว One-Person AI Enterprise 100% (TikTok & Facebook)',
-      'เขียนสคริปต์วิดีโอสั้น TikTok 3 คลิป เจาะกลุ่มคนทำธุรกิจยุคใหม่',
-      'เขียนบทความเจาะลึกเบื้องหลังระบบ AI สำหรับโพสต์ลง Facebook Page และ LinkedIn'
-    ]
-  },
-  '06_sales': {
-    id: '06_sales',
-    name: 'ฝ่ายขายและบริการลูกค้า (Sales & CS)',
-    pm: 'พิมพ์ (Sales & CS Lead)',
-    avatar: '🤝',
-    role: 'Head of Sales & Customer Service',
-    color: '#fb923c',
-    glow: 'rgba(251, 146, 60, 0.25)',
-    btnBorder: 'rgba(251, 146, 60, 0.4)',
-    btnBg: 'linear-gradient(135deg, rgba(251, 146, 60, 0.2), rgba(249, 115, 22, 0.35))',
-    btnHover: 'linear-gradient(135deg, rgba(251, 146, 60, 0.4), rgba(249, 115, 22, 0.6))',
-    btnColor: '#ffedd5',
-    skills: 'ปิดการขาย B2B, จัดทำใบเสนอราคา, ตอบแชตลูกค้า 24/7, ติดตาม Lead, CRM & Retention',
-    preset: 'sales',
-    quickAction: '🤝 ปิดการขาย & บริการลูกค้า',
-    quickPrompt: 'ติดต่อลูกค้า นำเสนอแพ็กเกจระบบซอฟต์แวร์ และจัดทำใบเสนอราคา',
-    templates: [
-      'ติดต่อลูกค้า นำเสนอแพ็กเกจระบบซอฟต์แวร์ และจัดทำใบเสนอราคา',
-      'ตอบคำถามและดูแลข้อสงสัยของลูกค้าเกี่ยวกับระบบ AI Enterprise ตลอด 24 ชม.',
-      'วางกลยุทธ์ Sales Pipeline และจัดทำสคริปต์ปิดการขายสำหรับลูกค้ารายใหม่'
-    ]
-  },
-  '04_data_analyst': {
-    id: '04_data_analyst',
-    name: 'ฝ่ายตรวจสอบคุณภาพ & Data',
-    pm: 'มุก (QA Analyst)',
+  '07_business_analyst': {
+    id: '07_business_analyst',
+    name: 'ฝ่ายวิเคราะห์ธุรกิจ (BA & Strategy)',
+    pm: 'น้องบิ๊นท์ (Business Analyst)',
     avatar: '📊',
-    role: 'Senior QA & Data Analyst',
-    color: '#34d399',
-    glow: 'rgba(52, 211, 153, 0.25)',
-    btnBorder: 'rgba(52, 211, 153, 0.4)',
-    btnBg: 'linear-gradient(135deg, rgba(52, 211, 153, 0.2), rgba(16, 185, 129, 0.35))',
-    btnHover: 'linear-gradient(135deg, rgba(52, 211, 153, 0.4), rgba(16, 185, 129, 0.6))',
-    btnColor: '#a7f3d0',
-    skills: 'QA Code Review, Funnel Analytics, สแกนช่องโหว่ความปลอดภัย, สถิติผู้ใช้งาน',
-    preset: 'data_analyst',
-    quickAction: '📈 วิเคราะห์ Funnel',
-    quickPrompt: 'วิเคราะห์ Conversion Funnel และสแกนคอขวดของระบบ',
+    role: 'Lead Business Analyst',
+    color: '#06b6d4',
+    glow: 'rgba(6, 182, 212, 0.25)',
+    btnBorder: 'rgba(6, 182, 212, 0.4)',
+    btnBg: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(8, 145, 178, 0.35))',
+    btnHover: 'linear-gradient(135deg, rgba(6, 182, 212, 0.4), rgba(8, 145, 178, 0.6))',
+    btnColor: '#cffafe',
+    skills: 'วิเคราะห์ Requirement ธุรกิจ, ออกแบบ Workflows & SOP, จัดทำ BRD/PRD, ประเมินความคุ้มค่า ROI',
+    preset: 'custom',
+    quickAction: '📋 วิเคราะห์ Requirement',
+    quickPrompt: 'วิเคราะห์ Requirement ธุรกิจ และจัดทำเอกสารความต้องการระบบ (PRD/BRD) ฉบับสมบูรณ์',
     templates: [
-      'วิเคราะห์ Conversion Funnel และสแกนคอขวดของระบบ',
-      'รัน Security Audit และ Code Review ตรวจหาช่องโหว่ SQL Injection และ Auth Leaks',
-      'วิเคราะห์พฤติกรรมผู้ใช้งานเพื่อหาจุดหลุดสูงสุด 3 อันดับแรกในระบบชำระเงิน'
-    ]
-  },
-  '05_accounting': {
-    id: '05_accounting',
-    name: 'ฝ่ายการเงิน & ต้นทุน Cloud',
-    pm: 'พลอย (Finance)',
-    avatar: '💰',
-    role: 'Finance & Cost Controller',
-    color: '#a78bfa',
-    glow: 'rgba(167, 139, 250, 0.25)',
-    btnBorder: 'rgba(167, 139, 250, 0.4)',
-    btnBg: 'linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(139, 92, 246, 0.35))',
-    btnHover: 'linear-gradient(135deg, rgba(167, 139, 250, 0.4), rgba(139, 92, 246, 0.6))',
-    btnColor: '#ddd6fe',
-    skills: 'สรุปค่าใช้จ่าย API Token, ควบคุมงบประมาณ Cloud, คำนวณ ROI และจุดคุ้มทุน',
-    preset: 'accounting',
-    quickAction: '💵 สรุปค่า Token',
-    quickPrompt: 'สรุปยอดการใช้งาน AI Tokens และควบคุมงบประมาณ Cloud รายเดือน',
-    templates: [
-      'สรุปยอดการใช้งาน AI Tokens และควบคุมงบประมาณ Cloud รายเดือน',
-      'คำนวณต้นทุนต่อผู้ใช้งาน (Cost per Active User) และวิเคราะห์จุดคุ้มทุน ROI',
-      'วางแผนกลยุทธ์ Prompt Caching เพื่อลดค่าใช้จ่าย API รายเดือนลง 35%'
+      'วิเคราะห์ Requirement ธุรกิจ และจัดทำเอกสารความต้องการระบบ (PRD/BRD) ฉบับสมบูรณ์',
+      'ออกแบบ Process Workflow การทำงาน และประเมินจุดคุ้มทุน (ROI)',
+      'สำรวจปัญหาและทำรายงาน Gap Analysis เพื่อเพิ่มประสิทธิภาพองค์กร'
     ]
   }
 };
@@ -283,6 +195,9 @@ function updateSimulationUI(state) {
   // 3.1 Render Department Command Hub (1-Click Dispatch)
   renderDeptCommandHub(state.agents || []);
 
+  // 3.2 Render Dynamic Top 1-Click Presets
+  renderDynamicPresetChips(state.agents || []);
+
   // 4. Render 4 Kanban Columns
   renderKanbanColumns(state);
 
@@ -357,7 +272,7 @@ function renderKanbanColumns(state) {
   if (colCountDone) colCountDone.textContent = state.confirmed_tasks ? state.confirmed_tasks.length : 0;
 
   // Render Column 1: To Do / Ready-to-Run Presets
-  renderColTodo();
+  renderColTodo(state.agents || []);
 
   // Render Column 2: In Progress (Live Thought & Progress)
   renderColActive(state.active_tasks || []);
@@ -369,136 +284,66 @@ function renderKanbanColumns(state) {
   renderColDone(state.confirmed_tasks || []);
 }
 
-function renderColTodo() {
+function renderDynamicPresetChips(agents = []) {
+  const container = document.getElementById('dynamic-preset-chips');
+  if (!container) return;
+
+  const activeIds = new Set(agents.map(a => a.department_id || a.id));
+  const activeDepts = Object.values(ENTERPRISE_DEPARTMENTS).filter(d => activeIds.has(d.id) && d.id !== '01_secretary');
+
+  container.innerHTML = activeDepts.map(dept => {
+    const rawAction = dept.quickAction ? dept.quickAction.replace(/^[^a-zA-Z0-9\u0E00-\u0E7F]+/, '').trim() : 'สั่งงาน';
+    const pmShort = dept.pm ? dept.pm.split(' ')[0] : dept.name;
+    return `
+      <div class="preset-chip" onclick="quickDispatchDept('${dept.id}', '${escapeHtml(dept.quickPrompt || '')}')">
+        <span>${dept.avatar}</span> ${escapeHtml(rawAction)} (${escapeHtml(pmShort)})
+      </div>
+    `;
+  }).join('');
+}
+
+function renderColTodo(agents = []) {
   const el = document.getElementById('kanban-col-todo-body');
   if (!el) return;
 
-  el.innerHTML = `
-    <!-- Preset 1: Systems Dev -->
-    <div class="kanban-card" style="border-left: 3px solid #818cf8;">
-      <div class="card-top-row">
-        <div class="card-title-text">💻 1. พัฒนาระบบ API & Backend</div>
-        <span class="card-category-tag">Systems Dev</span>
-      </div>
-      <div class="card-assignee-row">
-        <span class="card-assignee-avatar">💻</span>
-        <div>
-          <span class="card-assignee-name">บิ๊นท์ (Lead Dev)</span>
-          <span style="color:var(--text-dim); font-size:0.7rem;">+ มุก (QA)</span>
-        </div>
-      </div>
-      <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.35; margin:0;">
-        ออกแบบ REST API + JWT Auth + Unit Tests 100% → ส่งให้ Owner ตรวจรับ
-      </p>
-      <button class="btn-card-inspect" style="background:rgba(129,140,248,0.1); border-color:rgba(129,140,248,0.3); color:#a5b4fc;" onclick="launchSimulationPreset('systems_dev')">
-        ⚡ รันงานนี้ทันที
-      </button>
-    </div>
+  // Build Todo Preset Cards dynamically from currently active agents
+  const activeCards = [];
+  agents.forEach(a => {
+    const dId = a.department_id || a.id;
+    if (dId === '01_secretary') return; // Secretary has separate special orchestration
 
-    <!-- Preset 2: Social Media Content -->
-    <div class="kanban-card" style="border-left: 3px solid #f472b6;">
-      <div class="card-top-row">
-        <div class="card-title-text">📣 2. ผลิต Content Social Media</div>
-        <span class="card-category-tag">Marketing</span>
-      </div>
-      <div class="card-assignee-row">
-        <span class="card-assignee-avatar">📣</span>
-        <div>
-          <span class="card-assignee-name">ลิซ่า (Content Lead)</span>
-        </div>
-      </div>
-      <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.35; margin:0;">
-        สคริปต์วิดีโอสั้น TikTok 45 วิ + บทความยาว FB/LinkedIn + AI Visual Prompts
-      </p>
-      <button class="btn-card-inspect" style="background:rgba(244,114,182,0.1); border-color:rgba(244,114,182,0.3); color:#f472b6;" onclick="launchSimulationPreset('social_content')">
-        ⚡ รันงานนี้ทันที
-      </button>
-    </div>
+    const deptInfo = ENTERPRISE_DEPARTMENTS[dId] || {};
+    const pm = a.name || deptInfo.pm || 'AI';
+    const role = a.role_title || deptInfo.role || 'Specialist';
+    const quickP = deptInfo.quickPrompt || `มอบหมายงานให้ ${pm}: วิเคราะห์และดำเนินงานตามเป้าหมาย`;
+    const actionLabel = deptInfo.quickAction || '📋 สั่งงานด่วน';
 
-    <!-- Preset 3: Sales & Customer Service -->
-    <div class="kanban-card" style="border-left: 3px solid #fb923c;">
-      <div class="card-top-row">
-        <div class="card-title-text">🤝 3. แผนกลยุทธ์การขาย & ดูแลลูกค้า</div>
-        <span class="card-category-tag">Sales & CS</span>
-      </div>
-      <div class="card-assignee-row">
-        <span class="card-assignee-avatar">🤝</span>
-        <div>
-          <span class="card-assignee-name">พิมพ์ (Sales & CS Lead)</span>
-        </div>
-      </div>
-      <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.35; margin:0;">
-        จัดทำ B2B Solution Proposal, ปิดการขาย และเตรียมระบบบริการลูกค้า 24/7
-      </p>
-      <button class="btn-card-inspect" style="background:rgba(251,146,60,0.1); border-color:rgba(251,146,60,0.3); color:#fb923c;" onclick="launchSimulationPreset('sales')">
-        ⚡ รันงานนี้ทันที
-      </button>
-    </div>
+    activeCards.push({
+      deptId: dId,
+      border: deptInfo.color || '#06b6d4',
+      title: `${actionLabel} — ${a.department_name || deptInfo.name || dId}`,
+      category: role,
+      avatar: a.avatar || deptInfo.avatar || '📊',
+      assignee: `${pm} (${role})`,
+      subAssignee: '',
+      desc: deptInfo.skills || 'วิเคราะห์ข้อมูล วางแผนกระบวนการ และจัดทำเอกสารส่งมอบงานให้พี่บุ๊ค ตรวจรับ',
+      preset: deptInfo.preset || 'custom',
+      quickPrompt: quickP,
+      btnBg: deptInfo.btnBg || 'rgba(6,182,212,0.1)',
+      btnBorder: deptInfo.btnBorder || 'rgba(6,182,212,0.3)',
+      btnColor: deptInfo.btnColor || '#67e8f9'
+    });
+  });
 
-    <!-- Preset 4: QA & Data Analytics -->
-    <div class="kanban-card" style="border-left: 3px solid #34d399;">
-      <div class="card-top-row">
-        <div class="card-title-text">📊 4. ตรวจ QA & วิเคราะห์ Funnel</div>
-        <span class="card-category-tag">Analytics</span>
-      </div>
-      <div class="card-assignee-row">
-        <span class="card-assignee-avatar">📊</span>
-        <div>
-          <span class="card-assignee-name">มุก (QA & Data)</span>
-        </div>
-      </div>
-      <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.35; margin:0;">
-        สแกน Conversion Funnel 12,500 รายการ ชี้จุดหลุด OTP Drop-off
-      </p>
-      <button class="btn-card-inspect" style="background:rgba(52,211,153,0.1); border-color:rgba(52,211,153,0.3); color:#34d399;" onclick="launchSimulationPreset('data_analyst')">
-        ⚡ รันงานนี้ทันที
-      </button>
-    </div>
+  // Update col count
+  const colCountTodo = document.getElementById('col-count-todo');
+  if (colCountTodo) colCountTodo.textContent = activeCards.length + 1;
 
-    <!-- Preset 5: Finance & Cost Controller -->
-    <div class="kanban-card" style="border-left: 3px solid #a78bfa;">
-      <div class="card-top-row">
-        <div class="card-title-text">💰 5. สรุปงบประมาณ & ค่า Token</div>
-        <span class="card-category-tag">Finance</span>
-      </div>
-      <div class="card-assignee-row">
-        <span class="card-assignee-avatar">💰</span>
-        <div>
-          <span class="card-assignee-name">พลอย (Finance)</span>
-        </div>
-      </div>
-      <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.35; margin:0;">
-        ตรวจสอบสถิติค่า Token API รายเดือน และคำนวณจุดคุ้มทุน ROI
-      </p>
-      <button class="btn-card-inspect" style="background:rgba(167,139,250,0.1); border-color:rgba(167,139,250,0.3); color:#a78bfa;" onclick="launchSimulationPreset('accounting')">
-        ⚡ รันงานนี้ทันที
-      </button>
-    </div>
-
-    <!-- Preset 6: Full Launch -->
-    <div class="kanban-card" style="border-left: 3px solid #8b5cf6;">
-      <div class="card-top-row">
-        <div class="card-title-text">🌐 6. Full Launch (Dev + Social)</div>
-        <span class="card-category-tag">Full Launch</span>
-      </div>
-      <div class="card-assignee-row">
-        <span class="card-assignee-avatar">🚀</span>
-        <div>
-          <span class="card-assignee-name">บิ๊นท์ & ลิซ่า</span>
-        </div>
-      </div>
-      <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.35; margin:0;">
-        บิ๊นท์พัฒนา Microservice และลิซ่าทำแคมเปญโปรโมตเปิดตัวคู่กัน
-      </p>
-      <button class="btn-card-inspect" style="background:rgba(139,92,246,0.1); border-color:rgba(139,92,246,0.3); color:#c4b5fd;" onclick="launchSimulationPreset('collaborative')">
-        ⚡ รันงานนี้ทันที
-      </button>
-    </div>
-
-    <!-- Preset 7: AI Hiring -->
+  // HR Scaling Card (always available for hiring AI team members)
+  const hrCard = `
     <div class="kanban-card" style="border-left: 3px solid #a855f7;">
       <div class="card-top-row">
-        <div class="card-title-text">👥 7. AI ขอเสนอจ้างทีมเพิ่ม</div>
+        <div class="card-title-text">👥 ขอเสนอจ้างทีมเพิ่ม</div>
         <span class="card-category-tag">HR Scaling</span>
       </div>
       <div class="card-assignee-row">
@@ -508,13 +353,35 @@ function renderColTodo() {
         </div>
       </div>
       <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.35; margin:0;">
-        อิงฟ้ายื่นขอจัดจ้างพนักงาน AI ผู้เชี่ยวชาญเฉพาะทางเข้าทีม รอ Owner อนุมัติ
+        อิงฟ้ายื่นขอจัดจ้างพนักงาน AI ผู้เชี่ยวชาญเฉพาะทางเข้าทีม รอพี่บุ๊ค อนุมัติ
       </p>
       <button class="btn-card-inspect" style="background:rgba(168,85,247,0.1); border-color:rgba(168,85,247,0.3); color:#d8b4fe;" onclick="launchSimulationPreset('hiring_request')">
         ⚡ รันงานนี้ทันที
       </button>
     </div>
   `;
+
+  el.innerHTML = activeCards.map(c => `
+    <div class="kanban-card" style="border-left: 3px solid ${c.border};">
+      <div class="card-top-row">
+        <div class="card-title-text">${c.title}</div>
+        <span class="card-category-tag">${c.category}</span>
+      </div>
+      <div class="card-assignee-row">
+        <span class="card-assignee-avatar">${c.avatar}</span>
+        <div>
+          <span class="card-assignee-name">${c.assignee}</span>
+          ${c.subAssignee ? `<span style="color:var(--text-dim); font-size:0.7rem;">${c.subAssignee}</span>` : ''}
+        </div>
+      </div>
+      <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.35; margin:0;">
+        ${c.desc}
+      </p>
+      <button class="btn-card-inspect" style="background:${c.btnBg}; border-color:${c.btnBorder}; color:${c.btnColor};" onclick="launchSimulationPreset('${c.preset}')">
+        ⚡ รันงานนี้ทันที
+      </button>
+    </div>
+  `).join('') + hrCard;
 }
 
 // ─── Render Department Command Hub ────────────────────────────
@@ -522,12 +389,63 @@ function renderDeptCommandHub(agents = []) {
   const container = document.getElementById('dept-cmd-grid');
   if (!container) return;
 
-  const agentStatusMap = {};
+  const activeAgentMap = {};
   agents.forEach(a => {
-    agentStatusMap[a.department_id || a.id] = a;
+    activeAgentMap[a.department_id || a.id] = a;
+    activeAgentMap[a.id] = a;
   });
 
-  const depts = Object.values(ENTERPRISE_DEPARTMENTS);
+  // Dynamic palette for any dynamically registered departments
+  const extraPalettes = [
+    { color: '#06b6d4', glow: 'rgba(6, 182, 212, 0.25)', btnBorder: 'rgba(6, 182, 212, 0.4)', btnBg: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(8, 145, 178, 0.35))', btnHover: 'linear-gradient(135deg, rgba(6, 182, 212, 0.4), rgba(8, 145, 178, 0.6))', btnColor: '#cffafe' },
+    { color: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.25)', btnBorder: 'rgba(139, 92, 246, 0.4)', btnBg: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.35))', btnHover: 'linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(124, 58, 237, 0.6))', btnColor: '#ede9fe' },
+    { color: '#ec4899', glow: 'rgba(236, 72, 153, 0.25)', btnBorder: 'rgba(236, 72, 153, 0.4)', btnBg: 'linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.35))', btnHover: 'linear-gradient(135deg, rgba(236, 72, 153, 0.4), rgba(219, 39, 119, 0.6))', btnColor: '#fce7f3' },
+    { color: '#10b981', glow: 'rgba(16, 185, 129, 0.25)', btnBorder: 'rgba(16, 185, 129, 0.4)', btnBg: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.35))', btnHover: 'linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(5, 150, 105, 0.6))', btnColor: '#d1fae5' },
+    { color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.25)', btnBorder: 'rgba(245, 158, 11, 0.4)', btnBg: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.35))', btnHover: 'linear-gradient(135deg, rgba(245, 158, 11, 0.4), rgba(217, 119, 6, 0.6))', btnColor: '#fef3c7' }
+  ];
+
+  // Auto-register any new agents into ENTERPRISE_DEPARTMENTS if not yet present
+  agents.forEach((ag, idx) => {
+    const key = ag.department_id || ag.id;
+    if (!ENTERPRISE_DEPARTMENTS[key] && !ENTERPRISE_DEPARTMENTS[ag.id]) {
+      const palette = extraPalettes[idx % extraPalettes.length];
+      ENTERPRISE_DEPARTMENTS[key] = {
+        id: key,
+        name: ag.department_name || ag.name,
+        pm: `${ag.name} (${ag.role_title || 'AI Specialist'})`,
+        avatar: ag.avatar || '🤖',
+        role: ag.role_title || 'AI Specialist',
+        color: palette.color,
+        glow: palette.glow,
+        btnBorder: palette.btnBorder,
+        btnBg: palette.btnBg,
+        btnHover: palette.btnHover,
+        btnColor: palette.btnColor,
+        skills: 'วิเคราะห์และวางแผน, ประสานงานเฉพาะทาง, รายงานผลและบันทึกประวัติ',
+        preset: 'custom',
+        quickAction: '⚡ สั่งงานด่วน',
+        quickPrompt: `มอบหมายงานให้ ${ag.name}: ดำเนินงานและจัดทำรายงานสรุป`,
+        templates: [
+          `มอบหมายงานให้ ${ag.name}: วิเคราะห์ข้อมูลและวางแผนปฏิบัติการ`,
+          `ติดตามความคืบหน้าระบบและจัดทำสรุปสำหรับพี่บุ๊ค`,
+          `ตรวจสอบความถูกต้องและจัดทำเอกสารส่งมอบงาน`
+        ]
+      };
+    }
+  });
+
+  // ONLY render departments that actually exist in active agents (Single Source of Truth)
+  const depts = Object.values(ENTERPRISE_DEPARTMENTS).filter(d => activeAgentMap[d.id]);
+
+  // Dynamically update the header title with actual department count
+  const hubTitleSpan = document.getElementById('dept-command-hub-title-text') || document.querySelector('.dept-hub-title span:last-child');
+  if (hubTitleSpan) {
+    hubTitleSpan.textContent = `ศูนย์สั่งการทีมงาน AI ทั้ง ${depts.length} แผนก — สั่งงานตรง 1-Click`;
+  }
+  const statTeamCount = document.getElementById('stat-ai-team-count');
+  if (statTeamCount) {
+    statTeamCount.textContent = depts.length;
+  }
 
   container.innerHTML = depts.map(dept => {
     const agState = agentStatusMap[dept.id];
@@ -549,7 +467,7 @@ function renderDeptCommandHub(agents = []) {
             <div class="dept-meta-wrap">
               <div class="dept-name-text" title="${escapeHtml(dept.name)}">${escapeHtml(dept.name)}</div>
               <div class="dept-pm-text">
-                <span>${escapeHtml(dept.pm)}</span>
+                <span class="truncate" title="${escapeHtml(dept.pm)}">${escapeHtml(dept.pm)}</span>
                 ${statusBadge}
               </div>
             </div>
@@ -561,8 +479,8 @@ function renderDeptCommandHub(agents = []) {
 
         <div>
           <button class="dept-quick-preset-btn" onclick="quickDispatchDept('${dept.id}', '${escapeHtml(dept.quickPrompt)}')" title="คลิกเพื่อสั่งงานตาม Preset ทันที">
-            <span>⚡ ${escapeHtml(dept.quickAction)}</span>
-            <span style="opacity:0.6; font-size:0.65rem;">1-Click</span>
+            <span class="truncate">⚡ ${escapeHtml(dept.quickAction)}</span>
+            <span style="opacity:0.6; font-size:0.65rem; margin-left:4px; flex-shrink:0;">1-Click</span>
           </button>
           <button class="btn-dept-dispatch" style="--btn-border:${dept.btnBorder}; --btn-bg:${dept.btnBg}; --btn-hover-bg:${dept.btnHover}; --btn-color:${dept.btnColor};" onclick="openDeptDispatchModal('${dept.id}')">
             <span>🚀 สั่งงานแผนกนี้</span>
@@ -1007,7 +925,7 @@ function openDeliverableModal(taskId) {
     `;
   } else {
     footerActions.innerHTML = `
-      <span style="font-size:0.82rem; color:#34d399; margin-right:auto;">✓ งานนี้ได้รับการอนุมัติปิดงานโดย Owner แล้ว</span>
+      <span style="font-size:0.82rem; color:#34d399; margin-right:auto;">✓ งานนี้ได้รับการอนุมัติปิดงานโดยพี่บุ๊ค แล้ว</span>
       <button class="btn" onclick="closeModal('modal-deliverable-detail')">ปิดหน้าต่าง</button>
     `;
   }
@@ -1091,8 +1009,8 @@ function renderTelegramDrawer(notifications) {
 async function confirmTaskAction(taskId) {
   try {
     const res = await simPost(`/api/simulation/tasks/${taskId}/confirm`, {
-      owner_name: 'Owner',
-      feedback: 'ยืนยันอนุมัติปิดงานเรียบร้อยโดย Owner — ผลงานสมบูรณ์แบบ 100%'
+      owner_name: 'พี่บุ๊ค',
+      feedback: 'ยืนยันอนุมัติปิดงานเรียบร้อยโดยพี่บุ๊ค — ผลงานสมบูรณ์แบบ 100%'
     });
     simToast('✅ อนุมัติปิดงานสำเร็จ! บันทึกลง Memory และแจ้งเตือน Telegram เรียบร้อย', 'success');
     fetchSimulationState();
@@ -1112,7 +1030,7 @@ async function submitRevision(taskId, feedback) {
   try {
     await simPost(`/api/simulation/tasks/${taskId}/revise`, {
       feedback: feedback,
-      owner_name: 'Owner'
+      owner_name: 'พี่บุ๊ค'
     });
     simToast('🔄 ส่งคำขอแก้ไขไปยังทีม AI เรียบร้อย — AI กำลังเร่งปรับปรุงงานทันที', 'warning');
     fetchSimulationState();
@@ -1124,7 +1042,7 @@ async function submitRevision(taskId, feedback) {
 async function approveHiringAction(proposalId) {
   try {
     const res = await simPost(`/api/simulation/hire/${proposalId}/approve`, {
-      owner_name: 'Owner'
+      owner_name: 'พี่บุ๊ค'
     });
     simToast('✨ อนุมัติจัดจ้าง AI สำเร็จ! บรรจุพนักงานใหม่เข้าทีมเรียบร้อย', 'success');
     fetchSimulationState();

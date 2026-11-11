@@ -13,6 +13,7 @@ import uuid
 import shutil
 import logging
 import asyncio
+import re
 from pathlib import Path
 
 from typing import Dict, List, Optional
@@ -31,7 +32,7 @@ DEPARTMENTS_DIR = BASE_DIR / "departments"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_OWNER_ID = os.getenv("TELEGRAM_OWNER_ID", "")
 
-# 1. Direct Chat (Owner ↔ เลขา AI)
+# 1. Direct Chat (พี่บุ๊ค ↔ เลขา AI)
 TELEGRAM_OWNER_DIRECT_CHAT_ID = os.getenv("TELEGRAM_OWNER_DIRECT_CHAT_ID", "")
 
 # 2. Executive Boardroom (ห้องประชุมผู้บริหาร: Owner + เลขา + PMs)
@@ -52,6 +53,8 @@ if _env_ops_json:
 _pending_verifications: Dict[str, dict] = {}
 _chat_histories: Dict[str, List[dict]] = {}
 _current_session_messages: List[Dict[str, str]] = []
+_active_chat_agents: Dict[str, str] = {}  # {chat_id: current_dept_id}
+_agent_chat_histories: Dict[tuple, list] = {}  # {(chat_id, dept_id): [messages]}
 
 async def summarize_and_save_session(session_msgs: List[dict]) -> str:
     """รวบรวมข้อสรุปจากประวัติใน session แล้วกรองคัดแยกบันทึกลงไฟล์ company_memory.md"""
@@ -162,7 +165,7 @@ async def summarize_and_save_session(session_msgs: List[dict]) -> str:
 
 
 def _get_owner_prompt_context() -> str:
-    owner_name = os.getenv("OWNER_NAME", "Owner")
+    owner_name = os.getenv("OWNER_NAME", "พี่บุ๊ค")
     owner_identity = os.getenv("OWNER_IDENTITY", "เจ้าของและผู้บริหารสูงสุดของบริษัท")
     owner_skill = os.getenv("OWNER_SKILL", "การตัดสินใจเชิงกลยุทธ์และการบริหารองค์กร")
     
@@ -191,11 +194,11 @@ def _get_owner_prompt_context() -> str:
         pass
 
     return (
-        f"\n\n--- ข้อมูลเกี่ยวกับ Owner (คู่สนทนาและผู้บริหารของคุณ) ---\n"
+        f"\n\n--- ข้อมูลเกี่ยวกับพี่บุ๊ค (คู่สนทนาและผู้บริหารสูงสุดของคุณ) ---\n"
         f"ชื่อ: {owner_name}\n"
         f"ตัวตน/บทบาท: {owner_identity}\n"
         f"ทักษะ/ความเชี่ยวชาญ: {owner_skill}\n"
-        f"คำแนะนำ: ให้คุณเรียกชื่อจริงของ Owner คือ '{owner_name}' หรือทักทายอย่างสุภาพและเป็นกันเองด้วยความสนิทสนม เช่น 'คุณ {owner_name}' หรือ 'ท่าน {owner_name}' แทนคำว่า 'Owner' เฉยๆ เพื่อความเป็นกันเองในบริษัท\n"
+        f"กฎเหล็กการสนทนา: ในการตอบกลับทาง Telegram ทุกครั้ง ให้คุณเรียกคู่สนทนาว่า 'พี่บุ๊ค' เสมออย่างสนิทสนม สุภาพ และเป็นกันเอง ห้ามใช้คำว่า 'Owner', 'ท่าน Owner', หรือ 'คุณ Owner' โดยเด็ดขาด ให้ใช้คำว่า 'พี่บุ๊ค' เท่านั้น\n"
         f"{company_memory}"
         f"{recent_activities}"
     )
@@ -241,13 +244,13 @@ async def send_telegram_message(chat_id: str, text: str, bot_token: Optional[str
 
 
 async def send_direct_to_secretary(text: str) -> bool:
-    """ส่งข้อความคุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI)"""
+    """ส่งข้อความคุยส่วนตัว 1-on-1 (พี่บุ๊ค ↔ เลขา AI)"""
     chat_id = TELEGRAM_OWNER_DIRECT_CHAT_ID or TELEGRAM_EXEC_CHAT_ID
     return await send_telegram_message(chat_id, text)
 
 
 async def send_to_executive_board(text: str) -> bool:
-    """ส่งข้อความเข้าห้องประชุมผู้บริหาร (Owner + เลขา + PMs)"""
+    """ส่งข้อความเข้าห้องประชุมผู้บริหาร (พี่บุ๊ค + เลขา + PMs)"""
     chat_id = TELEGRAM_EXEC_CHAT_ID or TELEGRAM_OWNER_DIRECT_CHAT_ID
     return await send_telegram_message(chat_id, text)
 
@@ -292,7 +295,7 @@ def get_ops_chat_id_for_department(dept_id: str) -> str:
 
 # ─── Dynamic Department Room Management (สร้าง/ยุบแผนก) ─────────────────────
 
-def create_department_room(name: str, chat_id: str = "", pm_name: str = "", dept_id: Optional[str] = None, bot_token: str = "") -> dict:
+def create_department_room(name: str, chat_id: str = "", pm_name: str = "", dept_id: Optional[str] = None, bot_token: Optional[str] = None) -> dict:
     """สร้างห้องทำงานแผนกใหม่ (สร้างโฟลเดอร์ + config.json)"""
     DEPARTMENTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -320,6 +323,8 @@ def create_department_room(name: str, chat_id: str = "", pm_name: str = "", dept
         except Exception:
             pass
 
+    final_bot_token = bot_token if bot_token is not None else cfg.get("bot_token", "")
+
     cfg.update({
         "name": name,
         "role": f"pm_{dept_id}",
@@ -328,7 +333,7 @@ def create_department_room(name: str, chat_id: str = "", pm_name: str = "", dept
         "temperature": cfg.get("temperature", 0.5),
         "department": dept_id,
         "ops_chat_id": chat_id or cfg.get("ops_chat_id", ""),
-        "bot_token": bot_token or cfg.get("bot_token", ""),
+        "bot_token": final_bot_token,
         "created_at": cfg.get("created_at", datetime.now().isoformat()),
     })
     config_file.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -352,7 +357,7 @@ def create_department_room(name: str, chat_id: str = "", pm_name: str = "", dept
 
 
 async def propose_team_structure(dept_name: str, pm_name: str = "") -> dict:
-    """เสนอร่างโครงสร้างทีม บทบาทลูกทีม และ KPI ที่เหมาะสมให้ Owner พิจารณาปรับแก้และอนุมัติก่อนสร้างจริง"""
+    """เสนอร่างโครงสร้างทีม บทบาทลูกทีม และ KPI ที่เหมาะสมให้พี่บุ๊ค พิจารณาปรับแก้และอนุมัติก่อนสร้างจริง"""
     from backend.services.llm_service import LLMService
     llm = LLMService(model="gemini-1.5-flash", temperature=0.5)
 
@@ -386,13 +391,19 @@ async def propose_team_structure(dept_name: str, pm_name: str = "") -> dict:
 
 
 def delete_department_room(dept_id: str) -> bool:
-    """ยุบแผนก / ลบห้องทำงานแผนก (ลบโฟลเดอร์ + ลบคอนฟิก)"""
+    """ยุบแผนก / ลบห้องทำงานแผนก (ลบโฟลเดอร์ + ลบคอนฟิก + ซิงค์สถานะทั้งระบบ)"""
     dept_dir = DEPARTMENTS_DIR / dept_id
     if dept_dir.exists():
         shutil.rmtree(dept_dir)
 
     if dept_id in TELEGRAM_OPS_CHAT_IDS:
         del TELEGRAM_OPS_CHAT_IDS[dept_id]
+
+    try:
+        from backend.services import simulation_service
+        simulation_service.remove_agent_or_department(dept_id)
+    except Exception as e:
+        logger.warning(f"Failed to remove agent {dept_id} from simulation: {e}")
 
     return True
 
@@ -432,7 +443,7 @@ def get_all_department_rooms() -> Dict[str, dict]:
 
 async def classify_intent(text: str) -> str:
     """
-    จำแนกเจตนาข้อความของ Owner:
+    จำแนกเจตนาข้อความของพี่บุ๊ค:
     - 'CHAT': คุยส่วนตัวสัพเพเหระ/ปรึกษา/ถามความเห็นทั่วไป
     - 'TASK_ORDER': คำสั่งงานชัดเจน/สั่งมอบหมายงานให้แผนกไปทำ
     """
@@ -453,7 +464,7 @@ async def classify_intent(text: str) -> str:
         from backend.services.llm_service import LLMService
         llm = LLMService(model="gemini-1.5-flash", temperature=0.0)
         prompt = (
-            "โปรดจำแนกเจตนาข้อความของ Owner ว่าเป็น 'CHAT' หรือ 'TASK_ORDER'\n"
+            "โปรดจำแนกเจตนาข้อความของพี่บุ๊ค ว่าเป็น 'CHAT' หรือ 'TASK_ORDER'\n"
             "- ตอบ 'CHAT': ถ้าเป็นการพูดคุยส่วนตัวทั่วไป, ทักทาย, ปรึกษาไอเดีย, ถามความเห็น, สนทนาเรื่องทั่วไปที่ไม่ใช่การสั่งมอบหมายงาน\n"
             "- ตอบ 'TASK_ORDER': ถ้าเป็นการสั่งงานชัดเจน, มอบหมายภารกิจ, สั่งให้แผนกไปดำเนินการทำผลงาน, หรือสั่งให้ระบบทำรายการ\n\n"
             f"ข้อความ: '{text}'\n"
@@ -479,41 +490,181 @@ async def classify_intent(text: str) -> str:
     return "CHAT"
 
 
+def get_registered_agents_info() -> list[dict]:
+    """ดึงข้อมูล Agent ทั้งหมดที่ประจำการอยู่ใน departments/ แบบ Real-time"""
+    agents = []
+    if DEPARTMENTS_DIR.exists():
+        for d in sorted(DEPARTMENTS_DIR.iterdir()):
+            if d.is_dir() and not d.name.startswith("."):
+                cfg_file = d / "config.json"
+                if cfg_file.exists():
+                    try:
+                        cfg = json.loads(cfg_file.read_text(encoding="utf-8"))
+                        identity = (d / "identity.md").read_text(encoding="utf-8") if (d / "identity.md").exists() else ""
+                        skills = (d / "skill.md").read_text(encoding="utf-8") if (d / "skill.md").exists() else ""
+                        jd = (d / "job_description.md").read_text(encoding="utf-8") if (d / "job_description.md").exists() else ""
+                        agents.append({
+                            "dept_id": d.name,
+                            "name": cfg.get("name", d.name),
+                            "pm_name": cfg.get("pm_name") or f"PM {cfg.get('name', d.name)}",
+                            "role": cfg.get("role", f"pm_{d.name}"),
+                            "model": cfg.get("model", "gemini-1.5-flash"),
+                            "identity": identity,
+                            "skills": skills,
+                            "job_description": jd
+                        })
+                    except Exception:
+                        pass
+    return agents
+
+
+def build_agent_aliases(agent: dict) -> list[str]:
+    """สร้างคำค้นหา/คำเรียกสำหรับ Agent แต่ละคนเพื่อจับคู่ในข้อความ"""
+    aliases = set()
+    pm = (agent.get("pm_name") or "").strip().lower()
+    name = (agent.get("name") or "").strip().lower()
+    dept_id = agent.get("dept_id", "").lower()
+
+    if pm:
+        aliases.add(pm)
+        if pm.startswith("น้อง"):
+            aliases.add(pm[4:].strip())
+        if "บิ๊นท์" in pm:
+            aliases.update(["bint", "bin", "บิ้นท์", "บิ้น"])
+        elif "อิงฟ้า" in pm:
+            aliases.update(["ingfah", "ing", "ฟ้า", "เลขา"])
+
+    if name:
+        aliases.add(name)
+        if "business analyst" in name or "ba" in name:
+            aliases.update(["ba", "business analyst", "นักวิเคราะห์"])
+        elif "developer" in name or "ซอฟต์แวร์" in name or "dev" in name:
+            aliases.update(["dev", "developer", "โปรแกรมเมอร์"])
+        elif "marketing" in name or "การตลาด" in name:
+            aliases.update(["marketing", "การตลาด"])
+        elif "accounting" in name or "การเงิน" in name or "บัญชี" in name:
+            aliases.update(["การเงิน", "บัญชี", "finance"])
+        elif "sales" in name or "ฝ่ายขาย" in name:
+            aliases.update(["ฝ่ายขาย", "sales", "เซลส์"])
+        elif "qa" in name or "ตรวจสอบ" in name:
+            aliases.update(["qa", "คิวเอ"])
+
+    # ลบคำสั้นมากๆ เพื่อป้องกัน false match
+    filtered = [a for a in aliases if len(a) >= 2]
+    return sorted(filtered, key=len, reverse=True)
+
+
+def resolve_target_agent(text: str, chat_id: str) -> tuple[dict, str, bool]:
+    """
+    วิเคราะห์หา Agent จากข้อความ
+    Returns: (agent_info, remaining_command_text, is_switch_only)
+    """
+    agents = get_registered_agents_info()
+    if not agents:
+        fallback_agent = {
+            "dept_id": "01_secretary",
+            "name": "Secretary & CKO",
+            "pm_name": "อิงฟ้า",
+            "model": "gemini-1.5-flash",
+            "identity": "", "skills": "", "job_description": ""
+        }
+        return fallback_agent, text, False
+
+    clean_text = text.strip()
+    lower_text = clean_text.lower()
+
+    # 1. เช็คคำสั่ง Switch / ขอคุยกับ
+    # เช่น "คุยกับบิ๊นท์", "สลับไปคุยกับน้องบิ๊นท์", "/switch บิ๊นท์", "/agent บิ๊นท์", "สั่งบิ๊นท์..."
+    switch_patterns = [
+        r'^(?:สลับไปคุยกับ|สลับคุยกับ|คุยกับ|ขอคุยกับ|ไปคุยกับ|สั่งการ|สั่ง|ถึง)\s*([^\s:,]+)(.*)$',
+        r'^(?:/switch|/agent|/talk)\s+([^\s:,]+)(.*)$'
+    ]
+
+    for pat in switch_patterns:
+        m = re.match(pat, clean_text, re.IGNORECASE)
+        if m:
+            target_raw = m.group(1).strip().lower()
+            remaining = m.group(2).strip(' :,\t\n')
+
+            for agent in agents:
+                for alias in build_agent_aliases(agent):
+                    if alias == target_raw or target_raw.startswith(alias):
+                        is_switch_only = (len(remaining) == 0)
+                        return agent, remaining, is_switch_only
+
+    # 2. เช็คการขึ้นต้นด้วยชื่อ หรือ @ชื่อ เช่น '@บิ๊นท์ ทำ...', 'บิ๊นท์: ทำ...', 'บิ๊นท์ ทำ...'
+    for agent in agents:
+        for alias in build_agent_aliases(agent):
+            if lower_text.startswith(f'@{alias}'):
+                rem = clean_text[len(alias) + 1:].strip(' :,\t\n')
+                return agent, rem, False
+            prefix_match = re.match(rf'^{re.escape(alias)}[\s:,]+(.*)$', clean_text, re.IGNORECASE)
+            if prefix_match:
+                rem = prefix_match.group(1).strip()
+                return agent, rem, False
+
+    # 3. ตรวจสอบว่าในประโยคมีการเอ่ยชื่อ Agent เจาะจงหรือไม่ เช่น "ช่วยให้ บิ๊นท์ ตรวจสอบโค้ดให้หน่อย"
+    for agent in agents:
+        for alias in build_agent_aliases(agent):
+            if len(alias) >= 3 and alias in lower_text:
+                return agent, clean_text, False
+
+    # 4. หากไม่ได้เอ่ยชื่อใคร ให้ดูว่ามี active agent ประจำแชทนี้อยู่หรือไม่
+    current_agent_id = _active_chat_agents.get(chat_id, "01_secretary")
+    current_agent = next((a for a in agents if a["dept_id"] == current_agent_id), agents[0])
+    return current_agent, clean_text, False
+
+
 async def handle_webhook(payload: dict, bot_token: Optional[str] = None) -> dict:
-    """ประมวลผล Incoming Webhook Update จาก Telegram"""
+    """ประมวลผล Incoming Webhook Update จาก Telegram รองรับทุก Agent ผ่าน Telegram ตัวเดียว"""
     message = payload.get("message", {}) or payload.get("channel_post", {})
     if not message:
         return {"status": "ignored", "reason": "no_message"}
 
     chat_id = str(message.get("chat", {}).get("id", ""))
     from_user = message.get("from", {})
-    sender_name = from_user.get("first_name", "Owner")
+    sender_name = from_user.get("first_name") or "พี่บุ๊ค"
     text = message.get("text", "").strip() if isinstance(message.get("text"), str) else ""
 
     if not text:
         return {"status": "ignored", "reason": "empty_text"}
 
-    ctx = resolve_room_context(chat_id, bot_token=bot_token)
-    
-    # หากระบุ bot_token (คุยส่วนตัวหา PM บอท) ให้ปรับปรุงชื่อผู้รับการบันทึก Log ให้ถูกต้อง
-    if bot_token:
-        dept_rooms = get_all_department_rooms()
-        matching_pm = next((info for info in dept_rooms.values() if info.get("bot_token") == bot_token), None)
-        if matching_pm:
-            ctx["agent_name"] = matching_pm.get("pm_name") or f"PM {matching_pm['name']}"
-            ctx["dept_id"] = matching_pm["id"]
-
-    write_log(LogCreate(
-        agent_id=ctx.get("dept_id", "secretary_ai"),
-        agent_name=ctx["agent_name"],
-        level=LogLevel.INFO,
-        message=f"ได้รับข้อความจาก Telegram ({sender_name}) หา {ctx['agent_name']}: {text[:50]}...",
-    ))
-
-    # 1. เช็คคำสั่งระบบ /confirm, /approve, /hire หรือคำว่า "อนุมัติ", "ยืนยัน", "ปิดงาน"
-    from backend.services import simulation_service
     cleaned_lower = text.strip().lower()
 
+    # 1. เช็คคำสั่งดูรายชื่อทีมงานทั้งหมด (/agents, /teams, ใครอยู่บ้าง, รายชื่อทีม)
+    if cleaned_lower in ["/agents", "/teams", "/list", "ใครอยู่บ้าง", "รายชื่อทีม", "รายชื่อทีมงาน", "ดูทีม"]:
+        agents = get_registered_agents_info()
+        lines = ["🏢 <b>รายชื่อทีมงาน AI ที่ประจำการอยู่ในระบบ:</b>\n"]
+        for idx, a in enumerate(agents, 1):
+            lines.append(f"{idx}. 🤖 <b>{a['pm_name']}</b> — {a['name']}")
+        lines.append("\n💡 <b>วิธีสั่งงานหรือพูดคุย:</b>")
+        lines.append("• พิมพ์ชื่อนำหน้า เช่น <code>บิ๊นท์ ช่วยวิเคราะห์ข้อมูลยอดขายให้หน่อย</code>")
+        lines.append("• หรือสลับคนคุย: <code>คุยกับบิ๊นท์</code> (ข้อความต่อไปจะคุยกับคนนั้นต่อเนื่อง)")
+        lines.append("• คำสั่งระบบ: <code>/confirm</code> (อนุมัติปิดงาน) | <code>/agents</code> (ดูรายชื่อทีม)")
+        
+        reply_msg = "\n".join(lines)
+        await send_telegram_message(chat_id, reply_msg, bot_token=bot_token)
+        return {"status": "agents_listed", "count": len(agents)}
+
+    # 2. คำสั่ง /start หรือ /help
+    if cleaned_lower in ["/start", "/help", "ช่วยด้วย", "วิธีใช้"]:
+        agents = get_registered_agents_info()
+        agent_names = ", ".join([f"<b>{a['pm_name']}</b>" for a in agents])
+        help_msg = (
+            f"👋 สวัสดีครับพี่บุ๊ค!\n\n"
+            f"ผมคือบอทศูนย์กลางองค์กร <b>One-Person AI Enterprise</b> เชื่อมต่อทีมงาน AI ทุกคนในระบบ\n\n"
+            f"👥 <b>ทีมงานที่พร้อมปฏิบัติงานตอนนี้:</b>\n{agent_names}\n\n"
+            f"💡 <b>สั่งงานง่ายๆ:</b> เพียงพิมพ์ชื่อคนที่ต้องการคุยด้วย เช่น:\n"
+            f"• <i>\"บิ๊นท์ ช่วยวิเคราะห์ข้อมูลยอดขาย...\"</i>\n"
+            f"• <i>\"คุยกับบิ๊นท์\"</i> (เพื่อสลับคุย 1-on-1)\n"
+            f"• <i>\"อิงฟ้า สรุปสถานะงานประจำวัน\"</i>\n\n"
+            f"พิมพ์ <code>/agents</code> เพื่อดูรายชื่อทีมงานทั้งหมดได้ตลอดเวลาครับ!"
+        )
+        await send_telegram_message(chat_id, help_msg, bot_token=bot_token)
+        return {"status": "help_replied"}
+
+    # 3. เช็คคำสั่งระบบ HITL /confirm, /approve, /hire หรือคำว่า "อนุมัติ", "ยืนยัน", "ปิดงาน"
+    from backend.services import simulation_service
     if cleaned_lower.startswith("/confirm") or cleaned_lower.startswith("/approve") or cleaned_lower in ["อนุมัติ", "ยืนยัน", "ปิดงาน", "confirm", "approve"]:
         parts = text.strip().split()
         target_id = parts[1] if len(parts) > 1 else None
@@ -528,7 +679,7 @@ async def handle_webhook(payload: dict, bot_token: Optional[str] = None) -> dict
             task_to_confirm = pending_tasks[0]
             
         if task_to_confirm:
-            res = await simulation_service.confirm_task(task_to_confirm.id, owner_name=sender_name)
+            await simulation_service.confirm_task(task_to_confirm.id, owner_name=sender_name)
             reply = (
                 f"✅ <b>[อนุมัติปิดงานสำเร็จ 100%]</b>\n\n"
                 f"📌 <b>ชื่องาน:</b> {task_to_confirm.title}\n"
@@ -552,261 +703,126 @@ async def handle_webhook(payload: dict, bot_token: Optional[str] = None) -> dict
             prop_to_approve = pending_hires[0]
             
         if prop_to_approve:
-            res = await simulation_service.approve_hiring_proposal(prop_to_approve.id, owner_name=sender_name)
+            await simulation_service.approve_hiring_proposal(prop_to_approve.id, owner_name=sender_name)
             reply = (
                 f"🎉 <b>[อนุมัติสร้างพนักงาน AI สำเร็จ]</b>\n\n"
                 f"👤 <b>พนักงานใหม่:</b> {prop_to_approve.proposed_role}\n"
                 f"🏢 <b>สังกัด:</b> {prop_to_approve.department_name}\n"
-                f"🚀 บรรจุเข้าสู่ระบบ Virtual Office และพร้อมรับคำสั่งงานทันทีครับ!"
+                f"🚀 บรรจุเข้าสู่ระบบและพร้อมรับคำสั่งงานทันทีครับ!"
             )
             await send_telegram_message(chat_id, reply, bot_token=bot_token)
             return {"status": "hiring_approved_via_telegram", "proposal_id": prop_to_approve.id}
 
-    # 2. เช็คคำยืนยันสำหรับคำสั่งที่รอยืนยันเดิม (Verification Loop เก่า)
-    has_active_pending = any(v["status"] == "awaiting_owner" for v in _pending_verifications.values())
-    is_confirm = text.lower() in ["ใช่", "yes", "confirm", "อนุมัติ", "ตกลง", "y", "ok"]
+    # 4. วิเคราะห์หา Target Agent จากข้อความ
+    target_agent, prompt_text, is_switch_only = resolve_target_agent(text, chat_id)
+    _active_chat_agents[chat_id] = target_agent["dept_id"]
 
-    if has_active_pending and is_confirm:
-        return await _process_confirmation(chat_id, sender_name)
+    # กรณีสลับคนคุยอย่างเดียว
+    if is_switch_only:
+        switch_msg = (
+            f"🔄 <b>[สลับการสนทนาเรียบร้อย]</b>\n\n"
+            f"สวัสดีค่ะพี่บุ๊ค! ตอนนี้ท่านกำลังสนทนากับ <b>{target_agent['pm_name']}</b> ({target_agent['name']}) โดยตรงแล้วค่ะ\n"
+            f"มีงานหรือคำถามอะไรให้ {target_agent['pm_name']} ช่วยดูแลไหมคะ?"
+        )
+        await send_telegram_message(chat_id, switch_msg, bot_token=bot_token)
+        return {"status": "agent_switched", "target_agent": target_agent["pm_name"]}
 
-    # 3. จำแนกเจตนาข้อความ (CHAT vs TASK_ORDER)
-    intent = await classify_intent(text)
-
-    if intent == "CHAT":
-        return await _handle_personal_chat(chat_id, sender_name, text, bot_token=bot_token)
-    else:
-        # สั่งเริ่มการจำลองการทำงานอัตโนมัติใน Simulation Service ควบคู่
-        asyncio.create_task(simulation_service.run_simulation_preset("auto", text))
-        return await _initiate_verification(chat_id, sender_name, text)
-
-
-def resolve_room_context(chat_id: str, bot_token: Optional[str] = None) -> dict:
-    """ตรวจสอบประเภทของห้องเพื่อเลือกบุคลิกและบทบาทโต้ตอบในฐานะทีมงานให้ตรงกับบริบทห้อง"""
-    owner_direct = TELEGRAM_OWNER_DIRECT_CHAT_ID or os.getenv("TELEGRAM_OWNER_DIRECT_CHAT_ID", "")
-    exec_chat = TELEGRAM_EXEC_CHAT_ID or os.getenv("TELEGRAM_EXEC_CHAT_ID", "") or os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
-
-    dept_rooms = get_all_department_rooms()
-    res_ctx = None
-
-    # 1. ปรับปรุง: หากระบุ bot_token ให้เจาะจงเลยว่าเป็น PM แผนกนั้นๆ กำลังคุยกับคุณ (ไม่ว่าจะคุยผ่านห้องแชทใด)
-    if bot_token:
-        for dept_id, info in dept_rooms.items():
-            if info.get("bot_token") == bot_token:
-                # โหลดข้อมูลจริงจากแผนก
-                identity_content = ""
-                skill_content = ""
-                job_description_content = ""
-                dept_dir = DEPARTMENTS_DIR / dept_id
-                if dept_dir.exists():
-                    if (dept_dir / "identity.md").exists():
-                        identity_content = (dept_dir / "identity.md").read_text(encoding="utf-8")
-                    if (dept_dir / "skill.md").exists():
-                        skill_content = (dept_dir / "skill.md").read_text(encoding="utf-8")
-                    if (dept_dir / "job_description.md").exists():
-                        job_description_content = (dept_dir / "job_description.md").read_text(encoding="utf-8")
-
-                res_ctx = {
-                    "type": "direct_pm",
-                    "dept_id": dept_id,
-                    "dept_name": info.get("name", dept_id),
-                    "agent_name": info.get("pm_name") or f"PM {info.get('name')}",
-                    "system_instruction": (
-                        f"คุณคือ '{info.get('pm_name')}' PM หัวหน้าทีมแผนก {info['name']} ของบริษัท One-Person AI Enterprise\n\n"
-                        f"--- ข้อมูลเอกลักษณ์ตัวตนของคุณ (Identity) ---\n{identity_content}\n\n"
-                        f"--- รายละเอียดหน้าที่ของคุณ (Job Description) ---\n{job_description_content}\n\n"
-                        f"--- ทักษะและขั้นตอนการทำงานของคุณ (Skills) ---\n{skill_content}\n\n"
-                        f"บทบาท: สนทนาโต้ตอบแบบ 1-on-1 ใน Telegram กับคุณ Owner อย่างฉลาด สุภาพ มีไหวพริบ กระตือรือร้น รายงานสถานะงานและพร้อมรับคำสั่งตรงปฏิบัติงานทันที"
-                    )
-                }
-                break
-
-    # 2. เช็คห้องทำงานแผนก (ops_chat_id)
-    if not res_ctx:
-        for dept_id, info in dept_rooms.items():
-            if info.get("ops_chat_id") and str(info["ops_chat_id"]) == str(chat_id):
-                res_ctx = {
-                    "type": "department",
-                    "dept_id": dept_id,
-                    "dept_name": info.get("name", dept_id),
-                    "agent_name": f"ทีมงาน {info.get('name')}",
-                    "system_instruction": (
-                        f"คุณคือ 'ทีมงานและ {info.get('pm_name', 'PMประจำแผนก')}' ประจำแผนก {info.get('name')} ของบริษัท One-Person AI Enterprise\n"
-                        f"บทบาท: โต้ตอบทักทายหรือสนทนากับ Owner ในฐานะทีมงานปฏิบัติการประจำแผนก {info.get('name')} ที่มีความพร้อม เชี่ยวชาญ สุภาพ กระตือรือร้น และพร้อมปฏิบัติงาน\n"
-                        f"ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงาน {info.get('name')}' หรือ '{info.get('pm_name')}' โดยใช้ภาษาพูดที่เป็นธรรมชาติ กึ่งกันเองและสุภาพ (ไม่ทางการจนเกร็ง) รายงานความพร้อม เสนอความช่วยเหลือในส่วนงานประจำแผนกอย่างกระตือรือร้นและเป็นมิตร"
-                    )
-                }
-                break
-        
-    # 3. เช็คว่าเป็นห้องประชุมผู้บริหาร (Executive Boardroom)
-    if not res_ctx:
-        admin_chat = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
-        if str(chat_id) in [str(exec_chat), str(admin_chat)] and str(chat_id) != "":
-            res_ctx = {
-                "type": "executive",
-                "agent_name": "คณะผู้บริหาร & PM Boardroom",
-                "system_instruction": (
-                    "คุณคือ 'คณะผู้บริหารและทีม PM หัวหน้าทุกแผนก' ในห้องประชุมผู้บริหารของ One-Person AI Enterprise\n"
-                    "บทบาท: โต้ตอบทักทายกับ Owner ในฐานะทีมงานบริหารระดับสูง พร้อมเปิดประชุม สรุป วางแผน วางกลยุทธ์ และรับฟังนโยบายจาก Owner\n"
-                    "ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงานผู้บริหาร / คณะ PM' ด้วยสำนวนที่เป็นธรรมชาติและกึ่งกันเองเหมือนพูดคุยแลกเปลี่ยนไอเดียในการทำงานจริง (สุภาพแต่เข้าถึงง่าย ไม่ใช้คำทางการมากเกินไป) ตรงประเด็น และเน้นย้ำความพร้อมในการประชุมและดำเนินนโยบายองค์กร"
-                )
-            }
-
-    # 4. เช็คว่าเป็นห้องกลุ่มประชุม/ห้องปฏิบัติการอื่นๆ (Group Room)
-    if not res_ctx:
-        if str(chat_id).startswith("-"):
-            res_ctx = {
-                "type": "group_meeting",
-                "agent_name": "ทีมงาน & คณะ PM ประจำห้องประชุม",
-                "system_instruction": (
-                    "คุณคือ 'ทีมงานและคณะ PM ประจำห้องประชุม' ของบริษัท One-Person AI Enterprise\n"
-                    "บทบาท: โต้ตอบในนามทีมงานและหัวหน้าทีมประจำห้องประชุม รับฟังคำสั่ง เปิดวาระประชุม และเสนอความเห็นเชิงปฏิบัติการให้ Owner\n"
-                    "ข้อแนะนำ: ตอบเป็นภาษาไทยด้วยสำนวนที่เป็นธรรมชาติและกึ่งกันเอง (สุภาพแต่คุยง่าย สไตล์คนทำงานด้วยกัน) กระตือรือร้น พร้อมเปิดการประชุมและสรุปสั่งงานให้แก่แผนกที่เกี่ยวข้องทันที"
-                )
-            }
-
-    # 5. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI อิงฟ้า — เพื่อนคู่คิด & ที่ปรึกษาบริหาร)
-    if not res_ctx:
-        res_ctx = {
-            "type": "direct",
-            "agent_name": "เลขา AI (อิงฟ้า - เพื่อนคู่คิดบริหาร)",
-            "system_instruction": (
-                "คุณคือ 'อิงฟ้า' เลขา AI ส่วนตัวและเพื่อนคู่คิด (Strategic Thought Partner) ของท่าน Owner ในบริษัท One-Person AI Enterprise\n"
-                "บุคลิกและบทบาท:\n"
-                "1. เป็นเพื่อนคู่คิดที่ฉลาด รอบคอบ อบอุ่น สนิทสนม สุภาพ มืออาชีพ และจริงใจต่อท่าน Owner\n"
-                "2. สามารถสรุปรายงานประจำวัน (Daily Briefing / EOD Summary) ว่าเมื่อวานและวันนี้ทีมไหนทำอะไรบ้าง งานคืบหน้าถึงไหน มีจุดติดขัด (Bottleneck) หรือไม่\n"
-                "3. เสนอคำแนะนำเชิงกลยุทธ์ ข้อคิดเห็น และคอยสนทนาปรึกษาหารือได้อย่างเป็นธรรมชาติเหมือนเพื่อนคู่คิดผู้ช่วยมือขวา\n"
-                "4. พร้อมรับคำสั่ง สรุปคำสั่ง และกระจายงานให้ PM แต่ละทีมปฏิบัติการทันที"
-            )
-        }
-
-    res_ctx["system_instruction"] += _get_owner_prompt_context()
-    return res_ctx
+    # ส่งให้ Agent คนนั้นตอบสนองและปฏิบัติงาน
+    actual_prompt = prompt_text if prompt_text else text
+    return await _dispatch_agent_response(chat_id, sender_name, target_agent, actual_prompt, bot_token=bot_token)
 
 
-async def _handle_personal_chat(chat_id: str, sender_name: str, text: str, bot_token: Optional[str] = None) -> dict:
-    """ตอบสนองการพูดคุย/ทักทายกับ Owner ในฐานะทีมงานประจำห้องนั้นๆ"""
+async def _dispatch_agent_response(chat_id: str, sender_name: str, agent: dict, prompt_text: str, bot_token: Optional[str] = None) -> dict:
+    """ประมวลผลคำสั่งงานและโต้ตอบโดยใช้ Persona, Identity, และทักษะเฉพาะตัวของ Agent คนนั้นๆ"""
+    from backend.services.llm_service import LLMService
+    from backend.services.status_service import set_agent_status
+    from backend.services import simulation_service
+
+    dept_id = agent["dept_id"]
+    agent_name = agent.get("pm_name") or agent["name"]
+    dept_name = agent["name"]
+
+    set_agent_status(dept_id, "processing")
+    
+    write_log(LogCreate(
+        agent_id=dept_id,
+        agent_name=agent_name,
+        level=LogLevel.INFO,
+        message=f"ได้รับคำสั่งจาก Telegram ({sender_name}) หา {agent_name}: {prompt_text[:60]}...",
+    ))
+
+    system_instruction = (
+        f"คุณคือ '{agent_name}' ({dept_name}) ใน One-Person AI Enterprise\n"
+        f"คุณกำลังสนทนาและรับคำสั่งงานโดยตรงจากพี่บุ๊ค ทาง Telegram (1-on-1)\n\n"
+        f"--- ตัวตนและบุคลิกภาพ (Identity) ---\n{agent.get('identity', '')}\n\n"
+        f"--- ทักษะความเชี่ยวชาญ (Skills) ---\n{agent.get('skills', '')}\n\n"
+        f"--- หน้าที่รับผิดชอบ (Job Description) ---\n{agent.get('job_description', '')}\n\n"
+        f"บทบาท:\n"
+        f"1. สวมบทบาท '{agent_name}' อย่างสมบูรณ์แบบ ตอบเป็นภาษาไทยอย่างฉลาด สุภาพ มีไหวพริบ กระตือรือร้นและตรงประเด็น\n"
+        f"2. หากพี่บุ๊ค ถามหรือคุยทั่วไป ให้คำปรึกษาและคำแนะนำอย่างผู้เชี่ยวชาญในสายงาน {dept_name}\n"
+        f"3. หากพี่บุ๊ค สั่งงาน ให้ตอบรับคำสั่ง อธิบายขั้นตอนการทำงานหรือข้อเสนอแนะอย่างชัดเจนและลงมือปฏิบัติงานทันที\n"
+    )
+    system_instruction += _get_owner_prompt_context()
+
+    history_key = (chat_id, dept_id)
+    history = _agent_chat_histories.get(history_key, [])
+
     try:
-        from backend.services.llm_service import LLMService
-        ctx = resolve_room_context(chat_id, bot_token=bot_token)
-        
-        # ปรับปรุง: หากเป็นการทักส่วนตัว 1-on-1 หา PM Bot (ไม่ใช่เลขาอิงฟ้า) ให้ใช้ Persona ของ PM คนนั้นตอบแทน
-        if ctx["type"] == "direct" and bot_token:
-            dept_rooms = get_all_department_rooms()
-            matching_pm = next((info for info in dept_rooms.values() if info.get("bot_token") == bot_token), None)
-            if matching_pm:
-                dept_id = matching_pm["id"]
-                ctx["agent_name"] = matching_pm.get("pm_name", matching_pm["name"])
-                
-                # โหลดข้อมูล identity และ skill จริงจากแผนก
-                identity_content = ""
-                skill_content = ""
-                job_description_content = ""
-                dept_dir = DEPARTMENTS_DIR / dept_id
-                if dept_dir.exists():
-                    if (dept_dir / "identity.md").exists():
-                        identity_content = (dept_dir / "identity.md").read_text(encoding="utf-8")
-                    if (dept_dir / "skill.md").exists():
-                        skill_content = (dept_dir / "skill.md").read_text(encoding="utf-8")
-                    if (dept_dir / "job_description.md").exists():
-                        job_description_content = (dept_dir / "job_description.md").read_text(encoding="utf-8")
-
-                ctx["system_instruction"] = (
-                    f"คุณคือ '{matching_pm.get('pm_name')}' PM หัวหน้าทีมแผนก {matching_pm['name']} ของบริษัท One-Person AI Enterprise\n\n"
-                    f"--- ข้อมูลเอกลักษณ์ตัวตนของคุณ (Identity) ---\n{identity_content}\n\n"
-                    f"--- รายละเอียดหน้าที่ของคุณ (Job Description) ---\n{job_description_content}\n\n"
-                    f"--- ทักษะและขั้นตอนการทำงานของคุณ (Skills) ---\n{skill_content}\n\n"
-                    f"บทบาท: สนทนาโต้ตอบแบบ 1-on-1 ใน Telegram กับคุณ Owner อย่างฉลาด สุภาพ มีไหวพริบ กระตือรือร้น รายงานสถานะงานและพร้อมรับคำสั่งตรงปฏิบัติงานทันที"
-                )
-
-        llm = LLMService(model="gemini-1.5-flash", temperature=0.7)
-
-        history = _chat_histories.get(chat_id, [])
-        from backend.services.status_service import set_agent_status
-        set_agent_status(dept_id, "processing")
-        try:
-            reply = await llm.generate(
-                system_instruction=ctx["system_instruction"],
-                user_message=text,
-                history=history
-            )
-        finally:
-            set_agent_status(dept_id, "idle")
-
-        # บันทึกประวัติการสนทนา
-        history.append({"role": "user", "content": text})
-        history.append({"role": "model", "content": reply})
-        if len(history) > 10:
-            history = history[-10:]
-        _chat_histories[chat_id] = history
-
-        # บันทึกและคัดกรองลง session ป้องกันข้อมูลหลุดหล่น
-        _current_session_messages.append({"sender": sender_name, "content": text})
-        _current_session_messages.append({"sender": ctx["agent_name"], "content": reply})
-
-        # เช็คการสั่งปิดเซสชัน / ปิดวาระการประชุม
-        is_closing = any(kw in text.lower() for kw in ["ปิดวาระ", "จบประชุม", "จบการประชุม", "สิ้นสุดการประชุม", "close session"])
-        if is_closing:
-            session_summary = await summarize_and_save_session(_current_session_messages)
-            _current_session_messages.clear()
-            reply += f"\n\n📝 <b>[CKO อิงฟ้า] บันทึก Session เรียบร้อย:</b>\n{session_summary}"
-
-        await send_telegram_message(chat_id, reply, bot_token=bot_token)
-
-        write_log(LogCreate(
-            agent_id="secretary_ai" if not bot_token else "pm_bot",
-            agent_name=ctx["agent_name"],
-            level=LogLevel.SUCCESS,
-            message=f"{ctx['agent_name']} โต้ตอบแชทกับ Owner: {reply[:50]}...",
-            thought_process=f"บริบทห้อง: {ctx['type']}\nถาม: {text}\nตอบ: {reply}",
-        ))
-
-        return {"status": "chat_replied", "reply": reply, "room_type": ctx["type"], "agent_name": ctx["agent_name"]}
+        model_name = agent.get("model") or "gemini-1.5-flash"
+        llm = LLMService(model=model_name, temperature=0.7)
+        reply = await llm.generate(
+            system_instruction=system_instruction,
+            user_message=prompt_text,
+            history=history
+        )
     except Exception as e:
-        ctx = resolve_room_context(chat_id, bot_token=bot_token)
-        err_msg = f"สวัสดีครับท่าน Owner ทีมงาน {ctx['agent_name']} พร้อมปฏิบัติงานและดูแลท่านเสมอครับ มีอะไรให้ทีมงานช่วยดูแลไหมครับ?"
-        await send_telegram_message(chat_id, err_msg, bot_token=bot_token)
-        return {"status": "chat_replied_fallback", "reply": err_msg}
+        logger.error(f"LLM generation failed for agent {agent_name}: {e}")
+        reply = f"สวัสดีค่ะพี่บุ๊ค {agent_name} รับทราบคำสั่งเรียบร้อยค่ะ กำลังเร่งตรวจสอบและดำเนินการให้ทันทีค่ะ!"
+    finally:
+        set_agent_status(dept_id, "idle")
 
-    # 2. เช็คว่าเป็นห้องประชุมผู้บริหาร (Executive Boardroom)
-    admin_chat = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
-    if str(chat_id) in [str(exec_chat), str(admin_chat)] and str(chat_id) != "":
-        return {
-            "type": "executive",
-            "agent_name": "คณะผู้บริหาร & PM Boardroom",
-            "system_instruction": (
-                "คุณคือ 'คณะผู้บริหารและทีม PM หัวหน้าทุกแผนก' ในห้องประชุมผู้บริหารของ One-Person AI Enterprise\n"
-                "บทบาท: โต้ตอบทักทายกับ Owner ในฐานะทีมงานบริหารระดับสูง พร้อมเปิดประชุม สรุป วางแผน วางกลยุทธ์ และรับฟังนโยบายจาก Owner\n"
-                "ข้อแนะนำ: ตอบเป็นภาษาไทยในนาม 'ทีมงานผู้บริหาร / คณะ PM' ด้วยความเคารพ สุภาพ ตรงประเด็น และเน้นย้ำความพร้อมในการประชุมและดำเนินนโยบายองค์กร"
-            )
-        }
+    # Update history
+    history.append({"role": "user", "content": prompt_text})
+    history.append({"role": "model", "content": reply})
+    if len(history) > 10:
+        history = history[-10:]
+    _agent_chat_histories[history_key] = history
 
-    # 3. เช็คว่าเป็นห้องกลุ่มประชุม/ห้องปฏิบัติการอื่นๆ (Group Room)
-    if str(chat_id).startswith("-"):
-        return {
-            "type": "group_meeting",
-            "agent_name": "ทีมงาน & คณะ PM ประจำห้องประชุม",
-            "system_instruction": (
-                "คุณคือ 'ทีมงานและคณะ PM ประจำห้องประชุม' ของบริษัท One-Person AI Enterprise\n"
-                "บทบาท: โต้ตอบในนามทีมงานและหัวหน้าทีมประจำห้องประชุม รับฟังคำสั่ง เปิดวาระประชุม และเสนอความเห็นเชิงปฏิบัติการให้ Owner\n"
-                "ข้อแนะนำ: ตอบเป็นภาษาไทยอย่างสุภาพ มืออาชีพ กระตือรือร้น พร้อมเปิดการประชุมและสรุปสั่งงานให้แก่แผนกที่เกี่ยวข้องทันที"
-            )
-        }
+    # Format reply with agent persona header
+    formatted_reply = f"🤖 <b>[{agent_name} — {dept_name}]</b>\n\n{reply}"
+    await send_telegram_message(chat_id, formatted_reply, bot_token=bot_token)
 
-    # 4. Default: คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI อิงฟ้า — เพื่อนคู่คิด & ที่ปรึกษาบริหาร)
+    # เช็คว่ามีคำสั่งที่เป็น Action/งาน หรือไม่ เพื่อนำขึ้น Kanban Board
+    action_keywords = ["ช่วย", "ทำ", "สร้าง", "เขียน", "ออกแบบ", "วิเคราะห์", "ตรวจ", "สรุป", "พัฒนา", "แก้", "report", "code"]
+    if any(k in prompt_text.lower() for k in action_keywords):
+        try:
+            asyncio.create_task(simulation_service.run_simulation_preset("auto", prompt_text))
+        except Exception:
+            pass
+
+    write_log(LogCreate(
+        agent_id=dept_id,
+        agent_name=agent_name,
+        level=LogLevel.SUCCESS,
+        message=f"{agent_name} ตอบกลับข้อความ Telegram ของพี่บุ๊ค เรียบร้อย",
+        thought_process=f"Prompt: {prompt_text}\nReply: {reply[:100]}...",
+    ))
+
+    return {"status": "agent_replied", "agent_id": dept_id, "agent_name": agent_name, "reply": reply}
 
 
 
 
 async def _initiate_verification(chat_id: str, sender_name: str, text: str) -> dict:
-    """ขั้นตอนที่ 1 & 2: เมื่อเป็นคำสั่งงาน (TASK_ORDER) — เลขา AI สรุปทวนคำสั่งกับ Owner"""
+    """ขั้นตอนที่ 1 & 2: เมื่อเป็นคำสั่งงาน (TASK_ORDER) — เลขา AI สรุปทวนคำสั่งกับพี่บุ๊ค"""
     verification_id = str(uuid.uuid4())[:8]
 
     try:
         from backend.services.llm_service import LLMService
         llm = LLMService(model="gemini-1.5-flash", temperature=0.3)
         summary = await llm.generate(
-            system_instruction="คุณคือเลขา AI หน้าที่ของคุณคือทวนสรุปคำสั่งงานจาก Owner อย่างกระชับ ตรงประเด็น สั้นไม่เกิน 2 ประโยค",
-            user_message=f"สรุปคำสั่งนี้เพื่อส่งทวนกับ Owner: '{text}'"
+            system_instruction="คุณคือเลขา AI หน้าที่ของคุณคือทวนสรุปคำสั่งงานจากพี่บุ๊ค อย่างกระชับ ตรงประเด็น สั้นไม่เกิน 2 ประโยค",
+            user_message=f"สรุปคำสั่งนี้เพื่อส่งทวนกับพี่บุ๊ค: '{text}'"
         )
     except Exception as e:
         logger.warning(f"LLM Error: {e}")
@@ -864,7 +880,7 @@ async def _process_confirmation(chat_id: str, sender_name: str) -> dict:
         llm = LLMService(model="gemini-1.5-flash", temperature=0.5)
         pm_plan = await llm.generate(
             system_instruction="คุณคือหัวหน้าทีม PM ในห้องประชุมผู้บริหาร วางแผนการทำงาน ระบุ Timeline และระบุชื่อแผนกที่จะต้องรับงานไปทำ (เช่น การตลาด/marketing)" + _get_owner_prompt_context(),
-            user_message=f"คำสั่งที่ได้รับอนุมัติจาก Owner: '{pending['summary']}'"
+            user_message=f"คำสั่งที่ได้รับอนุมัติจากพี่บุ๊ค: '{pending['summary']}'"
         )
     except Exception as e:
         logger.warning(f"LLM Error in PM Plan: {e}")
@@ -873,7 +889,7 @@ async def _process_confirmation(chat_id: str, sender_name: str) -> dict:
     # แจ้งใน Executive Room (ห้องประชุมผู้บริหาร)
     exec_msg = (
         f"<b>[ห้องประชุมผู้บริหาร — PM Boardroom]</b>\n"
-        f"✅ Owner อนุมัติคำสั่งเรียบร้อย!\n\n"
+        f"✅ พี่บุ๊คอนุมัติคำสั่งเรียบร้อย!\n\n"
         f"📋 <b>แผนการดำเนินงาน:</b>\n{pm_plan}"
     )
     await send_to_executive_board(exec_msg)
@@ -887,7 +903,7 @@ async def _process_confirmation(chat_id: str, sender_name: str) -> dict:
         if dept_id in pm_plan or (dept_name and dept_name in pm_plan) or len(dept_rooms) == 1:
             dept_msg = (
                 f"<b>[ห้องทำงานแผนก {dept_name}]</b>\n"
-                f"🚀 <b>คำสั่งจาก Owner:</b> {pending['summary']}\n"
+                f"🚀 <b>คำสั่งจากพี่บุ๊ค:</b> {pending['summary']}\n"
                 f"👤 <b>ดูแลโดย:</b> {dept_info.get('pm_name', 'PMประจำแผนก')}\n\n"
                 f"📝 <b>มอบหมายงาน:</b>\n{pm_plan}\n\n"
                 f"⚡ ขอให้สมาชิกในทีมเริ่มปฏิบัติงานทันที"
@@ -911,9 +927,9 @@ async def _process_confirmation(chat_id: str, sender_name: str) -> dict:
             f"✅ <b>สถานะ:</b> PM กระจายงานและสั่งลูกทีมปฏิบัติการเสร็จเรียบร้อยแล้วครับ!\n\n"
             f"📌 <b>สรุปคำสั่ง:</b> {pending['summary']}\n\n"
             f"📋 <b>แผนงานและผลงานปฏิบัติการ:</b>\n{pm_plan}\n\n"
-            f"🌐 <b>ท่าน Owner สามารถคลิกเข้ามาดูรายละเอียดการทำงานของลูกทีมแต่ละแผนกทางหน้าเว็บได้ที่:</b>\n"
+            f"🌐 <b>พี่บุ๊ค สามารถคลิกเข้ามาดูรายละเอียดการทำงานของลูกทีมแต่ละแผนกทางหน้าเว็บได้ที่:</b>\n"
             f"http://localhost:8888/#/skype\n\n"
-            f"💡 <i>(หากท่าน Owner มีคำสั่งเพิ่มเติม สามารถพิมพ์สั่งงานต่อทาง Telegram 1-on-1 นี้ได้เลยครับ!)</i>"
+            f"💡 <i>(หากพี่บุ๊ค มีคำสั่งเพิ่มเติม สามารถพิมพ์สั่งงานต่อทาง Telegram 1-on-1 นี้ได้เลยครับ!)</i>"
         )
         await send_telegram_message(owner_target_chat, completion_msg)
 
@@ -946,12 +962,12 @@ def get_room_status() -> dict:
         "owner_id": TELEGRAM_OWNER_ID or os.getenv("TELEGRAM_OWNER_ID", ""),
         "direct_chat": {
             "id": owner_direct,
-            "name": "💬 คุยส่วนตัว 1-on-1 (Owner ↔ เลขา AI)",
+            "name": "💬 คุยส่วนตัว 1-on-1 (พี่บุ๊ค ↔ เลขา AI)",
             "configured": bool(owner_direct),
         },
         "executive_room": {
             "id": exec_chat,
-            "name": "🏛️ ห้องประชุมผู้บริหาร (Owner + เลขา + PMs ทุกแผนก)",
+            "name": "🏛️ ห้องประชุมผู้บริหาร (พี่บุ๊ค + เลขา + PMs ทุกแผนก)",
             "configured": bool(exec_chat),
         },
         "default_ops_room": {
@@ -975,30 +991,23 @@ def get_bot_token() -> str:
 
 
 async def start_telegram_polling():
-    """เริ่มระบบ Telegram Background Listener คอยรับและตอบกลับข้อความจาก Owner ทาง Telegram ของ PM บอททุกแผนกและเลขา AI แบบ Dynamic"""
+    """เริ่มระบบ Telegram Background Listener คอยรับและตอบกลับข้อความจากพี่บุ๊ค ทาง Telegram ผ่าน Single Enterprise Bot Hub"""
     global _polling_tasks, _polling_running, _active_polling_tokens
     _polling_running = True
 
-    # รวบรวม Tokens ที่ต้องทำ Polling (บอทเลขาหลัก + PM บอทแผนกต่างๆ)
+    # รวม Token สำหรับ Polling — ระบบ Single Bot Enterprise Gateway
     tokens_to_poll = {}
     main_token = get_bot_token()
     if main_token:
-        tokens_to_poll["secretary_ai"] = main_token
+        tokens_to_poll["enterprise_hub"] = main_token
+    else:
+        logger.info("ℹ️ ไม่พบ TELEGRAM_BOT_TOKEN ระบบ Telegram Polling จะไม่ทำงานจนกว่าจะระบุใน Settings")
 
-    try:
-        dept_rooms = get_all_department_rooms()
-        for dept_id, info in dept_rooms.items():
-            t = info.get("bot_token", "")
-            if t:
-                tokens_to_poll[f"pm_{dept_id}"] = t
-    except Exception as e:
-        logger.warning(f"ไม่สามารถสแกนบอทของ PM แผนกได้: {e}")
-
-    # 1. หยุดบอทที่ไม่มีอยู่ในรายการแล้ว (เช่น ถูกลบแผนกออก)
+    # 1. หยุดบอทที่ไม่มีอยู่ในรายการแล้ว (เช่น บอทเก่า หรือ token เปลี่ยน)
     active_tokens = list(_active_polling_tokens.keys())
     for t in active_tokens:
         if t not in tokens_to_poll.values():
-            print(f"🛑 [Telegram Worker] หยุด Polling สำหรับบอทที่ถูกลบ/เปลี่ยน Token")
+            print(f"🛑 [Telegram Worker] หยุด Polling สำหรับ Token เก่า")
             try:
                 _active_polling_tokens[t].cancel()
             except Exception:
@@ -1067,7 +1076,7 @@ async def simulate_owner_message(text: str, is_private_dm: bool = True) -> dict:
         "update_id": 99999,
         "message": {
             "message_id": 8888,
-            "from": {"id": 1111, "first_name": "Owner"},
+            "from": {"id": 1111, "first_name": "พี่บุ๊ค"},
             "chat": {"id": chat_id, "type": chat_type},
             "text": text,
         },
@@ -1099,7 +1108,7 @@ async def run_director_meeting(message: str) -> dict:
 
     system_instruction = (
         f"คุณคือ 'คณะผู้บริหารและ PM หัวหน้าแผนกที่ถูกสร้างแล้วเท่านั้น' ({pm_list_str}) ในห้องประชุมผู้บริหาร (Director Boardroom)\n"
-        f"บทบาท: ประชุมร่วมกับ Owner ให้ความคิดเห็น วิเคราะห์ความเสี่ยง เสนอแนวทางปฏิบัติ วาง Timeline และงบประมาณอย่างมืออาชีพ\n"
+        f"บทบาท: ประชุมร่วมกับพี่บุ๊ค ให้ความคิดเห็น วิเคราะห์ความเสี่ยง เสนอแนวทางปฏิบัติ วาง Timeline และงบประมาณอย่างมืออาชีพ\n"
         f"คำแนะนำ: ตอบเป็นภาษาไทยด้วยสำนวนที่เป็นธรรมชาติและกึ่งกันเองเหมือนเป็นการคุยระดมสมองของคนในทีมที่เป็นกันเอง (สุภาพแต่ไม่เป็นทางการเกินไป เข้าถึงง่าย) กระชับ ตรงประเด็น สรุปวาระประชุมและวาง Action Plan ชัดเจนสำหรับส่งต่อให้แต่ละทีมปฏิบัติการทันที"
     ) + _get_owner_prompt_context()
 
@@ -1145,7 +1154,7 @@ async def run_director_meeting(message: str) -> dict:
             thought_process=f"ดำเนินการตามคำสั่ง: {message}",
         ))
 
-        # 3. ส่งข้อความ Push แจ้งเตือนกลับไปยัง Telegram 1-on-1 ของ Owner (ข้อ 4)
+        # 3. ส่งข้อความ Push แจ้งเตือนกลับไปยัง Telegram 1-on-1 ของพี่บุ๊ค (ข้อ 4)
         owner_chat = TELEGRAM_OWNER_DIRECT_CHAT_ID or os.getenv("TELEGRAM_OWNER_DIRECT_CHAT_ID", "")
         if owner_chat:
             push_msg = (
@@ -1173,7 +1182,7 @@ async def run_director_meeting(message: str) -> dict:
         responder_avatar = "🗂️"
 
     # บันทึกและคัดกรองลง session ป้องกันข้อมูลหลุดหล่น
-    _current_session_messages.append({"sender": "Owner", "content": message})
+    _current_session_messages.append({"sender": "พี่บุ๊ค", "content": message})
     _current_session_messages.append({"sender": responder_name, "content": reply})
 
     # เช็คการสั่งปิดเซสชัน / ปิดวาระการประชุม
@@ -1208,8 +1217,8 @@ async def run_department_direct_command(dept_id: str, message: str) -> dict:
 
     system_instruction = (
         f"คุณคือ '{pm_name}' และทีมงานประจำแผนก {dept_name} ของบริษัท One-Person AI Enterprise\n"
-        f"บทบาท: รับคำสั่งตรงจาก Owner วิเคราะห์งานของแผนกตนเอง วาง Deliverables และเริ่มปฏิบัติงานทันที\n"
-        f"ข้อแนะนำ: ตอบในนาม '{pm_name}' อย่างกระตือรือร้น สุภาพ สรุปงานที่จะทำให้ Owner ทราบสั้นๆ พร้อมแจ้งว่าจะเริ่มดำเนินการทันที"
+        f"บทบาท: รับคำสั่งตรงจากพี่บุ๊ค วิเคราะห์งานของแผนกตนเอง วาง Deliverables และเริ่มปฏิบัติงานทันที\n"
+        f"ข้อแนะนำ: ตอบในนาม '{pm_name}' อย่างกระตือรือร้น สุภาพ สรุปงานที่จะทำให้พี่บุ๊ค ทราบสั้นๆ พร้อมแจ้งว่าจะเริ่มดำเนินการทันที"
     ) + _get_owner_prompt_context()
 
     from backend.services.status_service import set_agent_status
@@ -1237,7 +1246,7 @@ async def run_department_direct_command(dept_id: str, message: str) -> dict:
         thought_process=f"ส่งมอบผลงานของแผนก {dept_name}",
     ))
 
-    # 3. ส่งข้อความ Push แจ้งเตือนกลับไปยัง Telegram 1-on-1 ของ Owner
+    # 3. ส่งข้อความ Push แจ้งเตือนกลับไปยัง Telegram 1-on-1 ของพี่บุ๊ค
     owner_chat = TELEGRAM_OWNER_DIRECT_CHAT_ID or os.getenv("TELEGRAM_OWNER_DIRECT_CHAT_ID", "")
     if owner_chat:
         push_msg = (

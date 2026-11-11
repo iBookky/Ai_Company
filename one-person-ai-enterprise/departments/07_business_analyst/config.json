@@ -1,0 +1,13 @@
+{
+  "name": "Business Analyst",
+  "role": "pm_07_business_analyst",
+  "pm_name": "น้องบิ๊นท์",
+  "model": "gemini-1.5-flash",
+  "temperature": 0.5,
+  "department": "07_business_analyst",
+  "ops_chat_id": "",
+  "bot_token": "9295777536:AAEtfTSBTzBbHue2TXL-UKMNQlAnEnR8rbs",
+  "created_at": "2026-11-11T10:32:29.932372",
+  "avatar_url": "/static/img/avatars/07_business_analyst.jpg?v=1794368063",
+  "updated_at": "2026-11-11T16:28:41.766236"
+}

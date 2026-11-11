@@ -228,61 +228,45 @@ class LLMService:
         self, system_instruction: str, user_message: str, history: Optional[list] = None
     ) -> str:
         """สมองกลอัตโนมัติ Zero-Token ทำงานแบบ Standalone ตามบทบาท ความทรงจำ และพฤติกรรมของ Agent โดยไม่เสียค่า Token"""
+        import re
         user_msg = user_message.strip()
 
-        # ตรวจสอบตัวตนของ Agent จาก system instruction
-        if "01_secretary" in system_instruction or "อิงฟ้า" in system_instruction:
+        # แยกส่วน Header ของ Agent ออกจากประวัติ Logs ส่วนกลาง เพื่อไม่ให้ชื่อคนอื่นใน Log ปะปน
+        agent_scope = system_instruction.split("--- ข้อมูลเกี่ยวกับ")[0] if "--- ข้อมูลเกี่ยวกับ" in system_instruction else system_instruction
+        agent_scope = agent_scope.split("--- ประวัติการประชุม")[0]
+
+        # ดึงชื่อและแผนกของ Agent จากคำสั่งหลัก
+        header_match = re.search(r"คุณคือ\s+'([^']+)'\s+\(([^)]+)\)", agent_scope)
+        agent_name = header_match.group(1) if header_match else ""
+        dept_name = header_match.group(2) if header_match else ""
+
+        # ตรวจสอบตัวตนเฉพาะของ Agent แต่ละคน
+        if agent_name == "อิงฟ้า" or "01_secretary" in agent_scope or (not agent_name and "อิงฟ้า" in agent_scope):
             return (
-                f"สวัสดีค่ะ Owner อิงฟ้ารับทราบข้อความ: \"{user_msg}\"\n\n"
+                f"สวัสดีค่ะพี่บุ๊ค อิงฟ้ารับทราบข้อความ: \"{user_msg}\"\n\n"
                 f"📋 **การประสานงานของสำนักเลขาธิการ**:\n"
                 f"- ได้บันทึกคำสั่งและบริบทลงในความจำระยะยาวเรียบร้อยค่ะ\n"
-                f"- กำลังจัดสรรหน้าที่และประสานงานไปยังแผนกที่เกี่ยวข้อง (บิ๊นท์, ลิซ่า, มุก, พลอย, พิมพ์)\n"
-                f"- ทุกขั้นตอนจะสรุปให้ Owner ตรวจสอบและรออนุมัติปิดงานเสมอค่ะ 🚀"
+                f"- กำลังจัดสรรหน้าที่และประสานงานไปยังแผนกที่เกี่ยวข้อง\n"
+                f"- ทุกขั้นตอนจะสรุปให้พี่บุ๊ค ตรวจสอบและรออนุมัติปิดงานเสมอค่ะ 🚀"
             )
-        elif "02_การตลาด_ai" in system_instruction or "ลิซ่า" in system_instruction:
+        elif "บิ๊นท์" in agent_name or "07_business_analyst" in agent_scope or "business analyst" in agent_scope.lower():
             return (
-                f"สวัสดีค่ะ Owner ลิซ่าได้รับโจทย์: \"{user_msg}\" แล้วค่ะ!\n\n"
-                f"🎬 **แผนกลยุทธ์ Content & Social Media**:\n"
-                f"- ออกแบบ Hook 3 วินาทีแรกเพื่อหยุดสายตาผู้ชม\n"
-                f"- เน้นสร้าง Real-World Impact สำหรับ TikTok, Reels และ Facebook\n"
-                f"- พร้อมส่งต่อสคริปต์ให้ มุก (QA) ตรวจสอบความเรียบร้อยก่อนส่งให้ Owner ตรวจรับค่ะ ✨"
+                f"สวัสดีค่ะพี่บุ๊ค น้องบิ๊นท์ (Business Analyst) รับทราบโจทย์: \"{user_msg}\" เรียบร้อยค่ะ!\n\n"
+                f"📊 **การวิเคราะห์ข้อมูลและวางแผนความต้องการ (BA Scope)**:\n"
+                f"- รวบรวมและวิเคราะห์ Business Requirement จากโจทย์ของพี่บุ๊ค อย่างละเอียด\n"
+                f"- จำแนกตัวแปรสำคัญ KPI และจัดทำ Data Model / Workflow สรุปผล\n"
+                f"- บันทึกผลงานเข้าสู่ระบบและเตรียมรายงานพร้อมให้พี่บุ๊ค ตรวจสอบและกดยืนยันปิดงานค่ะ 📈"
             )
-        elif "03_developer" in system_instruction or "บิ๊นท์" in system_instruction:
-            return (
-                f"รับทราบครับ Owner บิ๊นท์ได้รับความต้องการ: \"{user_msg}\"\n\n"
-                f"💻 **การดำเนินงานด้านระบบและโค้ดดิ้ง**:\n"
-                f"- วางโครงสร้าง Clean Architecture และออกแบบ API Endpoint ให้เสถียรปลอดภัย\n"
-                f"- รัน Unit Tests เพื่อความมั่นใจ 100% ปราศจากข้อผิดพลาด\n"
-                f"- เตรียมผลงานพร้อม Artifact ให้ Owner ตรวจสอบและกดยืนยันปิดงานครับ 🛠️"
-            )
-        elif "04_data_analyst" in system_instruction or "มุก" in system_instruction:
-            return (
-                f"สวัสดีค่ะ มุกตรวจสอบข้อความ: \"{user_msg}\" เรียบร้อยค่ะ\n\n"
-                f"📊 **การวิเคราะห์ข้อมูลและตรวจสอบคุณภาพ (QA)**:\n"
-                f"- ทำการสแกนระบบและตรวจจับคอขวด 3 อันดับแรกอย่างละเอียด\n"
-                f"- รับประกันมาตรฐาน Zero-Defect ก่อนถึงมือ Owner\n"
-                f"- เตรียมสรุปรายงาน Insight และผลทดสอบให้พิจารณาค่ะ 🔍"
-            )
-        elif "05_accounting" in system_instruction or "พลอย" in system_instruction:
-            return (
-                f"สวัสดีค่ะ พลอยตรวจสอบเรื่อง: \"{user_msg}\" เรียบร้อยค่ะ\n\n"
-                f"💰 **การบริหารงบประมาณและต้นทุน**:\n"
-                f"- ระบบกำลังทำงานในโหมด Zero-Token เพื่อรักษาต้นทุนให้คุ้มค่าสูงสุด\n"
-                f"- บันทึกรายการลงสมุดบัญชีและเฝ้าระวังตัวเลข ROI อย่างเคร่งครัด\n"
-                f"- งบประมาณและตัวเลขทุกบาททุกสตางค์อยู่ในเกณฑ์ปลอดภัยค่ะ 📈"
-            )
-        elif "06_sales" in system_instruction or "พิมพ์" in system_instruction:
-            return (
-                f"สวัสดีค่ะ Owner พิมพ์ได้รับโจทย์การขายและการดูแลลูกค้า: \"{user_msg}\" ค่ะ\n\n"
-                f"🤝 **แผนงานขายและบริการลูกค้าสัมพันธ์**:\n"
-                f"- จัดเตรียม Solution Pitching และเอกสารนำเสนอคุณค่าแก่กลุ่มเป้าหมาย\n"
-                f"- ดูแลระบบบริการลูกค้าแบบ Omnichannel ตลอด 24/7 เพื่อ CSAT สูงสุด\n"
-                f"- ร่างข้อเสนอพร้อมให้ Owner ตรวจสอบและอนุมัติปิดการขายค่ะ 💼"
-            )
-
+        
+        # กรณีเป็น Agent อื่นๆ ที่สร้างขึ้นมาใหม่แบบ Dynamic
+        display_name = agent_name or "ทีมงาน AI"
+        display_dept = f" ({dept_name})" if dept_name else ""
         return (
-            f"รับทราบคำสั่ง: \"{user_msg}\" เรียบร้อยครับ\n"
-            f"ระบบ AI Autonomous Agent ได้บันทึกข้อมูลเข้าสู่ Long-Term Memory และพร้อมดำเนินการตามขั้นตอนครับ"
+            f"สวัสดีครับ/ค่ะพี่บุ๊ค {display_name}{display_dept} ได้รับคำสั่ง: \"{user_msg}\" เรียบร้อยแล้วครับ/ค่ะ!\n\n"
+            f"⚡ **แผนการดำเนินงาน**:\n"
+            f"- บันทึกบริบทงานเข้าสู่ฐานข้อมูลความจำเรียบร้อยแล้ว\n"
+            f"- ดำเนินการตามความเชี่ยวชาญเฉพาะทางอย่างเต็มประสิทธิภาพ\n"
+            f"- เมื่อผลงานเสร็จสมบูรณ์ จะรายงานให้พี่บุ๊ค ทราบและรออนุมัติปิดงานทันทีครับ/ค่ะ 🚀"
         )
 
     def load_agent_instructions(self, agent_id: str) -> tuple[str, str]:

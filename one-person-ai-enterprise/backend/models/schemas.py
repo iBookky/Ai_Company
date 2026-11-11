@@ -39,7 +39,7 @@ class VerificationStatus(str, Enum):
 
 class AgentCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="ชื่อตำแหน่ง Agent")
-    department: str = Field(..., min_length=1, description="สังกัดแผนก เช่น 03_sales")
+    department: str = Field(..., min_length=1, description="สังกัดแผนก เช่น 07_business_analyst")
     parent_department: Optional[str] = Field(None, description="สังกัดหัวหน้าทีม")
     model: str = Field("gemini-1.5-flash", description="โมเดล LLM ที่ใช้")
     temperature: float = Field(0.5, ge=0.0, le=1.0, description="ค่า Temperature")
@@ -182,7 +182,7 @@ class SkypeWebhookPayload(BaseModel):
 class DepartmentRoomCreate(BaseModel):
     id: Optional[str] = Field(None, description="รหัสแผนก เช่น 08_hr (สร้างให้อัตโนมัติถ้าเว้นว่าง)")
     name: str = Field(..., min_length=1, max_length=100, description="ชื่อแผนก เช่น ทีมการตลาด AI")
-    pm_name: Optional[str] = Field("", description="ชื่อ PM หัวหน้าแผนก เช่น PM ลิซ่า")
+    pm_name: Optional[str] = Field("", description="ชื่อ PM หัวหน้าแผนก เช่น น้องบิ๊นท์")
     bot_token: Optional[str] = Field("", description="Telegram Bot Token ของ PM หัวหน้าทีมประจำแผนกนี้สำหรับคุยตรง 1-on-1")
 
 

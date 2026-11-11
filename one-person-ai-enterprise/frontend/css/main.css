@@ -613,6 +613,36 @@ textarea, input, select { font-family: inherit; font-size: inherit; }
 .form-range { width: 100%; }
 .input-row { display: flex; gap: 8px; align-items: center; }
 .input-row .form-input { flex: 1; }
+.btn-input-action {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 38px;
+  flex-shrink: 0;
+}
+.btn-input-action:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.btn-clear-action {
+  color: var(--text-dim);
+}
+.btn-clear-action:hover {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.12);
+}
 .mono { font-family: var(--font-mono); font-size: 12px; }
 .optional { font-size: 10px; color: var(--text-dim); font-weight: 400; }
 .link-hint { font-size: 11px; color: var(--brand-400); font-weight: 400; }

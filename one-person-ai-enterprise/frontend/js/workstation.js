@@ -5,7 +5,7 @@
 
 'use strict';
 
-let _activeEmpId = '03_developer';
+let _activeEmpId = '01_secretary';
 let _cachedEmployees = [];
 let _currentWorkspaceData = null;
 let _historyFilter = 'all';
@@ -27,6 +27,10 @@ async function loadWorkstations(targetId = null) {
     // 1. Fetch all employees summary
     const employees = await apiGet('/api/simulation/employees');
     _cachedEmployees = employees;
+
+    // Sync sidebar badge
+    const badgeWs = document.getElementById('badge-workstations');
+    if (badgeWs) badgeWs.textContent = (employees || []).length;
 
     // Check if _activeEmpId exists in list, else default to first
     if (!employees.some(e => e.id === _activeEmpId) && employees.length > 0) {
@@ -128,7 +132,7 @@ function renderWorkstationCockpit(data) {
   let gaugeIcon = '🟢';
   let gaugePct = '100%';
   let statusTitle = `${emp.name} — พร้อมปฏิบัติงาน (Standby)`;
-  let statusSub = 'ระบบความพร้อม 100% • รอรับบรีฟงานจาก Owner หรือ เลขาอิงฟ้า';
+  let statusSub = 'ระบบความพร้อม 100% • รอรับบรีฟงานจากพี่บุ๊ค หรือ เลขาอิงฟ้า';
 
   if (emp.status === 'awaiting_confirmation') {
     statusTheme = 'status-pending';
@@ -136,7 +140,7 @@ function renderWorkstationCockpit(data) {
     gaugeIcon = '🚨';
     gaugePct = '95%';
     statusTitle = '🚨 รอยืนยันอนุมัติปิดงาน (HITL)';
-    statusSub = 'งานส่งมอบเสร็จสิ้นแล้ว รอการตรวจสอบและกดยืนยันไฟเขียวจากท่าน Owner';
+    statusSub = 'งานส่งมอบเสร็จสิ้นแล้ว รอการตรวจสอบและกดยืนยันไฟเขียวจากพี่บุ๊ค';
   } else if (['coding', 'writing_content', 'reviewing', 'planning', 'active'].includes(emp.status)) {
     statusTheme = 'status-active';
     gaugeClass = 'active';
@@ -191,7 +195,11 @@ function renderWorkstationCockpit(data) {
           </div>
           <div class="identity-detail-row">
             <span class="identity-detail-label">🧠 AI Engine</span>
-            <span class="identity-detail-val" style="font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(emp.model)}</span>
+            <span class="identity-detail-val" style="display:inline-flex; align-items:center; gap:6px;">
+              <span style="font-family:var(--font-mono); font-size:0.75rem; color:#60a5fa;">${escapeHtml(emp.model || 'gemini-1.5-flash')}</span>
+              <button class="btn btn-sm" onclick="editAgent('${escapeHtml(emp.id)}')" style="padding:1px 7px; font-size:10px; border-radius:4px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); cursor:pointer;" title="เปลี่ยนโมเดล AI สำหรับ Agent คนนี้">⚙️ เปลี่ยนโมเดล</button>
+            </span>
+          </div>
           <div class="identity-detail-row">
             <span class="identity-detail-label">🧠 ความฉลาด & เติบโต</span>
             <span class="identity-detail-val" style="color:#a78bfa; font-weight:600; font-size:0.75rem;">Level 1 • 0 EXP (เรียนรู้สะสม)</span>
@@ -201,18 +209,21 @@ function renderWorkstationCockpit(data) {
             <span class="identity-detail-val" style="color:#34d399; font-weight:600; font-size:0.75rem;">Zero-Token Ready (ฟรี 100%)</span>
           </div>
           <div class="identity-detail-row">
-            <span class="identity-detail-label">🤖 Telegram Bot</span>
-            <span class="identity-detail-val">${emp.has_bot ? '<span style="color:#34d399; font-weight:600;">✓ เชื่อมต่อแล้ว</span>' : '<span style="color:#94a3b8;">ยังไม่ผูก Bot</span>'}</span>
+            <span class="identity-detail-label">🤖 Telegram Hub</span>
+            <span class="identity-detail-val" style="color:#34d399; font-weight:600; font-size:0.75rem;">✓ สั่งงานผ่าน Bot ได้</span>
           </div>
           <div class="identity-detail-row">
             <span class="identity-detail-label">🛡️ กฎเหล็กประจำตัว</span>
-            <span class="identity-detail-val" style="color:#f59e0b; font-size:0.78rem;">ต้องผ่าน Owner HITL เสมอ</span>
+            <span class="identity-detail-val" style="color:#f59e0b; font-size:0.78rem;">ต้องผ่านพี่บุ๊ค HITL เสมอ</span>
           </div>
         </div>
 
         <div class="identity-action-btns">
           <button class="btn-workstation-cmd primary" onclick="workstationAssignTask('${escapeHtml(emp.department_id)}', '${escapeHtml(emp.name)}')">
             <span>🚀 สั่งงานพนักงานคนนี้ทันที</span>
+          </button>
+          <button class="btn-workstation-cmd secondary" onclick="editAgent('${escapeHtml(emp.id)}')">
+            <span>⚙️ สลับโมเดล AI / แก้ไขข้อมูล Agent</span>
           </button>
           <button class="btn-workstation-cmd secondary" onclick="openAvatarModal('${escapeHtml(emp.id)}')">
             <span>📷 เปลี่ยนรูปประจำตัว AI</span>
@@ -256,7 +267,7 @@ function renderWorkstationCockpit(data) {
             <span class="thought-spark-icon">💭</span>
             <div class="thought-content">
               <div class="thought-label">Live AI Thought Process</div>
-              <div class="thought-text">${escapeHtml(emp.current_thought || 'พร้อมรับคำสั่งงานใหม่จากท่าน Owner')}</div>
+              <div class="thought-text">${escapeHtml(emp.current_thought || 'พร้อมรับคำสั่งงานใหม่จากพี่บุ๊ค')}</div>
             </div>
           </div>
 

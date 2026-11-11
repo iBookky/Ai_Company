@@ -26,6 +26,7 @@
   "company_model": {
     "model_type": "One-Person AI Enterprise (Solopreneur + Multi-Agent Workforce)",
     "supreme_leader": "พี่บุ๊ค (Owner & Supreme Decision Maker)",
+    "workforce_scaling": "หากมีภาระงานเกินขีดจำกัด AI แต่ละแผนกสามารถยื่นคำขอจ้างงาน AI (Hiring Proposal) ให้ Owner พิจารณาอนุมัติได้",
     "core_departments": [
       "01_secretary: สำนักเลขาและ CKO (อิงฟ้า)",
       "02_marketing: ฝ่ายการตลาดและ Social Media (ลิซ่า)",
@@ -33,8 +34,7 @@
       "04_data_analyst: ฝ่ายวิเคราะห์ข้อมูลและ QA (มุก)",
       "05_accounting: ฝ่ายบัญชีและการเงิน (พลอย)",
       "06_sales: ฝ่ายขายและบริการลูกค้าสัมพันธ์ (พิมพ์)"
-    ],
-    "workforce_scaling": "หากมีภาระงานเกินขีดจำกัด AI แต่ละแผนกสามารถยื่นคำขอจ้างงาน AI (Hiring Proposal) ให้ Owner พิจารณาอนุมัติได้"
+    ]
   },
   "shift": {
     "status": "off_duty",
