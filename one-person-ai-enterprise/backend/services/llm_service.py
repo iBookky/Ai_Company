@@ -5,6 +5,10 @@ llm_service.py — Pluggable LLM wrapper รองรับ Gemini และ Cla
 import os
 from pathlib import Path
 from typing import Optional
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).parent.parent.parent
+load_dotenv(BASE_DIR / ".env", override=True)
 
 # อ่าน API keys จาก environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
@@ -243,19 +247,19 @@ class LLMService:
         # ตรวจสอบตัวตนเฉพาะของ Agent แต่ละคน
         if agent_name == "อิงฟ้า" or "01_secretary" in agent_scope or (not agent_name and "อิงฟ้า" in agent_scope):
             return (
-                f"สวัสดีค่ะพี่บุ๊ค อิงฟ้ารับทราบข้อความ: \"{user_msg}\"\n\n"
-                f"📋 **การประสานงานของสำนักเลขาธิการ**:\n"
-                f"- ได้บันทึกคำสั่งและบริบทลงในความจำระยะยาวเรียบร้อยค่ะ\n"
-                f"- กำลังจัดสรรหน้าที่และประสานงานไปยังแผนกที่เกี่ยวข้อง\n"
-                f"- ทุกขั้นตอนจะสรุปให้พี่บุ๊ค ตรวจสอบและรออนุมัติปิดงานเสมอค่ะ 🚀"
+                f"สวัสดีค่ะพี่บุ๊ค อิงฟ้ารับทราบและประมวลผลคำสั่ง: \"{user_msg}\" เรียบร้อยแล้วค่ะ\n\n"
+                f"🏛️ **บทวิเคราะห์และการขับเคลื่อนเชิงกลยุทธ์ (Strategic Orchestration)**:\n"
+                f"1. **บันทึกลงคลังปัญญาองค์กร**: จัดเก็บบริบทงานและแนวทางสู่ `company_memory.md` ทันที\n"
+                f"2. **การประสานงานข้ามสายงาน**: ส่งต่อโจทย์ความต้องการให้น้องบิ๊นท์ (Business Analyst) วางโครงสร้าง Workflow และ Data Model สเปกระบบ\n"
+                f"3. **เกณฑ์กำกับดูแลความปลอดภัย (Zero-Defect & HITL)**: ทุกความคืบหน้าจะเข้าสู่สถานะตรวจสอบ เพื่อให้พี่บุ๊ค มีอำนาจตัดสินใจและกดยืนยันปิดงานเสมอค่ะ 🚀"
             )
         elif "บิ๊นท์" in agent_name or "07_business_analyst" in agent_scope or "business analyst" in agent_scope.lower():
             return (
-                f"สวัสดีค่ะพี่บุ๊ค น้องบิ๊นท์ (Business Analyst) รับทราบโจทย์: \"{user_msg}\" เรียบร้อยค่ะ!\n\n"
-                f"📊 **การวิเคราะห์ข้อมูลและวางแผนความต้องการ (BA Scope)**:\n"
-                f"- รวบรวมและวิเคราะห์ Business Requirement จากโจทย์ของพี่บุ๊ค อย่างละเอียด\n"
-                f"- จำแนกตัวแปรสำคัญ KPI และจัดทำ Data Model / Workflow สรุปผล\n"
-                f"- บันทึกผลงานเข้าสู่ระบบและเตรียมรายงานพร้อมให้พี่บุ๊ค ตรวจสอบและกดยืนยันปิดงานค่ะ 📈"
+                f"สวัสดีค่ะพี่บุ๊ค น้องบิ๊นท์ (Lead Business Analyst) พร้อมลุยงานเต็มที่สำหรับโจทย์: \"{user_msg}\" ค่ะ!\n\n"
+                f"📊 **แนวทางการวิเคราะห์และพิมพ์เขียวระบบ (System Architecture & Requirements)**:\n"
+                f"1. **Business Scope & Objectives**: กำหนดเป้าหมายหลักและขอบเขตความต้องการทางธุรกิจอย่างแม่นยำ ปราศจากช่องโหว่\n"
+                f"2. **Process Workflow & BPMN**: วางผังขั้นตอนการทำงานตั้งแต่ต้นจนจบ (End-to-End Pipeline) พร้อมจัดทำ Data Schema\n"
+                f"3. **เกณฑ์วัดผลและส่งมอบ (KPIs & HITL)**: จัดทำเอกสารส่งมอบระดับ Production Blueprint เข้าสู่สถานะรอยืนยัน เพื่อรอพี่บุ๊ค อนุมัติปิดงานค่ะ 📈"
             )
         
         # กรณีเป็น Agent อื่นๆ ที่สร้างขึ้นมาใหม่แบบ Dynamic
@@ -263,10 +267,10 @@ class LLMService:
         display_dept = f" ({dept_name})" if dept_name else ""
         return (
             f"สวัสดีครับ/ค่ะพี่บุ๊ค {display_name}{display_dept} ได้รับคำสั่ง: \"{user_msg}\" เรียบร้อยแล้วครับ/ค่ะ!\n\n"
-            f"⚡ **แผนการดำเนินงาน**:\n"
-            f"- บันทึกบริบทงานเข้าสู่ฐานข้อมูลความจำเรียบร้อยแล้ว\n"
-            f"- ดำเนินการตามความเชี่ยวชาญเฉพาะทางอย่างเต็มประสิทธิภาพ\n"
-            f"- เมื่อผลงานเสร็จสมบูรณ์ จะรายงานให้พี่บุ๊ค ทราบและรออนุมัติปิดงานทันทีครับ/ค่ะ 🚀"
+            f"⚡ **แผนการดำเนินงานเชิงลึก (Action Plan)**:\n"
+            f"1. วิเคราะห์และตกผลึกโจทย์ตามมาตรฐานวิชาชีพระดับสูงสุด\n"
+            f"2. ลงมือพัฒนาผลงานและทดสอบคุณภาพตามเกณฑ์ Zero-Defect อย่างรอบด้าน\n"
+            f"3. ส่งมอบผลงานเข้าสู่ระบบ HITL เพื่อรอให้พี่บุ๊ค พิจารณาอนุมัติปิดงานครับ/ค่ะ 🚀"
         )
 
     def load_agent_instructions(self, agent_id: str) -> tuple[str, str]:

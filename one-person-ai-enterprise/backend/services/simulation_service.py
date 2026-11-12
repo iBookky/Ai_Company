@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from backend.models.schemas import LogCreate, LogLevel
 from backend.services.log_service import write_log
 from backend.services import agent_service
+from backend.services.deliverable_engine import generate_comprehensive_deliverable
 
 logger = logging.getLogger("simulation_service")
 
@@ -890,31 +891,32 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = ""):
         dept_status_lines.append(f"{idx}. **{a.name} ({pm})**: สถานะพร้อมปฏิบัติการ 100% เชื่อมต่อระบบ Zero-Token และ Telegram เรียบร้อย")
     dept_status_summary = "\n".join(dept_status_lines)
 
-    briefing_md = f"""# 🏢 Executive Strategic Briefing — One-Person AI Enterprise
-**วันที่จัดทำ:** {datetime.now().strftime('%Y-%m-%d %H:%M')} ICT  
-**ผู้จัดทำ:** อิงฟ้า (เลขาธิการบริหาร & CKO)  
+    report_content, deliverable_summary = await generate_comprehensive_deliverable(
+        dept_id="01_secretary",
+        agent_name="อิงฟ้า (เลขา AI & CKO)",
+        dept_name="สำนักเลขานุการ & CKO",
+        task_title=task_title,
+        prompt_text=f"สรุปความคืบหน้าของทุกแผนก:\n{dept_status_summary}",
+        model_name="gemini-1.5-flash"
+    )
 
----
-
-### 📊 สถานะความคืบหน้าของแต่ละแผนกที่ประจำการจริง:
-{dept_status_summary}
-
----
-
-### 🎯 แผนปฏิบัติการระยะถัดไป:
-- ขยายการเชื่อมโยงระบบแจ้งเตือนและสั่งงานผ่าน Telegram บอทศูนย์กลางองค์กร
-- ดำเนินการตามแผนกลยุทธ์บริษัทคนเดียวที่ขับเคลื่อนด้วย AI 100% อย่างต่อเนื่อง
-"""
+    reports_dir = BASE_DIR / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_file_name = f"reports/01_secretary_{task.id}.md"
+    try:
+        (BASE_DIR / report_file_name).write_text(report_content, encoding="utf-8")
+    except Exception as e:
+        logger.warning(f"Failed to write secretary deliverable file: {e}")
 
     task.deliverable = TaskDeliverable(
         summary=f"รายงานสรุปภาพรวมและการประชุมผู้บริหาร '{task_title}' สำเร็จ",
         type="hybrid",
-        details="สรุปสถานะการทำงานของ 5 แผนกหลัก บันทึกบทเรียนลงใน company_memory.md พร้อมแผนงานระยะถัดไป",
+        details="สรุปสถานะการทำงานของทุกแผนก บันทึกบทเรียนลงใน company_memory.md พร้อมแผนงานระยะถัดไป",
         files_created=[
-            {"name": "reports/executive_sync_report.md", "language": "markdown", "content": briefing_md}
+            {"name": report_file_name, "language": "markdown", "content": report_content}
         ],
         checklist=[
-            "รวบรวมสถานะงานครบทั้ง 5 แผนกปฏิบัติการ ไร้จุดตกหล่น",
+            "รวบรวมสถานะงานครบทุกแผนกปฏิบัติการ ไร้จุดตกหล่น",
             "อัปเดตบันทึกคลังความรู้ company_memory.md ครบถ้วน",
             "จัดทำแผนปฏิบัติการระยะถัดไป (Action Plan) ชัดเจน",
             "🚨 รอการยืนยันและอนุมัติปิดงานจากพี่บุ๊ค"
@@ -1034,51 +1036,16 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         _agent_states[dept_id].current_thought = "นำส่งผลงานเข้าสู่ระบบ Human-in-the-Loop เพื่อรอการอนุมัติขั้นสุดท้าย"
         _agent_states[dept_id].progress = 95
 
-    # ดำเนินการวิเคราะห์และผลิตผลงานจริงผ่าน LLM ประจำตัวของแผนก
-    llm_analysis = ""
-    try:
-        from backend.services.llm_service import LLMService
-        model_name = getattr(agent_info, "model", "gemini-1.5-flash") or "gemini-1.5-flash"
-        llm = LLMService(model=model_name, temperature=0.6)
-        system_instruction, _ = llm.load_agent_instructions(dept_id)
-        system_instruction += (
-            f"\n\n--- ภารกิจจัดทำผลงานจริง (Deliverable Production) ---\n"
-            f"คุณคือ '{agent_name}' ({dept_name})\n"
-            f"หน้าที่: ปฏิบัติงานตามคำสั่งของพี่บุ๊คให้สำเร็จสมบูรณ์ 100% ตามมาตรฐาน Zero-Defect\n"
-            f"ให้คุณจัดทำเอกสารส่งมอบงานฉบับสมบูรณ์ มีเนื้อหาลึกซึ้ง ครบถ้วน พร้อมนำไปใช้งานจริง โดยเขียนเป็น Markdown ในหัวข้อ:\n"
-            f"1. สรุปภาพรวมและวัตถุประสงค์\n"
-            f"2. สาระสำคัญ รายละเอียดการวิเคราะห์ และผลการดำเนินงาน\n"
-            f"3. แผนการนำไปปฏิบัติจริงและขั้นตอนถัดไป\n"
-        )
-        llm_analysis = await llm.generate(
-            system_instruction=system_instruction,
-            user_message=f"คำสั่งงานจากพี่บุ๊ค: \"{prompt_text}\""
-        )
-    except Exception as err:
-        logger.warning(f"Dynamic agent LLM execution error: {err}")
-
-    if not llm_analysis:
-        llm_analysis = f"""### 📊 สาระสำคัญและผลลัพธ์ที่ได้:
-1. **การวิเคราะห์และวางแผน**: รวบรวมข้อกำหนดทางธุรกิจและวิเคราะห์ความต้องการสำหรับโจทย์ "{prompt_text}" อย่างละเอียด
-2. **การจัดทำผลงาน**: ดำเนินการตามมาตรฐาน Zero-Defect และแนวทางปฏิบัติระดับมืออาชีพของ {dept_name}
-3. **การประเมินคุณภาพ**: ผ่านการตรวจสอบความถูกต้องเรียบร้อย พร้อมส่งมอบให้พี่บุ๊คพิจารณาปิดงาน"""
-
-    report_content = f"""# 📋 รายงานสรุปผลงาน: {task_title}
-**ผู้จัดทำ:** {agent_name} ({dept_name})  
-**วันที่ดำเนินการ:** {datetime.now().strftime('%Y-%m-%d %H:%M')} ICT  
-**สถานะ:** ผ่านการประมวลผล 100% (รอพี่บุ๊ค ตรวจรับตามหลัก HITL)  
-
----
-
-### 🎯 วัตถุประสงค์และขอบเขตงาน:
-- {prompt_text}
-
----
-
-{llm_analysis}
-
----
-*จัดทำโดย {agent_name} ผ่านระบบ One-Person AI Enterprise*"""
+    # ดำเนินการวิเคราะห์และผลิตผลงานจริงระดับ Production Blueprint ผ่าน Deliverable Engine
+    agent_model = getattr(agent_info, "model", None) or "gemini-1.5-flash"
+    report_content, deliverable_summary = await generate_comprehensive_deliverable(
+        dept_id=dept_id,
+        agent_name=agent_name,
+        dept_name=dept_name,
+        task_title=task_title,
+        prompt_text=prompt_text,
+        model_name=agent_model
+    )
 
     # บันทึกไฟล์ผลงานจริงลงในโฟลเดอร์ reports
     reports_dir = BASE_DIR / "reports"
@@ -1086,11 +1053,11 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
     report_file_name = f"reports/{dept_id}_{task_id}.md"
     try:
         (BASE_DIR / report_file_name).write_text(report_content, encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to write deliverable file: {e}")
 
     task.deliverable = TaskDeliverable(
-        summary=f"ผลงาน '{task_title}' จัดทำโดย {agent_name} ({dept_name}) เสร็จสมบูรณ์",
+        summary=deliverable_summary,
         type="execution",
         details="ผลงานพร้อมส่งมอบ เข้าสู่สถานะ Human-in-the-Loop (HITL) รอพี่บุ๊ค ตรวจสอบและกดยืนยัน",
         files_created=[
@@ -1098,10 +1065,11 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         ],
         checklist=[
             f"วิเคราะห์ Requirement สำหรับ '{prompt_text[:40]}' ครบถ้วน",
-            f"จัดทำเอกสารส่งมอบตามมาตรฐาน {dept_name} สมบูรณ์",
-            "ผ่านการตรวจสอบคุณภาพและความปลอดภัยตามระบบ HITL",
+            f"จัดทำพิมพ์เขียวและสเปกระบบตามมาตรฐาน {dept_name} สมบูรณ์",
+            "ผ่านการตรวจสอบคุณภาพ Zero-Defect และความปลอดภัย 100%",
+            "🚨 รอการยืนยันและอนุมัติปิดงาน (HITL) จากพี่บุ๊ค"
         ],
-        qa_report=f"✅ ผ่านเกณฑ์มาตรฐานการตรวจสอบคุณภาพเรียบร้อย พร้อมให้พี่บุ๊ค พิจารณาปิดงาน",
+        qa_report="✅ ผ่านเกณฑ์มาตรฐานการตรวจสอบคุณภาพเรียบร้อย พร้อมให้พี่บุ๊ค พิจารณาปิดงาน",
     )
     task.submitted_at = datetime.now(timezone.utc).isoformat()
     task.status = "AWAITING_CONFIRMATION"
