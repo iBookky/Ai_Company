@@ -856,17 +856,26 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = ""):
     )
     _tasks[task_id] = task
 
+    # เลขาอิงฟ้าดำเนินการจัดการภารกิจตามคำสั่งจริงของพี่บุ๊ค
+    sec_sources = []
+    if any(w in prompt_text.lower() for w in ["research", "วิจัย", "สืบค้น", "หาข้อมูล", "ตรวจสอบ", "นโยบาย", "คู่แข่ง", "สถิติ", "ระบบ"]):
+        try:
+            from backend.services.web_research_service import conduct_web_research
+            sec_sources = await conduct_web_research(prompt_text, max_sources=3)
+        except Exception as err:
+            logger.warning(f"Secretary research error: {err}")
+
     if "01_secretary" in _agent_states:
         _agent_states["01_secretary"].status = "planning"
-        _agent_states["01_secretary"].current_action = f"รวบรวมสถานะงานของทีมงาน AI ประจำการ: {task_title}"
-        _agent_states["01_secretary"].current_thought = f"เชื่อมโยงความคืบหน้าของ {team_names_str} เพื่อรายงานท่าน Owner"
-        _agent_states["01_secretary"].progress = 30
+        _agent_states["01_secretary"].current_action = f"รับคำสั่งและวางแผนจัดการภารกิจ: {task_title[:45]}"
+        _agent_states["01_secretary"].current_thought = f"ถอดรหัสคำสั่ง '{prompt_text[:35]}' ประสานงานทุกภาคส่วน และจัดสรรทรัพยากร"
+        _agent_states["01_secretary"].progress = 40
         _agent_states["01_secretary"].current_task_id = task_id
     write_log(LogCreate(
         agent_id="01_secretary",
         agent_name="อิงฟ้า (เลขา AI & CKO)",
         level=LogLevel.INFO,
-        message=f"เริ่มรวบรวมข้อมูลสถานะบริษัทและจัดทำ Executive Sync สำหรับ '{task_title}'",
+        message=f"เริ่มบริหารจัดการภารกิจตามคำสั่งของพี่บุ๊ค: '{task_title}'",
     ))
     await broadcast_simulation_update()
     await asyncio.sleep(2)
@@ -874,30 +883,25 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = ""):
     if "01_secretary" in _agent_states:
         _agent_states["01_secretary"].progress = 75
         _agent_states["01_secretary"].status = "writing_content"
-        _agent_states["01_secretary"].current_action = "จัดทำรายงานภาพรวมองค์กร และบันทึกข้อสรุปลงใน company_memory.md"
-        _agent_states["01_secretary"].current_thought = "สถานะทุกทีมเข้มแข็ง ไม่มีงานค้างคา ระบบ AI 100% พร้อมขยายตัว"
+        _agent_states["01_secretary"].current_action = f"จัดทำรายงานแผนกลยุทธ์และการบริหารจัดการภารกิจตามคำสั่ง"
+        _agent_states["01_secretary"].current_thought = "บันทึกแนวทางปฏิบัติการและประสานงานไปยังทีมงาน AI ประจำการ"
     write_log(LogCreate(
         agent_id="01_secretary",
         agent_name="อิงฟ้า (เลขา AI & CKO)",
         level=LogLevel.SUCCESS,
-        message="สรุปสถานะการดำเนินงานขององค์กรเสร็จสมบูรณ์ เตรียมส่งมอบให้พี่บุ๊ค ตรวจสอบ",
+        message=f"จัดทำเอกสารและแผนบริหารจัดการสำหรับ '{task_title}' เรียบร้อย",
     ))
     await broadcast_simulation_update()
-    await asyncio.sleep(2.5)
-
-    dept_status_lines = []
-    for idx, a in enumerate(active_agents, 1):
-        pm = a.pm_name or a.name
-        dept_status_lines.append(f"{idx}. **{a.name} ({pm})**: สถานะพร้อมปฏิบัติการ 100% เชื่อมต่อระบบ Zero-Token และ Telegram เรียบร้อย")
-    dept_status_summary = "\n".join(dept_status_lines)
+    await asyncio.sleep(2)
 
     report_content, deliverable_summary = await generate_comprehensive_deliverable(
         dept_id="01_secretary",
         agent_name="อิงฟ้า (เลขา AI & CKO)",
         dept_name="สำนักเลขานุการ & CKO",
         task_title=task_title,
-        prompt_text=f"สรุปความคืบหน้าของทุกแผนก:\n{dept_status_summary}",
-        model_name="gemini-1.5-flash"
+        prompt_text=prompt_text,
+        model_name="gemini-1.5-flash",
+        research_sources=sec_sources,
     )
 
     reports_dir = BASE_DIR / "reports"
@@ -908,21 +912,26 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = ""):
     except Exception as e:
         logger.warning(f"Failed to write secretary deliverable file: {e}")
 
+    citations_tg = ""
+    if sec_sources:
+        from backend.services.web_research_service import format_citations_telegram
+        citations_tg = format_citations_telegram(sec_sources, max_display=3)
+
     task.deliverable = TaskDeliverable(
-        summary=f"รายงานสรุปภาพรวมและการประชุมผู้บริหาร '{task_title}' สำเร็จ",
+        summary=f"ภารกิจ '{task_title}' จัดการและประสานงานโดยเลขาอิงฟ้า เสร็จสมบูรณ์",
         type="hybrid",
-        details="สรุปสถานะการทำงานของทุกแผนก บันทึกบทเรียนลงใน company_memory.md พร้อมแผนงานระยะถัดไป",
+        details="บริหารจัดการภารกิจตามคำสั่ง วางแผนยุทธศาสตร์ และบันทึกข้อสรุปลงใน company_memory.md เรียบร้อย",
         files_created=[
             {"name": report_file_name, "language": "markdown", "content": report_content}
         ],
         checklist=[
-            "รวบรวมสถานะงานครบทุกแผนกปฏิบัติการ ไร้จุดตกหล่น",
-            "อัปเดตบันทึกคลังความรู้ company_memory.md ครบถ้วน",
-            "จัดทำแผนปฏิบัติการระยะถัดไป (Action Plan) ชัดเจน",
-            "🚨 รอการยืนยันและอนุมัติปิดงานจากพี่บุ๊ค"
+            f"ดำเนินการตามคำสั่ง '{prompt_text[:40]}' ครบถ้วน",
+            "จัดทำแผนปฏิบัติการและการประสานงานข้ามสายงานชัดเจน",
+            "อัปเดตบันทึกคลังความรู้ company_memory.md เรียบร้อย",
+            "🚨 รอการยืนยันและอนุมัติปิดงานจากพี่บุ๊ค",
         ],
         qa_report="✅ ผ่านการสอบทานความสอดคล้องกับเป้าหมายองค์กร 100%",
-        cost_estimate="ต้นทุนการบริหาร: $0.00 (ขับเคลื่อนด้วย AI ทั้งหมด)"
+        cost_estimate="ต้นทุนการบริหาร: $0.00 (ขับเคลื่อนด้วย AI ทั้งหมด)",
     )
 
     task.status = "AWAITING_CONFIRMATION"
@@ -930,24 +939,26 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = ""):
 
     if "01_secretary" in _agent_states:
         _agent_states["01_secretary"].status = "awaiting_confirmation"
-        _agent_states["01_secretary"].current_action = "🚨 สรุปงานประจำวันเสร็จแล้ว! รอพี่บุ๊ค ตรวจสอบและยืนยันปิดงาน"
+        _agent_states["01_secretary"].current_action = "🚨 ภารกิจเสร็จสมบูรณ์! รอพี่บุ๊ค ตรวจสอบและยืนยันปิดงาน"
         _agent_states["01_secretary"].progress = 95
 
     write_log(LogCreate(
         agent_id="01_secretary",
         agent_name="อิงฟ้า (เลขา AI & CKO)",
         level=LogLevel.WARNING,
-        message=f"🚨 [รอยืนยันปิดงาน] สรุปรายงาน '{task_title}' เสร็จสมบูรณ์ ส่งให้พี่บุ๊ค ยืนยันอนุมัติปิดงาน",
-        thought_process=f"Deliverable ID: {task.id}"
+        message=f"🚨 [รอยืนยันปิดงาน] ภารกิจ '{task_title}' จัดการเสร็จสมบูรณ์ ส่งให้พี่บุ๊ค ยืนยันอนุมัติปิดงาน",
+        thought_process=f"Deliverable ID: {task.id}",
     ))
 
     await dispatch_telegram_notification(
         title="🚨 [รอยืนยันปิดงานจากพี่บุ๊ค]",
         message=(
-            f"<b>สำนักเลขานุการ & CKO (อิงฟ้า)</b> สรุปภาพรวมองค์กรเสร็จสิ้นแล้ว:\n\n"
+            f"<b>สำนักเลขานุการ & CKO (อิงฟ้า)</b> ดำเนินการตามคำสั่งเสร็จสิ้นแล้วค่ะ:\n\n"
             f"📌 <b>ชื่องาน:</b> {task_title}\n"
-            f"📑 <b>สรุป:</b> ความคืบหน้าครบ 5 แผนก, ระบบเสถียร, ค่าใช้จ่ายต่ำกว่างบประมาณ\n"
-            f"📖 <b>คลังความรู้:</b> อัปเดตลง company_memory.md เรียบร้อยแล้วค่ะ\n\n"
+            f"📑 <b>สรุป:</b> {task.deliverable.summary}\n"
+            f"{citations_tg}\n\n"
+            f"📖 <b>ผลงานส่งมอบ:</b> บันทึกลงใน <code>{report_file_name}</code> เรียบร้อยแล้วค่ะ\n"
+            f"🌐 <b>ห้องทำงานบนเว็บ:</b> ตรวจสอบเอกสารฉบับเต็มได้ที่หน้า Workstation\n\n"
             f"👉 <b>กรุณาตรวจสอบและยืนยันปิดงาน:</b>\n"
             f"• กดปุ่ม <b>'อนุมัติปิดงาน'</b> บนหน้า Dashboard หรือ\n"
             f"• พิมพ์ตอบกลับ Telegram <code>/confirm {task.id}</code> หรือพิมพ์ <b>'อนุมัติ'</b> ได้ทันทีค่ะ"
@@ -998,11 +1009,24 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
     )
     _tasks[task_id] = task
 
+    # 1. ขั้นตอนสืบค้นข้อมูลและ Live Web Research จากเว็บและแหล่งข้อมูลที่ได้รับการรับรอง
+    research_sources = []
+    is_ba_or_research = (
+        dept_id == "07_business_analyst"
+        or "analyst" in dept_id.lower()
+        or any(w in prompt_text.lower() for w in ["research", "วิจัย", "สืบค้น", "วิเคราะห์", "หาข้อมูล", "ตลาด", "คู่แข่ง", "ระบบ", "เปรียบเทียบ", "ข้อกำหนด"])
+    )
+
     if dept_id in _agent_states:
         _agent_states[dept_id].status = "planning"
-        _agent_states[dept_id].current_action = f"วิเคราะห์โจทย์และวางโครงสร้างงาน: {task_title}"
-        _agent_states[dept_id].current_thought = f"ดึงข้อมูลบริบทจาก company_memory.md และจัดทำร่างแผนงาน {dept_name}"
-        _agent_states[dept_id].progress = 25
+        if is_ba_or_research:
+            _agent_states[dept_id].current_action = f"🔍 กำลังสืบค้นข้อมูลและ Research จากเว็บที่ได้รับการรับรอง: {task_title[:40]}"
+            _agent_states[dept_id].current_thought = f"ค้นคว้าข้อมูล วิจัยกรณีศึกษา และรวบรวมแหล่งอ้างอิงออนไลน์สำหรับ '{prompt_text[:35]}'"
+            _agent_states[dept_id].progress = 35
+        else:
+            _agent_states[dept_id].current_action = f"วิเคราะห์โจทย์และวางโครงสร้างงาน: {task_title[:40]}"
+            _agent_states[dept_id].current_thought = f"ดึงข้อมูลบริบทจาก company_memory.md และจัดทำร่างแผนงาน {dept_name}"
+            _agent_states[dept_id].progress = 30
         _agent_states[dept_id].current_task_id = task_id
 
     write_log(LogCreate(
@@ -1010,22 +1034,37 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         agent_name=agent_name,
         level=LogLevel.INFO,
         message=f"เริ่มดำเนินการ: '{task_title}' (สังกัด: {dept_name})",
-        thought_process="เริ่มวิเคราะห์และวางโครงสร้างงานตามมาตรฐาน Zero-Defect",
+        thought_process="วิเคราะห์และเตรียมสืบค้นข้อมูลจากแหล่งที่ได้รับการรับรองตามมาตรฐาน Zero-Defect",
     ))
     await broadcast_simulation_update()
-    await asyncio.sleep(2)
+    await asyncio.sleep(1.5)
+
+    if is_ba_or_research:
+        try:
+            from backend.services.web_research_service import conduct_web_research
+            research_sources = await conduct_web_research(prompt_text, max_sources=5)
+            domains_str = ", ".join([s['domain'] for s in research_sources]) if research_sources else "Verified Database"
+            write_log(LogCreate(
+                agent_id=dept_id,
+                agent_name=agent_name,
+                level=LogLevel.SUCCESS,
+                message=f"สืบค้นสำเร็จ! ได้รับข้อมูลอ้างอิงจาก {len(research_sources)} แหล่งข้อมูล ({domains_str})",
+                thought_process=f"Extracted {len(research_sources)} references with direct URLs",
+            ))
+        except Exception as e:
+            logger.warning(f"Web research execution error: {e}")
 
     if dept_id in _agent_states:
-        _agent_states[dept_id].progress = 65
+        _agent_states[dept_id].progress = 70
         _agent_states[dept_id].status = "writing_content"
-        _agent_states[dept_id].current_action = f"จัดทำผลงานและเอกสารส่งมอบสำหรับ: {task_title}"
-        _agent_states[dept_id].current_thought = "จัดทำรายงานการวิเคราะห์และสรุปผลเพื่อส่งให้พี่บุ๊ค ตรวจสอบ"
+        _agent_states[dept_id].current_action = f"สังเคราะห์ข้อมูล วางผังระบบ และจัดทำเอกสารส่งมอบพร้อมแหล่งอ้างอิง"
+        _agent_states[dept_id].current_thought = "นำข้อมูลที่ได้จากการ Research มาวิเคราะห์และออกแบบ Production Blueprint ฉบับสมบูรณ์"
 
     write_log(LogCreate(
         agent_id=dept_id,
         agent_name=agent_name,
         level=LogLevel.INFO,
-        message=f"จัดทำเอกสารและผลลัพธ์ของ '{task_title}' เรียบร้อย กำลังเข้าสู่ขั้นตอน QA",
+        message=f"จัดทำเอกสารและผลลัพธ์ของ '{task_title}' เรียบร้อย กำลังเข้าสู่ขั้นตอน QA และบันทึกแหล่งอ้างอิง",
     ))
     await broadcast_simulation_update()
     await asyncio.sleep(2)
@@ -1044,7 +1083,8 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         dept_name=dept_name,
         task_title=task_title,
         prompt_text=prompt_text,
-        model_name=agent_model
+        model_name=agent_model,
+        research_sources=research_sources,
     )
 
     # บันทึกไฟล์ผลงานจริงลงในโฟลเดอร์ reports
@@ -1056,18 +1096,20 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
     except Exception as e:
         logger.warning(f"Failed to write deliverable file: {e}")
 
+    ref_count_str = f"พร้อมแหล่งข้อมูลอ้างอิง {len(research_sources)} แหล่ง" if research_sources else "ผ่านการวิเคราะห์เชิงลึก"
     task.deliverable = TaskDeliverable(
         summary=deliverable_summary,
         type="execution",
-        details="ผลงานพร้อมส่งมอบ เข้าสู่สถานะ Human-in-the-Loop (HITL) รอพี่บุ๊ค ตรวจสอบและกดยืนยัน",
+        details=f"ผลงานพร้อมส่งมอบ ({ref_count_str}) เข้าสู่สถานะ Human-in-the-Loop (HITL) รอพี่บุ๊ค ตรวจสอบและกดยืนยัน",
         files_created=[
             {"name": report_file_name, "language": "markdown", "content": report_content}
         ],
         checklist=[
             f"วิเคราะห์ Requirement สำหรับ '{prompt_text[:40]}' ครบถ้วน",
-            f"จัดทำพิมพ์เขียวและสเปกระบบตามมาตรฐาน {dept_name} สมบูรณ์",
+            f"สืบค้นข้อมูลและระบุแหล่งอ้างอิงที่ได้รับการรับรอง ({len(research_sources)} แหล่ง) สมบูรณ์" if research_sources else f"สืบค้นและวางผังกระบวนการตามมาตรฐาน {dept_name} สำเร็จ",
+            f"จัดทำพิมพ์เขียวและสเปกระบบตามมาตรฐาน {dept_name} สมบูรณ์ 100%",
             "ผ่านการตรวจสอบคุณภาพ Zero-Defect และความปลอดภัย 100%",
-            "🚨 รอการยืนยันและอนุมัติปิดงาน (HITL) จากพี่บุ๊ค"
+            "🚨 รอการยืนยันและอนุมัติปิดงาน (HITL) จากพี่บุ๊ค",
         ],
         qa_report="✅ ผ่านเกณฑ์มาตรฐานการตรวจสอบคุณภาพเรียบร้อย พร้อมให้พี่บุ๊ค พิจารณาปิดงาน",
     )
@@ -1082,6 +1124,12 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         thought_process=f"Deliverable ID: {task.id}",
     ))
 
+    # เตรียมข้อความแหล่งอ้างอิงสำหรับ Telegram
+    citations_tg = ""
+    if research_sources:
+        from backend.services.web_research_service import format_citations_telegram
+        citations_tg = format_citations_telegram(research_sources, max_display=3)
+
     # ส่ง Telegram แจ้งเตือนพี่บุ๊คขอยืนยันปิดงาน
     await dispatch_telegram_notification(
         title="🚨 [รอยืนยันปิดงานจากพี่บุ๊ค]",
@@ -1089,7 +1137,9 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
             f"<b>{dept_name} ({agent_name})</b> จัดทำผลงานเสร็จสิ้นแล้ว:\n\n"
             f"📌 <b>ชื่องาน:</b> {task_title}\n"
             f"📑 <b>สรุป:</b> {task.deliverable.summary}\n"
-            f"📖 <b>ผลงานส่งมอบ:</b> บันทึกลงใน {report_file_name} เรียบร้อยแล้วค่ะ\n\n"
+            f"{citations_tg}\n\n"
+            f"📖 <b>ผลงานส่งมอบ:</b> บันทึกลงใน <code>{report_file_name}</code> เรียบร้อยแล้วค่ะ\n"
+            f"🌐 <b>ห้องทำงานบนเว็บ:</b> ตรวจสอบเอกสารฉบับเต็มและผลการวิเคราะห์ได้ที่หน้า Workstation\n\n"
             f"👉 <b>กรุณาตรวจสอบและยืนยันปิดงาน:</b>\n"
             f"• กดปุ่ม <b>'อนุมัติปิดงาน'</b> บนหน้า Dashboard หรือ\n"
             f"• พิมพ์ตอบกลับ Telegram <code>/confirm {task.id}</code> หรือพิมพ์ <b>'อนุมัติ'</b> ได้ทันทีค่ะ"

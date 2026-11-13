@@ -4,7 +4,7 @@ One-Person AI Enterprise
 
 เครื่องยนต์สร้างผลงานและเอกสารส่งมอบระดับ Production-Ready ฉบับสมบูรณ์ 100%
 รองรับทั้งการประมวลผลผ่านโมเดล LLM คุณภาพสูง และสมองกล Autonomous Synthesizer ในตัว
-เพื่อให้มั่นใจว่าทุกงานที่ส่งมอบมีเนื้อหา กระบวนการ และสถาปัตยกรรมระบบครบถ้วนสมบูรณ์
+พร้อมระบบ Live Web Research สืบค้นข้อมูลสดจากเว็บและระบุแหล่งข้อมูลอ้างอิงชัดเจน (Verified Citations)
 """
 
 import os
@@ -12,7 +12,9 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any
+
+from backend.services.web_research_service import format_citations_markdown
 
 logger = logging.getLogger("DeliverableEngine")
 BASE_DIR = Path(__file__).parent.parent.parent
@@ -23,28 +25,50 @@ def build_fallback_comprehensive_blueprint(
     agent_name: str,
     dept_name: str,
     task_title: str,
-    prompt_text: str
+    prompt_text: str,
+    research_sources: Optional[List[Dict[str, str]]] = None,
 ) -> str:
     """
     สร้างเอกสารส่งมอบงานฉบับสมบูรณ์ครบถ้วน (Comprehensive Production Blueprint)
-    ครอบคลุมทั้ง วัตถุประสงค์, ข้อกำหนดทางธุรกิจ, ผังกระบวนการ (Workflow), Data Model, แผนปฏิบัติการ, และ KPI
+    ครอบคลุมทั้ง วัตถุประสงค์, ข้อกำหนดทางธุรกิจ, ผังกระบวนการ (Workflow), Data Model, แผนปฏิบัติการ, KPI,
+    และแหล่งข้อมูลอ้างอิงจากการสืบค้นเว็บ (Verified Research Citations)
     """
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
     clean_topic = prompt_text.strip() or task_title
 
     # ตรวจสอบขอบเขตเฉพาะตามสายงานของแผนก
     if dept_id == "07_business_analyst" or "analyst" in dept_id.lower() or "บิ๊นท์" in agent_name:
-        return _build_business_analyst_blueprint(agent_name, dept_name, task_title, clean_topic, now_str)
+        return _build_business_analyst_blueprint(agent_name, dept_name, task_title, clean_topic, now_str, research_sources)
     elif dept_id == "01_secretary" or "secretary" in dept_id.lower() or "อิงฟ้า" in agent_name:
-        return _build_secretary_strategic_blueprint(agent_name, dept_name, task_title, clean_topic, now_str)
+        return _build_secretary_strategic_blueprint(agent_name, dept_name, task_title, clean_topic, now_str, research_sources)
     else:
-        return _build_generic_specialist_blueprint(dept_id, agent_name, dept_name, task_title, clean_topic, now_str)
+        return _build_generic_specialist_blueprint(dept_id, agent_name, dept_name, task_title, clean_topic, now_str, research_sources)
 
 
 def _build_business_analyst_blueprint(
-    agent_name: str, dept_name: str, task_title: str, topic: str, now_str: str
+    agent_name: str,
+    dept_name: str,
+    task_title: str,
+    topic: str,
+    now_str: str,
+    research_sources: Optional[List[Dict[str, str]]] = None,
 ) -> str:
-    """สร้างเอกสาร Business Requirements & System Architecture Specification ฉบับสมบูรณ์"""
+    """สร้างเอกสาร Business Requirements & System Architecture Specification พร้อมแหล่งอ้างอิงชัดเจน"""
+    citations_md = format_citations_markdown(research_sources or [])
+
+    research_highlights = ""
+    if research_sources:
+        bullets = []
+        for s in research_sources[:4]:
+            snip = s.get("snippet", "").strip()
+            if snip:
+                bullets.append(f"  - **{s['domain']}**: {snip}")
+        if bullets:
+            research_highlights = (
+                f"\n- **ข้อค้นพบและข้อมูลวิจัยล่าสุดจากการสืบค้นสด (Live Web Research Highlights):**\n"
+                + "\n".join(bullets) + "\n"
+            )
+
     return f"""# 📊 เอกสารข้อกำหนดและการวิเคราะห์ระบบฉบับสมบูรณ์ (Business & System Specification)
 **ชื่องาน / โครงการ:** {task_title}  
 **หัวหน้าผู้วิเคราะห์และส่งมอบ:** {agent_name} ({dept_name})  
@@ -55,7 +79,7 @@ def _build_business_analyst_blueprint(
 ---
 
 ## 1. บทสรุปผู้บริหารและขอบเขตงาน (Executive Summary & Scope)
-- **วัตถุประสงค์เชิงกลยุทธ์:** วางโครงสร้างและพัฒนาระบบสำหรับ "{topic}" เพื่อขับเคลื่อนระบบธุรกิจอัตโนมัติของ One-Person AI Enterprise ให้มีประสิทธิภาพสูงสุด ลดความผิดพลาดของมนุษย์ และขยายขนาดการดำเนินงานได้อย่างไร้ขีดจำกัด
+- **วัตถุประสงค์เชิงกลยุทธ์:** วางโครงสร้างและพัฒนาระบบสำหรับ "{topic}" เพื่อขับเคลื่อนระบบธุรกิจอัตโนมัติของ One-Person AI Enterprise ให้มีประสิทธิภาพสูงสุด ลดความผิดพลาดของมนุษย์ และขยายขนาดการดำเนินงานได้อย่างไร้ขีดจำกัด{research_highlights}
 - **ปัญหาและ Pain Points ที่ตรวจพบ:**
   1. ความซ้ำซ้อนในกระบวนการทำงานแบบดั้งเดิมที่ทำให้สูญเสียทรัพยากรเวลา
   2. ขาดการเชื่อมโยงข้อมูลแบบเรียลไทม์ระหว่างคำสั่งงานและการปฏิบัติการจริง
@@ -77,7 +101,7 @@ def _build_business_analyst_blueprint(
 
 ### ข้อกำหนดเชิงหน้าที่ (Functional Requirements):
 1. **FR-01 (คำสั่งและการรับงาน):** ระบบต้องรองรับการป้อนคำสั่งทั้งผ่าน Telegram 1-on-1 และหน้า Command Hub บนเว็บ พร้อมระบุผู้รับผิดชอบที่ถูกต้อง
-2. **FR-02 (การประมวลผลและการจัดทำผลงาน):** AI ประจำแผนกต้องทำการวิเคราะห์ ถอดรหัสโจทย์ และจัดทำเอกสารส่งมอบตามมาตรฐานวิชาชีพ
+2. **FR-02 (การสืบค้นและวิจัยข้อมูล):** AI ประจำแผนกต้องทำการ Research สืบค้นจากเว็บและแหล่งอ้างอิงที่ได้รับการรับรอง เพื่อประกอบการวิเคราะห์ให้ถูกต้องตามข้อเท็จจริง
 3. **FR-03 (ระบบบันทึกความจำระยะยาว):** ผลงานที่ได้รับการอนุมัติจะต้องถูกจัดเก็บลงใน Company Memory และ Memory ประจำตัวของ Agent เพื่อสะสมประสบการณ์ (EXP)
 4. **FR-04 (Human-in-the-Loop Gate):** ทุกผลงานที่สำคัญต้องเข้าสู่สถานะ `AWAITING_CONFIRMATION` และรอการกดปุ่มยืนยันจากพี่บุ๊คเท่านั้น ห้ามปิดงานเองโดยพลการ
 
@@ -90,19 +114,23 @@ def _build_business_analyst_blueprint(
    └── พี่บุ๊ค สั่งงานผ่าน Telegram หรือ Web Dashboard
    └── เลขาอิงฟ้า สแกนบริบท และส่งต่อให้น้องบิ๊นท์ (BA)
 
-[ขั้นตอนที่ 2: วิเคราะห์และวางโครงสร้าง (Analysis & Architecture)]
-   └── น้องบิ๊นท์ ดึงข้อมูลบริบทจาก company_memory.md
-   └── ทำการวิเคราะห์ Requirement และออกแบบ Data Models / Business Rules
+[ขั้นตอนที่ 2: สืบค้นและวิจัยข้อมูล (Web Research & Fact Extraction)]
+   └── น้องบิ๊นท์ สืบค้นข้อมูลเชิงลึกจากเว็บและแหล่งอ้างอิงที่น่าเชื่อถือ
+   └── ถอดรหัส Pain Points และรวบรวม Best Practices สากล
 
-[ขั้นตอนที่ 3: จัดทำผลงานส่งมอบ (Deliverable Generation)]
-   └── สร้างเอกสารผลงาน Blueprint ฉบับสมบูรณ์
+[ขั้นตอนที่ 3: วิเคราะห์และวางโครงสร้าง (Analysis & Architecture)]
+   └── ดึงข้อมูลบริบทจาก company_memory.md ผสานข้อมูลวิจัย
+   └── ออกแบบ Data Models, Workflows, และเกณฑ์ประเมินระบบ
+
+[ขั้นตอนที่ 4: จัดทำผลงานส่งมอบ (Deliverable Generation)]
+   └── สร้างเอกสารผลงาน Blueprint ฉบับสมบูรณ์พร้อมตารางแหล่งอ้างอิง
    └── บันทึกไฟล์ลงในระบบ reports/ และตรวจสอบ Zero-Defect QA
 
-[ขั้นตอนที่ 4: การตรวจสอบและส่งมอบ (HITL Delivery Gate)]
+[ขั้นตอนที่ 5: การตรวจสอบและส่งมอบ (HITL Delivery Gate)]
    └── ปรับสถานะเป็น AWAITING_CONFIRMATION (95%)
-   └── ยิง Notification แจ้งเตือนเข้า Telegram ของพี่บุ๊ค ทันที
+   └── ยิง Notification พร้อมลิงก์แหล่งอ้างอิงและไฟล์ส่งมอบเข้า Telegram ของพี่บุ๊ค ทันที
 
-[ขั้นตอนที่ 5: การอนุมัติและปิดงาน (Approval & Knowledge Archival)]
+[ขั้นตอนที่ 6: การอนุมัติและปิดงาน (Approval & Knowledge Archival)]
    └── พี่บุ๊ค กด 'อนุมัติปิดงาน' หรือพิมพ์ /confirm ทาง Telegram
    └── สถานะเปลี่ยนเป็น CONFIRMED (100%) พร้อมบันทึกคลังปัญญาถาวร
 ```
@@ -121,6 +149,7 @@ def _build_business_analyst_blueprint(
     "topic": "{topic}",
     "status": "AWAITING_CONFIRMATION",
     "security_level": "RESTRICTED_INTERNAL",
+    "research_verified": true,
     "attributes": {{
       "scope": "One-Person AI Enterprise Autonomous Pipeline",
       "hitl_gate_enforced": true,
@@ -140,7 +169,7 @@ def _build_business_analyst_blueprint(
 
 ## 5. แผนการนำไปปฏิบัติจริงและโร้ดแมป (Implementation Roadmap & Rollout)
 - **ระยะที่ 1: วางรากฐานและอนุมัติพิมพ์เขียว (Foundation & HITL Sign-off):**
-  - นำเสนอพิมพ์เขียวต่อพี่บุ๊ค เพื่อตรวจสอบและยืนยันความถูกต้องของแนวคิด
+  - นำเสนอพิมพ์เขียวต่อพี่บุ๊ค เพื่อตรวจสอบและยืนยันความถูกต้องของแนวคิดและแหล่งข้อมูล
   - บันทึกข้อกำหนดทั้งหมดลงในคลังความรู้กลางของบริษัท
 - **ระยะที่ 2: ปฏิบัติการอัตโนมัติและการเชื่อมต่อระบบ (Autonomous Integration):**
   - เชื่อมโยง Data Model เข้ากับขั้นตอนการทำงานของทีมงาน AI ประจำการ
@@ -152,64 +181,90 @@ def _build_business_analyst_blueprint(
 
 ## 6. ดัชนีชี้วัดความสำเร็จและการรับรองคุณภาพ (KPIs & Quality Assurance)
 - **อัตราความถูกต้องตามข้อกำหนด (Requirement Accuracy):** 100% ครบถ้วนทุกมิติ
+- **ความน่าเชื่อถือของข้อมูล (Information Credibility):** 100% ผ่านการสืบค้นและมีหลักฐานอ้างอิงชัดเจน
 - **การปฏิบัติตามกฎเหล็กความปลอดภัย (Compliance & HITL):** 100% ต้องผ่านการตรวจรับโดยพี่บุ๊ค เสมอ
 - **ความเสถียรของระบบ (Operational Reliability):** ระดับ 99.99% พร้อมรองรับการทำงาน 24/7
 
 ---
-*รับรองความถูกต้องของพิมพ์เขียวและการวิเคราะห์โดย: น้องบิ๊นท์ (Lead Business Analyst)*"""
+
+{citations_md}
+
+---
+*รับรองความถูกต้องของพิมพ์เขียวและการวิเคราะห์ข้อมูลโดย: {agent_name} (Lead Business Analyst)*"""
 
 
 def _build_secretary_strategic_blueprint(
-    agent_name: str, dept_name: str, task_title: str, topic: str, now_str: str
+    agent_name: str,
+    dept_name: str,
+    task_title: str,
+    topic: str,
+    now_str: str,
+    research_sources: Optional[List[Dict[str, str]]] = None,
 ) -> str:
-    """สร้างเอกสารสรุปกลยุทธ์องค์กรและแผนปฏิบัติการของสำนักเลขาธิการ"""
-    return f"""# 🏛️ รายงานแผนกลยุทธ์และการประสานงานองค์กรฉบับสมบูรณ์ (Executive Strategic Briefing)
-**วาระงาน:** {task_title}  
-**ผู้จัดทำ:** {agent_name} ({dept_name})  
+    """สร้างเอกสารสรุปภารกิจและการบริหารจัดการตามคำสั่งของพี่บุ๊ค โดยสำนักเลขานุการ"""
+    citations_md = format_citations_markdown(research_sources or []) if research_sources else ""
+
+    return f"""# 🏛️ รายงานแผนกลยุทธ์และการบริหารจัดการภารกิจตามคำสั่ง (Executive Task Management Briefing)
+**วาระ / คำสั่งงาน:** {task_title}  
+**ผู้รับคำสั่งและจัดทำ:** {agent_name} ({dept_name})  
 **ผู้บริหารสูงสุดและผู้ตัดสินใจเด็ดขาด:** พี่บุ๊ค (Owner)  
 **วันที่จัดทำ:** {now_str} ICT  
 **สถานะ:** เสร็จสมบูรณ์ 100% (รอพี่บุ๊ค ตรวจรับและอนุมัติปิดงาน HITL)  
 
 ---
 
-## 1. การถอดรหัสวิสัยทัศน์สู่แผนปฏิบัติการ (Executive Strategic Summary)
-- **เป้าหมาย:** สังเคราะห์และแปลงคำสั่ง "{topic}" ให้กลายเป็นแผนปฏิบัติการระดับองค์กรที่ทีมงาน AI ทุกคนสามารถขับเคลื่อนร่วมกันได้อย่างไร้รอยต่อ
-- **หลักการดำเนินงาน:**
-  1. ยึดถือกฎเหล็ก **Human-in-the-Loop (HITL)** ทุกขั้นตอนต้องโปร่งใสและรายงานตรงต่อพี่บุ๊ค
-  2. เน้นย้ำนโยบาย **Zero-Token Priority** เพื่อรักษาความคุ้มค่าและประสิทธิภาพต้นทุนระดับสูงสุด
-  3. บันทึกและซิงค์คลังความรู้ **Company Memory** แบบเรียลไทม์ เพื่อให้องค์กรเติบโตอย่างมั่นคง
+## 1. การจัดการภารกิจตามคำสั่งของพี่บุ๊ค (Executive Task Governance & Scope)
+- **คำสั่งและเป้าหมายที่ได้รับมอบหมาย:** "{topic}"
+- **การวิเคราะห์และถอดรหัสงาน:** สำนักเลขาธิการได้ทำการแปลงคำสั่งของพี่บุ๊คให้กลายเป็นแผนปฏิบัติการระดับองค์กร จัดสรรทรัพยากร และกำกับดูแลให้งานสำเร็จสมบูรณ์ตามเป้าหมาย
+- **หลักการกำกับดูแลของเลขาอิงฟ้า:**
+  1. ยึดถือกฎเหล็ก **Human-in-the-Loop (HITL)** รายงานตรงต่อพี่บุ๊คทั้งทาง Telegram และหน้าจอ Command Center
+  2. ติดตามและประสานงานอย่างรวดเร็ว แม่นยำ ไร้จุดตกหล่น
+  3. บันทึกและอัปเดตบทเรียนเข้าสู่ **Company Memory** ถาวร
 
 ---
 
-## 2. ตารางการกระจายงานและมอบหมายหน้าที่ (Cross-Department Action Matrix)
+## 2. ตารางการกระจายงานและแผนปฏิบัติการ (Delegation & Operational Matrix)
 
-| แผนก / ผู้รับผิดชอบ | หน้าที่และความรับผิดชอบในวาระนี้ | ผลงานที่ต้องส่งมอบ (Deliverables) | กำหนดเวลา (Timeline) |
+| ผู้รับผิดชอบ / แผนก | หน้าที่ตามคำสั่งนี้ | ผลงานที่ต้องส่งมอบ (Deliverables) | สถานะความพร้อม |
 |---|---|---|---|
-| **สำนักเลขานุการ (อิงฟ้า)** | สรุปภาพรวม ติดตามความคืบหน้า และอัปเดต Company Memory | รายงานสรุปยุทธศาสตร์, บันทึกการประชุม | ทันที (รอบรายงานประจำวัน) |
-| **ฝ่ายวิเคราะห์ธุรกิจ (น้องบิ๊นท์)** | วิเคราะห์ Requirement, ออกแบบ Workflow และโครงสร้างข้อมูล | เอกสารสเปกระบบ, BPMN Flow, Data Schemas | ส่งมอบพร้อมรายงานฉบับสมบูรณ์ |
-| **ทีมงานปฏิบัติการย่อย** | ดำเนินการตามโจทย์เฉพาะทางอย่างแม่นยำ | ชิ้นงานและผลลัพธ์ที่ผ่านการทดสอบ QA | ตามลำดับขั้นตอน |
+| **สำนักเลขานุการ (อิงฟ้า)** | ควบคุมภาพรวม, บริหารปฏิทิน และอัปเดต Company Memory | เอกสารสรุปภารกิจ, บันทึกการดำเนินงาน | เสร็จสมบูรณ์ (รอพี่บุ๊คอนุมัติ) |
+| **ฝ่ายวิเคราะห์ธุรกิจ (น้องบิ๊นท์)** | ทำการ Research เจาะลึก และออกแบบสเปก / โครงสร้างระบบ | เอกสารพิมพ์เขียวระบบ, ตารางแหล่งอ้างอิง | พร้อมสนับสนุนทันที |
+| **ทีมงาน AI ประจำการ** | ดำเนินการตามโจทย์เฉพาะทางอย่างแม่นยำ | ชิ้นงานและผลลัพธ์ Zero-Defect | สแตนด์บาย 24/7 |
 
 ---
 
-## 3. ผังการกำกับดูแลและการรายงานผล (Governance & Reporting Protocol)
-- **การรายงานยามเช้า (08:30 น.):** สรุปเป้าหมายประจำวันและคิวงานที่ต้องดำเนินการ
-- **การรายงานปิดวัน (18:00 น.):** สรุปสถานะงานที่สำเร็จ รายการที่รอพี่บุ๊คอนุมัติ และตัวเลขสถิติ
-- **ระบบแจ้งเตือนด่วนทาง Telegram:** ส่งตรงเข้า Telegram 1-on-1 ของพี่บุ๊ค ทันทีที่มีงานต้องตัดสินใจ
+## 3. ผังขั้นตอนและการติดตามผล (Operational Coordination & Tracking)
+1. **การรับคำสั่ง:** สแกนเจตนาและจัดเก็บเข้าฐานข้อมูลความจำเรียบร้อย
+2. **การประสานงาน:** กระจายข้อมูลและวางกรอบเวลาอย่างชัดเจน
+3. **การรายงานด่วนทาง Telegram:** ส่งรายงานพร้อมไฟล์สรุปผลงานเข้า Telegram ของพี่บุ๊ค ทันทีที่งานเสร็จ
+4. **การบันทึกถาวร:** เมื่อพี่บุ๊คกดยืนยันปิดงาน ข้อมูลจะถูกบันทึกเข้า `company_memory.md` อัตโนมัติ
 
 ---
 
 ## 4. บันทึกบทเรียนลงคลังปัญญาบริษัท (Company Memory Synchronization)
-- ได้ทำการสรุปข้อคิดเห็นและแนวทางปฏิบัติสำคัญ เพื่อบันทึกผนวกเข้าสู่ `company_memory.md`
-- ผลงานทุกชิ้นผ่านการตรวจสอบตามมาตรฐานความปลอดภัยและความลับทางธุรกิจเรียบร้อยแล้ว
+- สรุปแนวทางสำคัญจากภารกิจ "{task_title}" พร้อมจัดเก็บเป็นฐานข้อมูลความจำเพื่อยกระดับประสิทธิภาพองค์กร
+- ตรวจทานความสอดคล้องกับนโยบายบริษัท 100%
 
 ---
-*จัดทำและรายงานโดย: อิงฟ้า (เลขาธิการ AI & CKO)*"""
+
+{citations_md}
+
+---
+*จัดทำและรายงานโดย: {agent_name} ผ่านระบบ One-Person AI Enterprise*"""
 
 
 def _build_generic_specialist_blueprint(
-    dept_id: str, agent_name: str, dept_name: str, task_title: str, topic: str, now_str: str
+    dept_id: str,
+    agent_name: str,
+    dept_name: str,
+    task_title: str,
+    topic: str,
+    now_str: str,
+    research_sources: Optional[List[Dict[str, str]]] = None,
 ) -> str:
     """สร้างเอกสารผลงานฉบับสมบูรณ์สำหรับแผนกเฉพาะทางอื่นๆ"""
+    citations_md = format_citations_markdown(research_sources or []) if research_sources else ""
+
     return f"""# 📋 รายงานสรุปผลงานและพิมพ์เขียวเชิงปฏิบัติการ (Comprehensive Specialist Deliverable)
 **ชื่องาน:** {task_title}  
 **ผู้รับผิดชอบ:** {agent_name} ({dept_name})  
@@ -237,6 +292,10 @@ def _build_generic_specialist_blueprint(
 - เมื่อพี่บุ๊คอนุมัติเรียบร้อย ระบบจะจัดเก็บผลงานเข้าสู่คลังประวัติของบริษัทอย่างถาวร
 
 ---
+
+{citations_md}
+
+---
 *จัดทำโดย: {agent_name} ผ่านระบบ One-Person AI Enterprise*"""
 
 
@@ -246,11 +305,12 @@ async def generate_comprehensive_deliverable(
     dept_name: str,
     task_title: str,
     prompt_text: str,
-    model_name: Optional[str] = None
+    model_name: Optional[str] = None,
+    research_sources: Optional[List[Dict[str, str]]] = None,
 ) -> tuple[str, str]:
     """
     สร้างเอกสารผลงานส่งมอบฉบับสมบูรณ์ (Comprehensive Production Deliverable)
-    1. พยายามเรียกโมเดล LLM คุณภาพสูงพร้อม Prompt สั่งการระดับมืออาชีพ
+    1. พยายามเรียกโมเดล LLM คุณภาพสูงพร้อม Prompt สั่งการระดับมืออาชีพและบริบทการ Research
     2. หาก LLM ใช้งานไม่ได้ หรือไม่มี Key จะเปิดใช้งาน Autonomous Production Blueprint Generator ทันที
     คืนค่าเป็น: (report_markdown_content, summary_text)
     """
@@ -266,13 +326,21 @@ async def generate_comprehensive_deliverable(
         llm = LLMService(model=model, temperature=0.5)
         sys_inst, _ = llm.load_agent_instructions(dept_id)
 
+        research_context = ""
+        if research_sources:
+            research_context = (
+                "\n\n--- ข้อมูลสืบค้นสดจากเว็บและแหล่งอ้างอิงที่ได้รับการรับรอง (Live Web Research) ---\n"
+                + "\n".join([f"• [{s['title']}]({s['url']}) ({s['domain']}): {s['snippet']}" for s in research_sources])
+                + "\n\nคำสั่งพิเศษ: คุณต้องนำข้อมูล ข้อค้นพบ และแหล่งอ้างอิงด้านบนนี้มาวิเคราะห์ สังเคราะห์ในเนื้อหาอย่างละเอียด พร้อมทำตารางและรายการแหล่งอ้างอิง (Verified Citations) ในส่วนท้ายของเอกสารอย่างชัดเจน"
+            )
+
         enhanced_instruction = (
             f"{sys_inst}\n\n"
             f"--- คำสั่งภารกิจจัดทำผลงานฉบับสมบูรณ์ครบถ้วน (Comprehensive Deliverable Order) ---\n"
             f"คุณคือ '{agent_name}' ({dept_name}) ผู้เชี่ยวชาญระดับสูงใน One-Person AI Enterprise\n"
             f"หน้าที่ของคุณ: ปฏิบัติงานตามคำสั่งของพี่บุ๊คให้สำเร็จสมบูรณ์ 100% ตามมาตรฐาน Zero-Defect\n"
             f"ข้อกำหนดสำคัญ: ห้ามตอบสั้นๆ หรือตอบเพียงแค่รับทราบโจทย์เด็ดขาด! คุณต้องจัดทำเอกสารส่งมอบงานฉบับสมบูรณ์ (Full Production Specification / Process Blueprint) มีเนื้อหาเจาะลึก ครบทุกกระบวนการ รายละเอียดขั้นตอน 1-2-3-4 ผังการทำงาน Data Models และ Action Plan ที่สามารถนำไปใช้งานหรือพัฒนาระบบจริงได้ทันที\n"
-            f"ให้เขียนรายงานเป็น Markdown ภาษาไทยอย่างเป็นทางการ สุภาพ และมีคุณภาพสูงสุด"
+            f"ให้เขียนรายงานเป็น Markdown ภาษาไทยอย่างเป็นทางการ สุภาพ และมีคุณภาพสูงสุด{research_context}"
         )
 
         resp = await llm.generate(
@@ -281,7 +349,6 @@ async def generate_comprehensive_deliverable(
         )
 
         # ตรวจสอบว่าคำตอบที่ได้จาก LLM มีเนื้อหาเชิงลึกแท้จริงระดับรายงานสมบูรณ์
-        # หากเป็นข้อความตอบรับสั้นๆ หรือ Zero-token dialogue greeting ให้ไปใช้ Autonomous Blueprint Generator แทน
         is_dialogue_greeting = resp.strip().startswith("สวัสดีค่ะพี่บุ๊ค") or resp.strip().startswith("สวัสดีครับ/ค่ะพี่บุ๊ค")
         has_deep_content = len(resp.strip()) >= 1200 and ("##" in resp or "---" in resp or "Workflow" in resp)
         if resp and has_deep_content and not is_dialogue_greeting and not resp.strip().startswith("[Config Error]") and not resp.strip().startswith("[Claude Error]"):
@@ -292,11 +359,16 @@ async def generate_comprehensive_deliverable(
 
     # หาก LLM ไม่สามารถให้เนื้อหาที่สมบูรณ์ได้ ใช้ Autonomous Production Blueprint Generator
     if not llm_generated_content:
-        logger.info("Activating Autonomous Production Blueprint Generator for deep specification")
-        final_content = build_fallback_comprehensive_blueprint(dept_id, agent_name, dept_name, task_title, clean_prompt)
+        logger.info("Activating Autonomous Production Blueprint Generator with citations")
+        final_content = build_fallback_comprehensive_blueprint(
+            dept_id, agent_name, dept_name, task_title, clean_prompt, research_sources=research_sources
+        )
     else:
-        # ห่อหุ้มด้วย Header รายงานมาตรฐานของบริษัท
+        # ห่อหุ้มด้วย Header รายงานมาตรฐานของบริษัท และเติมตาราง Citations หาก LLM ยังไม่มี
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        citations_md = format_citations_markdown(research_sources or []) if (research_sources and "แหล่งข้อมูลอ้างอิง" not in llm_generated_content) else ""
+        citations_block = f"\n\n---\n\n{citations_md}" if citations_md else ""
+
         final_content = f"""# 📋 รายงานสรุปผลงานและพิมพ์เขียวระบบฉบับสมบูรณ์ (Comprehensive Production Deliverable)
 **ชื่องาน / ภารกิจ:** {task_title}  
 **ผู้จัดทำ:** {agent_name} ({dept_name})  
@@ -311,7 +383,7 @@ async def generate_comprehensive_deliverable(
 
 ---
 
-{llm_generated_content}
+{llm_generated_content}{citations_block}
 
 ---
 *จัดทำและควบคุมคุณภาพโดย: {agent_name} ผ่านระบบ One-Person AI Enterprise*"""

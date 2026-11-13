@@ -788,17 +788,34 @@ async def _dispatch_agent_response(chat_id: str, sender_name: str, agent: dict, 
         history = history[-10:]
     _agent_chat_histories[history_key] = history
 
+    # หากมีการถามหรือสั่งให้ทำ Research ทำการสืบค้นสดเพื่อดึงแหล่งอ้างอิงส่งให้พี่บุ๊คทันที
+    research_citations_tg = ""
+    if any(k in prompt_text.lower() for k in ["research", "วิจัย", "สืบค้น", "ค้นคว้า", "หาข้อมูล", "อ้างอิง", "ตลาด", "คู่แข่ง", "กรณีศึกษา"]):
+        try:
+            from backend.services.web_research_service import conduct_web_research, format_citations_telegram
+            live_sources = await conduct_web_research(prompt_text, max_sources=3)
+            if live_sources:
+                research_citations_tg = format_citations_telegram(live_sources, max_display=3)
+        except Exception as e:
+            logger.warning(f"Live telegram research error: {e}")
+
     # Format reply with agent persona header
     formatted_reply = f"🤖 <b>[{agent_name} — {dept_name}]</b>\n\n{reply}"
+    if research_citations_tg:
+        formatted_reply += f"\n{research_citations_tg}\n\n📁 <i>กำลังสร้างเอกสารสเปกและพิมพ์เขียวฉบับเต็มลงในห้องทำงานบนเว็บ พร้อมส่งแจ้งเตือนให้พี่บุ๊คตรวจสอบค่ะ</i>"
+
     await send_telegram_message(chat_id, formatted_reply, bot_token=bot_token)
 
-    # เช็คว่ามีคำสั่งที่เป็น Action/งาน หรือไม่ เพื่อนำขึ้น Kanban Board
-    action_keywords = ["ช่วย", "ทำ", "สร้าง", "เขียน", "ออกแบบ", "วิเคราะห์", "ตรวจ", "สรุป", "พัฒนา", "แก้", "report", "code"]
+    # เช็คว่ามีคำสั่งที่เป็น Action/งาน/Research หรือไม่ เพื่อนำขึ้น Kanban Board และส่งเข้าห้องทำงาน
+    action_keywords = [
+        "ช่วย", "ทำ", "สร้าง", "เขียน", "ออกแบบ", "วิเคราะห์", "ตรวจ", "สรุป", "พัฒนา", "แก้",
+        "report", "code", "research", "วิจัย", "สืบค้น", "ค้นคว้า", "หาข้อมูล", "วางแผน", "จัดการ", "ระบบ"
+    ]
     if any(k in prompt_text.lower() for k in action_keywords):
         try:
-            asyncio.create_task(simulation_service.run_simulation_preset("auto", prompt_text))
-        except Exception:
-            pass
+            asyncio.create_task(simulation_service.run_simulation_preset(dept_id, prompt_text))
+        except Exception as err:
+            logger.warning(f"Failed to auto-spawn simulation preset: {err}")
 
     write_log(LogCreate(
         agent_id=dept_id,
