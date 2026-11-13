@@ -488,7 +488,7 @@ def get_simulation_state() -> dict:
         if (t.assigned_agent_id in active_agent_ids or t.department_id in active_agent_ids or t.assigned_agent_id == "system")
     ]
     pending_tasks = [t for t in all_tasks if t.status == "AWAITING_CONFIRMATION"]
-    active_tasks = [t for t in all_tasks if t.status in ["IN_PROGRESS", "QA_REVIEW"]]
+    active_tasks = [t for t in all_tasks if t.status in ["IN_PROGRESS", "QA_REVIEW", "REVISION_REQUESTED"]]
     confirmed_tasks = [t for t in all_tasks if t.status == "CONFIRMED"]
     pending_hires = [h for h in _hiring_proposals.values() if h.status == "PENDING_APPROVAL"]
 
@@ -639,7 +639,127 @@ async def request_revision(task_id: str, feedback: str, owner_name: str = "พ�
         logger.warning(f"Could not record agent correction: {e}")
 
     await broadcast_simulation_update()
+
+    # สั่งให้ AI ลงมือแก้ไขปรับปรุงผลงานจริงทันทีใน Background (ไม่ค้างที่ 60%)
+    asyncio.create_task(simulate_task_revision_flow(task_id, feedback))
+
     return {"success": True, "task": task}
+
+
+async def simulate_task_revision_flow(task_id: str, feedback: str):
+    """กระบวนการลงมือปรับปรุงแก้ไขผลงานจริงตามคำสั่งและ Feedback ของพี่บุ๊ค"""
+    if task_id not in _tasks:
+        return
+
+    task = _tasks[task_id]
+    dept_id = task.department_id or task.assigned_agent_id
+
+    # 1. แจ้งสถานะเริ่มต้นปรับปรุงงาน (60% -> 65%)
+    if dept_id in _agent_states:
+        _agent_states[dept_id].status = "writing_content"
+        _agent_states[dept_id].current_action = f"🔄 กำลังลงมือปรับปรุงงานตามคำสั่งของพี่บุ๊ค: {feedback[:35]}"
+        _agent_states[dept_id].current_thought = f"ถอดรหัสข้อเสนอแนะ: '{feedback[:40]}' และรวบรวมข้อมูลเพิ่มเติม"
+        _agent_states[dept_id].progress = 65
+        _agent_states[dept_id].current_task_id = task_id
+    await broadcast_simulation_update()
+    await asyncio.sleep(2)
+
+    # 2. ทำ Web Research เพิ่มเติมตามโจทย์และ Feedback
+    combined_query = f"{task.prompt} {feedback}"
+    research_sources = []
+    try:
+        from backend.services.web_research_service import conduct_web_research
+        research_sources = await conduct_web_research(combined_query, max_sources=5)
+    except Exception as err:
+        logger.warning(f"Revision research error: {err}")
+
+    # 3. อัปเดตสถานะกำลังสังเคราะห์ผลงานฉบับปรับปรุง (80%)
+    if dept_id in _agent_states:
+        _agent_states[dept_id].progress = 80
+        _agent_states[dept_id].current_action = f"สังเคราะห์ข้อมูลใหม่ ปรับปรุงเนื้องาน และจัดทำเอกสารฉบับสมบูรณ์"
+        _agent_states[dept_id].current_thought = "จัดทำรายงานและเอกสารส่งมอบตามข้อกำหนดที่พี่บุ๊คสั่งอย่างครบถ้วน"
+    await broadcast_simulation_update()
+    await asyncio.sleep(2)
+
+    # 4. สร้าง Deliverable ฉบับปรับปรุงผ่าน generate_revised_deliverable
+    from backend.services.deliverable_engine import generate_revised_deliverable
+    report_content, deliverable_summary = await generate_revised_deliverable(
+        dept_id=dept_id,
+        agent_name=task.assigned_agent_name,
+        dept_name="Business Analyst" if "analyst" in dept_id else "AI Specialist",
+        task_title=task.title,
+        original_prompt=task.prompt,
+        revision_feedback=feedback,
+        research_sources=research_sources,
+    )
+
+    # 5. บันทึกไฟล์ผลงานลงใน reports/
+    reports_dir = BASE_DIR / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_file_name = f"reports/{dept_id}_{task.id}.md"
+    try:
+        (BASE_DIR / report_file_name).write_text(report_content, encoding="utf-8")
+    except Exception as e:
+        logger.warning(f"Failed to write revised deliverable file: {e}")
+
+    # 6. อัปเดต Task Deliverable
+    task.deliverable = TaskDeliverable(
+        summary=deliverable_summary,
+        type="execution",
+        details=f"ผลงานได้รับการปรับปรุงแก้ไขตามข้อเสนอแนะของพี่บุ๊คเรียบร้อย พร้อมแหล่งอ้างอิง {len(research_sources)} แหล่ง",
+        files_created=[
+            {"name": report_file_name, "language": "markdown", "content": report_content}
+        ],
+        checklist=[
+            f"ทบทวนและแก้ไขตามข้อเสนอแนะ: '{feedback[:40]}' ครบถ้วน",
+            f"สืบค้นข้อมูลและระบุแหล่งอ้างอิงที่ได้รับการรับรอง ({len(research_sources)} แหล่ง) สมบูรณ์",
+            "จัดทำโครงสร้าง SWOT และพิมพ์เขียวสไลด์นำเสนอตามมาตรฐานสากล",
+            "🚨 ผ่านการตรวจสอบ QA รอบปรับปรุง รอพี่บุ๊ค ตรวจสอบและยืนยันปิดงาน",
+        ],
+        qa_report="✅ ผ่านการปรับปรุงและตรวจสอบคุณภาพ Zero-Defect รอบใหม่เรียบร้อย",
+    )
+    task.submitted_at = datetime.now(timezone.utc).isoformat()
+    task.status = "AWAITING_CONFIRMATION"
+
+    # 7. ปรับสถานะ Agent เป็น awaiting_confirmation (95%)
+    if dept_id in _agent_states:
+        _agent_states[dept_id].status = "awaiting_confirmation"
+        _agent_states[dept_id].current_action = "🚨 ปรับปรุงงานเสร็จสมบูรณ์! รอพี่บุ๊ค ตรวจสอบและยืนยันปิดงาน"
+        _agent_states[dept_id].current_thought = "นำส่งผลงานฉบับปรับปรุงเข้าสู่ระบบ Human-in-the-Loop เพื่อรอการอนุมัติขั้นสุดท้าย"
+        _agent_states[dept_id].progress = 95
+
+    write_log(LogCreate(
+        agent_id=dept_id,
+        agent_name=task.assigned_agent_name,
+        level=LogLevel.SUCCESS,
+        message=f"ปรับปรุงผลงาน '{task.title}' ตาม Feedback เสร็จสมบูรณ์ (รอพี่บุ๊ค อนุมัติ)",
+        thought_process=f"Revised Deliverable ID: {task.id}",
+    ))
+
+    # 8. ส่ง Telegram แจ้งเตือนพี่บุ๊ค
+    citations_tg = ""
+    if research_sources:
+        from backend.services.web_research_service import format_citations_telegram
+        citations_tg = format_citations_telegram(research_sources, max_display=3)
+
+    await dispatch_telegram_notification(
+        title="🚨 [ผลงานฉบับปรับปรุงเสร็จแล้ว — รอยืนยันปิดงาน]",
+        message=(
+            f"<b>{task.assigned_agent_name}</b> ได้ดำเนินการปรับปรุงผลงานตามที่พี่บุ๊คชี้แนะเสร็จเรียบร้อยแล้วค่ะ:\n\n"
+            f"📌 <b>ชื่องาน:</b> {task.title}\n"
+            f"💬 <b>สิ่งที่ปรับปรุงตามข้อเสนอแนะ:</b> {feedback}\n"
+            f"📑 <b>สรุป:</b> {task.deliverable.summary}\n"
+            f"{citations_tg}\n\n"
+            f"📖 <b>ผลงานฉบับปรับปรุง:</b> บันทึกลงใน <code>{report_file_name}</code> เรียบร้อยแล้วค่ะ\n"
+            f"🌐 <b>ห้องทำงานบนเว็บ:</b> สามารถเปิดดูเอกสารฉบับสมบูรณ์ได้ทันทีที่หน้า Workstation\n\n"
+            f"👉 <b>กรุณาตรวจสอบและยืนยันปิดงาน:</b>\n"
+            f"• กดปุ่ม <b>'อนุมัติปิดงาน'</b> บนหน้า Dashboard หรือ\n"
+            f"• พิมพ์ตอบกลับ Telegram <code>/confirm {task.id}</code> หรือพิมพ์ <b>'อนุมัติ'</b> ได้ทันทีค่ะ"
+        ),
+        type_="confirmation_request",
+        task_id=task.id,
+    )
+    await broadcast_simulation_update()
 
 
 # ─── Dynamic AI Hiring Handlers ──────────────────────────────────────────────

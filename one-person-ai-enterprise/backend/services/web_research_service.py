@@ -225,3 +225,4 @@ def format_citations_telegram(sources: List[Dict[str, str]], max_display: int = 
         tg_lines.append(f"<i>...และแหล่งข้อมูลเพิ่มเติมอีก {len(sources) - max_display} รายการในเอกสารฉบับเต็ม</i>")
 
     return "\n".join(tg_lines)
+
