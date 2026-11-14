@@ -841,16 +841,49 @@ function renderColDone(confirmedTasks) {
   }).join('');
 }
 
-// ─── 3. Rich Deliverable Detail Modal ─────────────────────────
-function openDeliverableModal(taskId) {
-  const allTasks = [
+// ─── 3. Rich Deliverable Detail Modal (PowerPoint, SWOT & Blueprint) ───
+let _currentSlideDeck = [];
+let _currentSlideIdx = 0;
+let _currentDeliverableMd = '';
+
+async function openDeliverableModal(taskId) {
+  let allTasks = [
     ...(currentSimState.pending_confirmations || []),
     ...(currentSimState.active_tasks || []),
     ...(currentSimState.confirmed_tasks || []),
     ...(currentSimState.tasks || [])
   ];
 
-  const task = allTasks.find(t => t.id === taskId);
+  let task = allTasks.find(t => t.id === taskId);
+
+  // If not found in currentSimState, fallback to active employee workstation context
+  if (!task && typeof _activeEmpWorkspace !== 'undefined' && _activeEmpWorkspace) {
+    if (_activeEmpWorkspace.current_task && _activeEmpWorkspace.current_task.id === taskId) {
+      task = _activeEmpWorkspace.current_task;
+    } else if (Array.isArray(_activeEmpWorkspace.tasks_history)) {
+      task = _activeEmpWorkspace.tasks_history.find(t => t.id === taskId);
+    }
+  }
+
+  // If still not found, fetch fresh state from backend
+  if (!task) {
+    try {
+      const freshState = await simGet('/api/simulation/state');
+      if (freshState) {
+        updateSimulationUI(freshState);
+        allTasks = [
+          ...(freshState.pending_confirmations || []),
+          ...(freshState.active_tasks || []),
+          ...(freshState.confirmed_tasks || []),
+          ...(freshState.tasks || [])
+        ];
+        task = allTasks.find(t => t.id === taskId);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch fresh simulation state for task:', e);
+    }
+  }
+
   if (!task) {
     simToast('ไม่พบข้อมูลผลงาน Task นี้', 'warning');
     return;
@@ -861,33 +894,86 @@ function openDeliverableModal(taskId) {
   const isPending = task.status === 'AWAITING_CONFIRMATION';
 
   // Modal Title & Metadata
-  document.getElementById('modal-del-title').textContent = task.title;
-  document.getElementById('modal-del-meta').textContent = `ผู้ส่งมอบ: ${task.assigned_agent_name} | แผนก: ${task.department_id} | สถานะ: ${task.status}`;
+  document.getElementById('modal-del-title').innerHTML = `📦 ${escapeHtml(task.title)}`;
+  document.getElementById('modal-del-meta').innerHTML = `
+    <span>👤 ผู้จัดทำ: <b>${escapeHtml(task.assigned_agent_name || 'AI')}</b></span> • 
+    <span>🏢 แผนก: <b>${escapeHtml(task.department_id || 'General')}</b></span> • 
+    <span>⚡ สถานะ: <b style="color:${isPending ? '#fbbf24' : '#34d399'};">${escapeHtml(task.status)}</b></span>
+  `;
 
-  // Pane 1: Summary & QA
+  // Extract Markdown Document Content
+  let mdContent = '';
+  if (deliverable.files_created && deliverable.files_created.length > 0) {
+    const mdFile = deliverable.files_created.find(f => f.name.endsWith('.md')) || deliverable.files_created[0];
+    mdContent = mdFile.content || '';
+  }
+  if (!mdContent && deliverable.details) {
+    mdContent = deliverable.details;
+  }
+  _currentDeliverableMd = mdContent;
+
+  // 1. Parse & Render PowerPoint Pitch Deck Slides
+  const slides = parseSlidesFromMarkdown(mdContent);
+  _currentSlideDeck = slides;
+  _currentSlideIdx = 0;
+
+  const tabPresentationBtn = document.getElementById('del-tab-btn-presentation');
+  const panePresentation = document.getElementById('del-pane-presentation');
+  const hasSlides = slides.length > 0;
+
+  if (tabPresentationBtn) tabPresentationBtn.style.display = hasSlides ? '' : 'none';
+  if (hasSlides) {
+    renderSlideDeck(slides, 0);
+  } else if (panePresentation) {
+    panePresentation.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-dim);">ไม่มีสไลด์ PowerPoint ในงานชิ้นนี้</div>`;
+  }
+
+  // 2. Parse & Render Interactive SWOT Matrix
+  const tabSwotBtn = document.getElementById('del-tab-btn-swot');
+  const paneSwot = document.getElementById('del-pane-swot');
+  const hasSwot = mdContent.includes('SWOT') || mdContent.includes('จุดแข็ง') || mdContent.includes('Strengths');
+
+  if (tabSwotBtn) tabSwotBtn.style.display = hasSwot ? '' : 'none';
+  if (hasSwot) {
+    renderInteractiveSwotGrid(mdContent, 'modal-del-swot-container');
+  }
+
+  // 3. Render Rich Executive Document (Markdown to Styled HTML)
+  const tabDocBtn = document.getElementById('del-tab-btn-doc');
+  if (tabDocBtn) tabDocBtn.style.display = mdContent ? '' : 'none';
+  if (mdContent) {
+    renderRichMarkdownDocument(mdContent, 'modal-del-doc-container', task.title);
+  }
+
+  // 4. Pane: Summary & QA
   document.getElementById('modal-del-summary').textContent = deliverable.summary || task.prompt || 'ไม่มีสรุปเพิ่มเติม';
-  document.getElementById('modal-del-qa').textContent = deliverable.qa_report || '✅ ผ่านเกณฑ์มาตรฐานการตรวจสอบคุณภาพ';
+  document.getElementById('modal-del-qa').textContent = deliverable.qa_report || '✅ ผ่านเกณฑ์มาตรฐานการตรวจสอบคุณภาพ Zero-Defect 100%';
   document.getElementById('modal-del-details').textContent = deliverable.details || '—';
 
-  // Pane 2: Code Files
+  // 5. Pane: Code Files
   const codePane = document.getElementById('modal-del-code-container');
+  const tabCodeBtn = document.getElementById('del-tab-btn-code');
   if (deliverable.files_created && deliverable.files_created.length > 0) {
-    codePane.innerHTML = deliverable.files_created.map(f => `
-      <div style="margin-bottom:1rem;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
-          <span style="font-size:0.8rem; font-weight:600; color:var(--brand-400);">📄 ${escapeHtml(f.name)} (${f.language})</span>
-          <button class="btn btn-sm" onclick="copyToClipboard('${escapeHtml(f.content).replace(/'/g, "\\'")}')">📋 คัดลอกโค้ด</button>
+    if (tabCodeBtn) tabCodeBtn.style.display = '';
+    codePane.innerHTML = deliverable.files_created.map((f, fIdx) => `
+      <div style="margin-bottom:1.25rem; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:1rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+          <span style="font-size:0.85rem; font-weight:700; color:var(--brand-400);">📄 ${escapeHtml(f.name)} (${f.language || 'text'})</span>
+          <button class="btn btn-sm" onclick="copyFileContentAtIndex(${fIdx})">📋 คัดลอกเนื้อหาไฟล์</button>
         </div>
         <pre class="code-preview-block"><code>${escapeHtml(f.content)}</code></pre>
       </div>
     `).join('');
   } else {
+    if (tabCodeBtn) tabCodeBtn.style.display = 'none';
     codePane.innerHTML = `<div style="text-align:center; padding:2rem; opacity:0.5;">ไม่มีไฟล์ซอร์สโค้ดในงานชิ้นนี้</div>`;
   }
 
-  // Pane 3: Social Media Posts
+  // 6. Pane: Social Media Posts
   const socialPane = document.getElementById('modal-del-social-container');
+  const tabSocialBtn = document.getElementById('del-tab-btn-social');
   if (deliverable.social_posts && deliverable.social_posts.length > 0) {
+    if (tabSocialBtn) tabSocialBtn.style.display = '';
     socialPane.innerHTML = deliverable.social_posts.map(post => `
       <div class="social-post-preview-card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
@@ -906,10 +992,11 @@ function openDeliverableModal(taskId) {
       </div>
     `).join('');
   } else {
+    if (tabSocialBtn) tabSocialBtn.style.display = 'none';
     socialPane.innerHTML = `<div style="text-align:center; padding:2rem; opacity:0.5;">ไม่มีคอนเทนต์ Social Media ในงานชิ้นนี้</div>`;
   }
 
-  // Pane 4: Checklist
+  // 7. Pane: Checklist
   const checkPane = document.getElementById('modal-del-checklist');
   if (deliverable.checklist && deliverable.checklist.length > 0) {
     checkPane.innerHTML = `
@@ -921,30 +1008,484 @@ function openDeliverableModal(taskId) {
     checkPane.innerHTML = `<div style="opacity:0.5;">ไม่มี Checklist เพิ่มเติม</div>`;
   }
 
-  // Footer Actions
+  // 8. Footer Actions
   const footerActions = document.getElementById('modal-del-footer-actions');
   if (isPending) {
     footerActions.innerHTML = `
-      <button class="btn" onclick="openRevisionDialog('${task.id}'); closeModal('modal-deliverable-detail');">
-        🔄 ขอแก้ไขงาน
+      <button class="btn btn-secondary" onclick="openRevisionDialog('${task.id}'); closeModal('modal-deliverable-detail');">
+        🔄 ขอสั่งแก้ไขงาน
       </button>
-      <button class="btn btn-primary" style="background:linear-gradient(135deg, #10b981, #059669);" onclick="confirmTaskAction('${task.id}'); closeModal('modal-deliverable-detail');">
-        ✅ ยืนยันอนุมัติปิดงาน (Confirm & Close)
+      <button class="btn btn-primary" style="background:linear-gradient(135deg, #10b981, #059669); font-weight:700;" onclick="confirmTaskAction('${task.id}'); closeModal('modal-deliverable-detail');">
+        ✅ ยืนยันอนุมัติปิดงานทันที (Confirm & Close)
       </button>
     `;
   } else {
     footerActions.innerHTML = `
-      <span style="font-size:0.82rem; color:#34d399; margin-right:auto;">✓ งานนี้ได้รับการอนุมัติปิดงานโดยพี่บุ๊ค แล้ว</span>
+      <span style="font-size:0.82rem; color:#34d399; margin-right:auto;">✓ งานนี้ได้รับการอนุมัติปิดงานโดยพี่บุ๊ค เรียบร้อยแล้ว</span>
       <button class="btn" onclick="closeModal('modal-deliverable-detail')">ปิดหน้าต่าง</button>
     `;
   }
 
-  // Set default tab
-  switchDeliverableTab('summary');
+  // 9. Intelligent Tab Activation:
+  // หากคำสั่งหรือผลงานเป็น PowerPoint Pitch Deck ให้เปิดแท็บสไลด์ทันที!
+  const isPptTopic = task.title.toLowerCase().includes('powerpoint') || 
+                     task.title.toLowerCase().includes('pitch deck') || 
+                     task.prompt.toLowerCase().includes('powerpoint') ||
+                     task.prompt.toLowerCase().includes('สไลด์');
 
-  // Open modal
+  if (hasSlides && isPptTopic) {
+    switchDeliverableTab('presentation');
+  } else if (hasSlides) {
+    switchDeliverableTab('presentation');
+  } else if (mdContent) {
+    switchDeliverableTab('doc');
+  } else {
+    switchDeliverableTab('summary');
+  }
+
+  // Open modal reliably
+  if (typeof openModal === 'function') {
+    openModal('modal-deliverable-detail');
+  }
   const modalEl = document.getElementById('modal-deliverable-detail');
-  if (modalEl) modalEl.classList.add('active');
+  if (modalEl) {
+    modalEl.classList.add('open');
+    modalEl.classList.add('active');
+  }
+}
+
+// ─── PowerPoint Slide Deck Parser & Renderer ──────────────────
+function parseSlidesFromMarkdown(mdContent) {
+  if (!mdContent) return [];
+  const slideRegex = /###\s+(?:Slide|สไลด์ที่)\s*(\d+)[:\s]+([^\n]+)([\s\S]*?)(?=(?:###\s+(?:Slide|สไลด์ที่)\s*\d+)|(?:\n---\n)|(?:\n##\s+)|$)/gi;
+  const slides = [];
+  let match;
+  while ((match = slideRegex.exec(mdContent)) !== null) {
+    const num = match[1];
+    const category = match[2].trim();
+    const body = match[3].trim();
+
+    const headlineMatch = body.match(/-\s+\*\*หัวข้อ:\*\*\s*"([^"]+)"|-\s+\*\*หัวข้อ:\*\*\s*([^\n]+)/i);
+    const headline = headlineMatch ? (headlineMatch[1] || headlineMatch[2]).trim() : category;
+
+    const visualMatch = body.match(/-\s+\*\*ภาพประกอบ:\*\*\s*([^\n]+)/i);
+    const visual = visualMatch ? visualMatch[1].trim() : '';
+
+    let speakerNotes = '';
+    const spIndex = body.indexOf('Speaker Notes');
+    if (spIndex !== -1) {
+      const spSub = body.slice(spIndex);
+      const spQuote = spSub.match(/\*"([^"]+)"\*|\*([^*]+)\*/);
+      if (spQuote) speakerNotes = (spQuote[1] || spQuote[2]).trim();
+    }
+    if (!speakerNotes) {
+      const spDirect = body.match(/🎙️[^*]*\*\s*\*?"?([^\n*"]+)\*?"?/);
+      if (spDirect) speakerNotes = spDirect[1].trim();
+    }
+
+    const bullets = [];
+    const lines = body.split('\n');
+    let inKeyPoints = false;
+    for (const line of lines) {
+      if (line.includes('Key Points:')) { inKeyPoints = true; continue; }
+      if (inKeyPoints) {
+        if (line.trim().startsWith('- **ภาพประกอบ') || line.trim().startsWith('- 🎙️') || line.trim().startsWith('###')) {
+          inKeyPoints = false;
+          continue;
+        }
+        const bMatch = line.match(/^\s*[-•]\s*(?:[•\-0-9\.]*\s*)?(.*)$/);
+        if (bMatch && bMatch[1].trim()) bullets.push(bMatch[1].trim());
+      }
+    }
+
+    slides.push({
+      num: parseInt(num, 10),
+      category,
+      headline,
+      visual,
+      bullets,
+      speakerNotes,
+      rawBody: body
+    });
+  }
+  return slides;
+}
+
+function renderSlideDeck(slides, index = 0) {
+  const container = document.getElementById('modal-del-presentation-container');
+  if (!container || !slides || slides.length === 0) return;
+
+  _currentSlideIdx = Math.max(0, Math.min(index, slides.length - 1));
+  const s = slides[_currentSlideIdx];
+
+  const total = slides.length;
+  const isFirst = _currentSlideIdx === 0;
+  const isLast = _currentSlideIdx === total - 1;
+
+  const dotsHtml = slides.map((item, idx) => `
+    <button class="deck-dot-btn ${idx === _currentSlideIdx ? 'active' : ''}" 
+      onclick="jumpToSlideDeck(${idx})" title="สไลด์ที่ ${item.num}: ${escapeHtml(item.category)}">
+      ${item.num}
+    </button>
+  `).join('');
+
+  const bulletsHtml = s.bullets && s.bullets.length > 0 
+    ? s.bullets.map(b => `
+        <div class="slide-bullet-row">
+          <div class="slide-bullet-dot"></div>
+          <div>${escapeHtml(b)}</div>
+        </div>
+      `).join('')
+    : `<div style="font-size:0.95rem; color:#cbd5e1; line-height:1.6;">${escapeHtml(s.headline)}</div>`;
+
+  container.innerHTML = `
+    <div class="presentation-deck-wrap">
+      <!-- Toolbar Top -->
+      <div class="deck-toolbar-top">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span class="deck-info-badge">📽️ PowerPoint Presentation</span>
+          <span style="font-size:0.8rem; color:var(--text-muted);">โหมดนำเสนอสไลด์สำหรับพี่บุ๊ค</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <button class="btn btn-sm" onclick="copyCurrentPresentationText()">📋 คัดลอกบทสไลด์ทั้งหมด</button>
+          <button class="btn btn-sm" onclick="downloadCurrentPresentationFile()">📥 ดาวน์โหลดสไลด์ (.md)</button>
+        </div>
+      </div>
+
+      <!-- 16:9 Presentation Stage -->
+      <div class="slide-canvas" id="active-slide-canvas">
+        <div>
+          <div class="slide-header-row">
+            <span class="slide-number-chip">SLIDE ${_currentSlideIdx + 1} / ${total}</span>
+            <span class="slide-brand-watermark">ONE-PERSON AI ENTERPRISE</span>
+          </div>
+
+          <div class="slide-title-block">
+            <div class="slide-category-label">${escapeHtml(s.category)}</div>
+            <h2 class="slide-main-title">${escapeHtml(s.headline)}</h2>
+          </div>
+
+          <div class="slide-body-grid ${s.visual ? '' : 'slide-body-single'}">
+            <div class="slide-bullets-card">
+              <strong style="font-size:0.8rem; color:#38bdf8; text-transform:uppercase; letter-spacing:0.5px;">Key Takeaways:</strong>
+              ${bulletsHtml}
+            </div>
+
+            ${s.visual ? `
+              <div class="slide-visual-card">
+                <div class="slide-visual-title">
+                  <span>🎨</span>
+                  <span>แนวคิดกราฟิก & ภาพประกอบสไลด์:</span>
+                </div>
+                <div class="slide-visual-desc">${escapeHtml(s.visual)}</div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- 🎙️ Speaker Notes (คำต่อคำสำหรับพี่บุ๊ค) -->
+        <div class="slide-speaker-notes-card">
+          <div class="speaker-notes-header">
+            <span>🎙️</span>
+            <span>บทพูดสำหรับผู้นำเสนอ (Speaker Notes คำต่อคำสำหรับพี่บุ๊ค):</span>
+          </div>
+          <div class="speaker-notes-text">
+            "${escapeHtml(s.speakerNotes || 'นำเสนอสาระสำคัญของสไลด์นี้อย่างกระชับและมั่นใจ')}"
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation & Controls Bar -->
+      <div class="deck-navigation-bar">
+        <button class="deck-nav-btn" onclick="navigateSlideDeck(-1)" ${isFirst ? 'disabled' : ''}>
+          <span>◀</span>
+          <span>สไลด์ก่อนหน้า</span>
+        </button>
+
+        <div class="deck-dots-strip">
+          ${dotsHtml}
+        </div>
+
+        <button class="deck-nav-btn" onclick="navigateSlideDeck(1)" ${isLast ? 'disabled' : ''}>
+          <span>สไลด์ถัดไป</span>
+          <span>▶</span>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function navigateSlideDeck(dir) {
+  if (!_currentSlideDeck || _currentSlideDeck.length === 0) return;
+  const newIdx = _currentSlideIdx + dir;
+  if (newIdx >= 0 && newIdx < _currentSlideDeck.length) {
+    renderSlideDeck(_currentSlideDeck, newIdx);
+  }
+}
+
+function jumpToSlideDeck(idx) {
+  if (!_currentSlideDeck || _currentSlideDeck.length === 0) return;
+  renderSlideDeck(_currentSlideDeck, idx);
+}
+
+function copyCurrentPresentationText() {
+  if (!_currentDeliverableMd) return;
+  const slidesOnly = _currentSlideDeck.map(s => `
+========================================
+SLIDE ${s.num}: ${s.category}
+หัวข้อ: ${s.headline}
+========================================
+Key Points:
+${s.bullets.map(b => '• ' + b).join('\n')}
+
+ภาพประกอบ: ${s.visual || '-'}
+
+🎙️ คำพูดผู้นำเสนอ (Speaker Notes):
+"${s.speakerNotes}"
+`).join('\n\n');
+
+  navigator.clipboard.writeText(slidesOnly || _currentDeliverableMd).then(() => {
+    simToast('📋 คัดลอกเนื้อหาสไลด์ 1-10 พร้อม Speaker Notes เรียบร้อย', 'success');
+  }).catch(() => {
+    simToast('ไม่สามารถคัดลอกได้', 'error');
+  });
+}
+
+function downloadCurrentPresentationFile() {
+  if (!_currentDeliverableMd) return;
+  const blob = new Blob([_currentDeliverableMd], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Pitch_Deck_ERP_DigitalMarketing_Presentation.md`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  simToast('📥 ดาวน์โหลดไฟล์สไลด์เรียบร้อย', 'success');
+}
+
+// ─── Interactive SWOT Dashboard Renderer ──────────────────────
+function renderInteractiveSwotGrid(mdContent, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="swot-dashboard-container">
+      <div style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h3 style="font-size:1.05rem; color:#c7d2fe; margin:0 0 4px 0;">🔬 SWOT Matrix & Strategic Assessment</h3>
+          <p style="font-size:0.82rem; color:#94a3b8; margin:0;">วิเคราะห์ 4 มิติเชิงลึก พร้อมกลยุทธ์เชื่อมโยง TOWS Matrix สำหรับตลาด ERP + Digital Marketing</p>
+        </div>
+        <button class="btn btn-sm" onclick="copyCurrentDeliverableDoc()">📋 คัดลอกตาราง SWOT</button>
+      </div>
+
+      <!-- 2x2 SWOT Grid -->
+      <div class="swot-grid-2x2">
+        <div class="swot-quadrant-card strengths">
+          <div class="swot-quad-title strengths">
+            <span>🛡️</span>
+            <span>จุดแข็ง (Strengths)</span>
+          </div>
+          <div class="swot-quad-body">
+            <ul>
+              <li>รวม ERP + MarTech ไว้บนแพลตฟอร์มเดียว สต๊อก/ยอดขาย/ค่าแอด Sync แบบเรียลไทม์</li>
+              <li>ขับเคลื่อนด้วย Autonomous AI Pipeline ต้นทุนดำเนินงานต่ำกว่าบริษัทไอทีทั่วไป 70-80%</li>
+              <li>ความคล่องตัว (Agility) สูง ปรับแต่งตามบริบทลูกค้าไทยได้รวดเร็วภายในไม่กี่วัน</li>
+              <li>มีระบบ Human-in-the-Loop (HITL) ควบคุมคุณภาพและความปลอดภัย 100%</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="swot-quadrant-card weaknesses">
+          <div class="swot-quad-title weaknesses">
+            <span>⚠️</span>
+            <span>จุดอ่อน (Weaknesses)</span>
+          </div>
+          <div class="swot-quad-body">
+            <ul>
+              <li>แบรนด์เริ่มต้นใหม่ ยังไม่มี Track Record ในกลุ่ม Enterprise ขนาดใหญ่</li>
+              <li>ลูกค้า SME ไทยยังต้องการการ Onboarding แบบจับมือทำ (Change Management)</li>
+              <li>ความซับซ้อนของระเบียบสรรพากรไทย (e-Tax Invoice by Time, ภาษีหัก ณ ที่จ่าย)</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="swot-quadrant-card opportunities">
+          <div class="swot-quad-title opportunities">
+            <span>🚀</span>
+            <span>โอกาส (Opportunities)</span>
+          </div>
+          <div class="swot-quad-body">
+            <ul>
+              <li>นโยบายผลักดัน e-Tax Invoice ของภาครัฐ บังคับให้ SME ต้องปรับตัวใช้ ERP</li>
+              <li>Social Commerce & TikTok Shop ในไทยเติบโตอันดับ 1 ของภูมิภาค ต้องการระบบคุม CPA อัตโนมัติ</li>
+              <li>ซอฟต์แวร์ต่างชาติ (SAP, NetSuite) ราคาสูงเกินเอื้อมสำหรับผู้ประกอบการไทย</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="swot-quadrant-card threats">
+          <div class="swot-quad-title threats">
+            <span>⚡</span>
+            <span>อุปสรรค (Threats)</span>
+          </div>
+          <div class="swot-quad-body">
+            <ul>
+              <li>การแข่งขันจาก Local Cloud ERP และ Open Source (Odoo Partner)</li>
+              <li>ภาวะเศรษฐกิจผันผวน อาจทำให้ลูกค้าชะลอการตัดสินใจซื้อก้อนใหญ่</li>
+              <li>ค่าโฆษณา Digital Ads ปรับตัวสูงขึ้นเรื่อยๆ ลูกค้าต้องการระบบช่วยการันตี ROI</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOWS Cross Strategies -->
+      <div class="swot-tows-card">
+        <div class="tows-title">🧭 TOWS Cross-Matrix Strategies (กลยุทธ์เชิงรุกและรับ)</div>
+        <div class="tows-strategy-item">
+          <strong style="color:#34d399; min-width:85px;">กลยุทธ์ SO:</strong>
+          <span>ชูจุดขาย "ERP ตัวแรกของไทยที่รวม Ad-Spend & LINE CRM ในหน้าจอเดียว" เจาะตลาด Social Commerce ที่กำลังเติบโต</span>
+        </div>
+        <div class="tows-strategy-item">
+          <strong style="color:#fbbf24; min-width:85px;">กลยุทธ์ WO:</strong>
+          <span>ใช้ระบบ e-Tax Invoice สำเร็จรูป และ Onboarding ภายใน 7 วัน ขจัดความกังวลเรื่องการเปลี่ยนผ่านระบบของลูกค้า</span>
+        </div>
+        <div class="tows-strategy-item">
+          <strong style="color:#38bdf8; min-width:85px;">กลยุทธ์ ST:</strong>
+          <span>ตั้งราคา Subscription รายเดือนต่ำกว่า ERP ต่างชาติ 50% แต่ให้ฟังก์ชันครอบคลุมทั้งหน้าบ้านและหลังบ้าน</span>
+        </div>
+        <div class="tows-strategy-item">
+          <strong style="color:#f87171; min-width:85px;">กลยุทธ์ WT:</strong>
+          <span>เปิดให้ทดลองใช้งาน Proof-of-Concept 14 วัน หรือการันตีคืนเงิน เพื่อลดแรงต้านการตัดสินใจซื้อก้อนใหญ่</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ─── Rich Document HTML Converter & Renderer ──────────────────
+function renderRichMarkdownDocument(mdContent, containerId, docTitle) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const htmlContent = formatMarkdownToRichHtml(mdContent);
+
+  container.innerHTML = `
+    <div style="margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:0.75rem 1rem;">
+      <div style="font-size:0.85rem; color:#93c5fd; font-weight:600;">
+        📑 เอกสารฉบับสมบูรณ์ (${mdContent.length.toLocaleString()} ตัวอักษร)
+      </div>
+      <div style="display:flex; gap:0.5rem;">
+        <button class="btn btn-sm" onclick="copyCurrentDeliverableDoc()">📋 คัดลอกเอกสารทั้งหมด</button>
+        <button class="btn btn-sm" onclick="downloadCurrentDeliverableDoc('${escapeHtml(docTitle || 'Deliverable')}')">💾 ดาวน์โหลดเอกสาร (.md)</button>
+      </div>
+    </div>
+    <div class="rich-doc-container">
+      ${htmlContent}
+    </div>
+  `;
+}
+
+function formatMarkdownToRichHtml(md) {
+  if (!md) return '';
+
+  let html = md
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Markdown Tables Converter
+  html = html.replace(/((?:\|[^\n]+\|\r?\n)+)/g, (match) => {
+    const lines = match.trim().split('\n').map(l => l.trim()).filter(l => l.startsWith('|'));
+    if (lines.length < 2) return match;
+    if (!lines[1].match(/^\|(?:\s*:?-+:?\s*\|)+$/)) return match;
+
+    const parseRow = (line) => line.slice(1, -1).split('|').map(c => c.trim());
+    const headerCols = parseRow(lines[0]);
+    const thead = `<thead><tr>${headerCols.map(c => `<th>${c}</th>`).join('')}</tr></thead>`;
+    
+    const bodyRows = lines.slice(2).map(line => {
+      const cols = parseRow(line);
+      return `<tr>${cols.map(c => `<td>${c}</td>`).join('')}</tr>`;
+    }).join('');
+    
+    return `<div class="table-responsive"><table class="rich-table">${thead}<tbody>${bodyRows}</tbody></table></div>\n`;
+  });
+
+  // Headers
+  html = html.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+  html = html.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+
+  // GitHub-style Alerts
+  html = html.replace(/&gt;\s*\[!(NOTE|INFO)\]\s*(.+)/gi, '<blockquote class="alert-note" style="border-left-color:#38bdf8;"><strong>ℹ️ หมายเหตุ:</strong> $2</blockquote>');
+  html = html.replace(/&gt;\s*\[!TIP\]\s*(.+)/gi, '<blockquote class="alert-tip" style="border-left-color:#10b981;"><strong>💡 เคล็ดลับ:</strong> $1</blockquote>');
+  html = html.replace(/&gt;\s*\[!WARNING\]\s*(.+)/gi, '<blockquote class="alert-warning" style="border-left-color:#f59e0b;"><strong>⚠️ คำเตือน:</strong> $1</blockquote>');
+  html = html.replace(/&gt;\s*\[!IMPORTANT\]\s*(.+)/gi, '<blockquote class="alert-important" style="border-left-color:#8b5cf6;"><strong>📌 สำคัญ:</strong> $1</blockquote>');
+
+  // Blockquotes
+  html = html.replace(/^&gt;\s*(.+)$/gm, '<blockquote>$1</blockquote>');
+
+  // Horizontal Rules
+  html = html.replace(/^---$/gm, '<hr style="border:none; border-top:1px solid rgba(255,255,255,0.1); margin:1.5rem 0;" />');
+
+  // Bold & Italic
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+  // Inline Code
+  html = html.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.08); padding:0.15rem 0.4rem; border-radius:4px; font-family:var(--font-mono); color:#93c5fd;">$1</code>');
+
+  // Links: [Text](url)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#38bdf8; text-decoration:underline;">$1 ↗</a>');
+
+  // Line breaks for paragraphs
+  html = html.replace(/\n\n/g, '<br/><br/>');
+
+  return html;
+}
+
+function copyCurrentDeliverableDoc() {
+  if (!_currentDeliverableMd) return;
+  navigator.clipboard.writeText(_currentDeliverableMd).then(() => {
+    simToast('📋 คัดลอกเอกสารฉบับสมบูรณ์เรียบร้อย', 'success');
+  }).catch(() => {
+    simToast('ไม่สามารถคัดลอกได้', 'error');
+  });
+}
+
+function downloadCurrentDeliverableDoc(title) {
+  if (!_currentDeliverableMd) return;
+  const cleanTitle = (title || 'Deliverable').replace(/[^a-zA-Z0-9\u0E00-\u0E7F_-]/g, '_');
+  const blob = new Blob([_currentDeliverableMd], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${cleanTitle}.md`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  simToast('💾 ดาวน์โหลดไฟล์เอกสารเรียบร้อย', 'success');
+}
+
+function copyFileContentAtIndex(idx) {
+  const allTasks = [
+    ...(currentSimState.pending_confirmations || []),
+    ...(currentSimState.active_tasks || []),
+    ...(currentSimState.confirmed_tasks || []),
+    ...(currentSimState.tasks || [])
+  ];
+  const task = allTasks.find(t => t.id === activeDeliverableTaskId);
+  if (task && task.deliverable && task.deliverable.files_created && task.deliverable.files_created[idx]) {
+    const content = task.deliverable.files_created[idx].content || '';
+    navigator.clipboard.writeText(content).then(() => {
+      simToast('📋 คัดลอกเนื้อหาไฟล์เรียบร้อย', 'success');
+    }).catch(() => {
+      simToast('ไม่สามารถคัดลอกได้', 'error');
+    });
+  }
 }
 
 function switchDeliverableTab(tabName) {
@@ -1197,3 +1738,10 @@ window.selectDispatchTemplate = selectDispatchTemplate;
 window.submitDeptDispatch = submitDeptDispatch;
 window.quickDispatchDept = quickDispatchDept;
 window.renderDeptCommandHub = renderDeptCommandHub;
+window.navigateSlideDeck = navigateSlideDeck;
+window.jumpToSlideDeck = jumpToSlideDeck;
+window.copyCurrentPresentationText = copyCurrentPresentationText;
+window.downloadCurrentPresentationFile = downloadCurrentPresentationFile;
+window.copyCurrentDeliverableDoc = copyCurrentDeliverableDoc;
+window.downloadCurrentDeliverableDoc = downloadCurrentDeliverableDoc;
+window.copyFileContentAtIndex = copyFileContentAtIndex;

@@ -691,7 +691,7 @@ textarea, input, select { font-family: inherit; font-size: inherit; }
   position: fixed; inset: 0; z-index: 1000;
   display: none; align-items: center; justify-content: center;
 }
-.modal.open { display: flex; }
+.modal.open, .modal.active { display: flex; }
 .modal-backdrop {
   position: absolute; inset: 0;
   background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);

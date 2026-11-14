@@ -216,8 +216,8 @@ function toast(msg, type = 'info', duration = 3500) {
 }
 
 // ─── Modal ────────────────────────────────────────────────────
-function openModal(id) { document.getElementById(id)?.classList.add('open'); }
-function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+function openModal(id) { const el = document.getElementById(id); if (el) { el.classList.add('open'); el.classList.add('active'); } }
+function closeModal(id) { const el = document.getElementById(id); if (el) { el.classList.remove('open'); el.classList.remove('active'); } }
 
 // ─── WebSocket Log Stream ─────────────────────────────────────
 function connectLogWS() {

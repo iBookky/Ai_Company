@@ -1094,19 +1094,43 @@
     </div>
 
     <!-- Tabs Header -->
-    <div class="deliverable-tabs-bar">
-      <button class="del-tab-btn active" data-tab="summary" onclick="switchDeliverableTab('summary')">
+    <div class="deliverable-tabs-bar" id="deliverable-tabs-bar">
+      <button class="del-tab-btn" id="del-tab-btn-presentation" data-tab="presentation" onclick="switchDeliverableTab('presentation')">
+        📽️ สไลด์นำเสนอ PowerPoint
+      </button>
+      <button class="del-tab-btn" id="del-tab-btn-doc" data-tab="doc" onclick="switchDeliverableTab('doc')">
+        📑 เอกสารพิมพ์เขียวฉบับสมบูรณ์
+      </button>
+      <button class="del-tab-btn" id="del-tab-btn-swot" data-tab="swot" onclick="switchDeliverableTab('swot')">
+        🔬 วิเคราะห์ SWOT Matrix
+      </button>
+      <button class="del-tab-btn active" id="del-tab-btn-summary" data-tab="summary" onclick="switchDeliverableTab('summary')">
         📝 สรุปผลงาน & QA
       </button>
-      <button class="del-tab-btn" data-tab="code" onclick="switchDeliverableTab('code')">
-        💻 โค้ดที่พัฒนาเสร็จ
+      <button class="del-tab-btn" id="del-tab-btn-code" data-tab="code" onclick="switchDeliverableTab('code')">
+        💻 โค้ดและไฟล์ระบบ
       </button>
-      <button class="del-tab-btn" data-tab="social" onclick="switchDeliverableTab('social')">
+      <button class="del-tab-btn" id="del-tab-btn-social" data-tab="social" onclick="switchDeliverableTab('social')">
         📱 สคริปต์ Social Media
       </button>
-      <button class="del-tab-btn" data-tab="checklist" onclick="switchDeliverableTab('checklist')">
+      <button class="del-tab-btn" id="del-tab-btn-checklist" data-tab="checklist" onclick="switchDeliverableTab('checklist')">
         📋 รายการตรวจสอบ (Checklist)
       </button>
+    </div>
+
+    <!-- Tab 0: PowerPoint Pitch Deck Viewer -->
+    <div class="deliverable-tab-pane" id="del-pane-presentation">
+      <div id="modal-del-presentation-container"></div>
+    </div>
+
+    <!-- Tab 0.5: Rich Executive Document Viewer -->
+    <div class="deliverable-tab-pane" id="del-pane-doc">
+      <div id="modal-del-doc-container"></div>
+    </div>
+
+    <!-- Tab 0.8: Interactive SWOT Matrix Dashboard -->
+    <div class="deliverable-tab-pane" id="del-pane-swot">
+      <div id="modal-del-swot-container"></div>
     </div>
 
     <!-- Tab 1: Summary -->

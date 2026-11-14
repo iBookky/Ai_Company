@@ -592,6 +592,8 @@ function workstationReviseAction(taskId) {
 function openDeliverableForTask(taskId) {
   if (typeof openDeliverableModal === 'function') {
     openDeliverableModal(taskId);
+  } else if (typeof window.openDeliverableModal === 'function') {
+    window.openDeliverableModal(taskId);
   }
 }
 
