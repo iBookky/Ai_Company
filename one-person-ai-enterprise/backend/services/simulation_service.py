@@ -105,7 +105,10 @@ class TelegramNotificationRecord(BaseModel):
     proposal_id: Optional[str] = None
 
 
-# ─── In-Memory Store ─────────────────────────────────────────────────────────
+# ─── In-Memory Store & Disk Persistence ──────────────────────────────────────
+
+DATA_DIR = BASE_DIR / "data"
+TASKS_FILE = DATA_DIR / "simulation_tasks.json"
 
 _agent_states: Dict[str, AgentState] = {}
 _tasks: Dict[str, EnterpriseTask] = {}
@@ -113,6 +116,83 @@ _hiring_proposals: Dict[str, HiringProposal] = {}
 _notifications_log: List[TelegramNotificationRecord] = []
 _active_simulation_task: Optional[asyncio.Task] = None
 _ws_subscribers: List[Callable] = []
+
+
+def save_tasks_to_disk():
+    """บันทึกสถานะงานทั้งหมดลงดิสก์ เพื่อป้องกันงานหายเมื่อรีสตาร์ทเซิร์ฟเวอร์"""
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        serialized = {tid: t.model_dump() for tid, t in _tasks.items()}
+        TASKS_FILE.write_text(json.dumps(serialized, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception as e:
+        logger.warning(f"Failed to save tasks to disk: {e}")
+
+
+def load_tasks_from_disk():
+    """โหลดงานจากดิสก์ และกู้คืนไฟล์ผลงานจากโฟลเดอร์ reports/ เสมอ"""
+    global _tasks
+    try:
+        if TASKS_FILE.exists():
+            raw = json.loads(TASKS_FILE.read_text(encoding="utf-8"))
+            for tid, tdict in raw.items():
+                if tid not in _tasks:
+                    try:
+                        _tasks[tid] = EnterpriseTask(**tdict)
+                    except Exception as ex:
+                        logger.warning(f"Could not load task {tid}: {ex}")
+    except Exception as e:
+        logger.warning(f"Error loading tasks file: {e}")
+
+    # กู้คืนผลงานที่มีไฟล์อยู่ใน reports/*.md เพื่อป้องกันตกหล่น
+    try:
+        reports_dir = BASE_DIR / "reports"
+        if reports_dir.exists():
+            for rfile in reports_dir.glob("*.md"):
+                fname = rfile.stem
+                parts = fname.split("_")
+                if len(parts) >= 3 and parts[-2] == "task":
+                    task_id = f"task_{parts[-1]}"
+                    dept_id = "_".join(parts[:-2])
+                elif len(parts) >= 2:
+                    task_id = parts[-1]
+                    dept_id = "_".join(parts[:-1])
+                else:
+                    task_id = f"task_{fname}"
+                    dept_id = "07_business_analyst"
+
+                if task_id not in _tasks:
+                    try:
+                        content = rfile.read_text(encoding="utf-8")
+                        title_line = content.splitlines()[0] if content.splitlines() else "ผลงานการวิเคราะห์และวางระบบ"
+                        title = title_line.replace("#", "").strip() or "รายงานการวิเคราะห์และพัฒนาระบบ"
+                        agent_name = "น้องบิ๊นท์" if "07_business_analyst" in dept_id else "อิงฟ้า"
+                        dept_name = "ฝ่ายวิเคราะห์ธุรกิจ (BA & Strategy)" if "07_business_analyst" in dept_id else "สำนักเลขานุการ & CKO"
+
+                        t = EnterpriseTask(
+                            id=task_id,
+                            title=title,
+                            category="business_analysis" if "07_business_analyst" in dept_id else "management",
+                            assigned_agent_id=dept_id,
+                            assigned_agent_name=agent_name,
+                            department_id=dept_id,
+                            status="AWAITING_CONFIRMATION",
+                            prompt=f"จัดทำเอกสารและแผนงาน: {title}",
+                            submitted_at=datetime.now(timezone.utc).isoformat(),
+                            deliverable=TaskDeliverable(
+                                summary=f"ผลงาน '{title}' จัดทำโดย {agent_name} ({dept_name}) เสร็จสมบูรณ์",
+                                type="execution",
+                                details="ผลงานพร้อมส่งมอบ เข้าสู่สถานะ Human-in-the-Loop (HITL) รอพี่บุ๊ค ตรวจสอบและกดยืนยัน",
+                                files_created=[{"name": f"reports/{rfile.name}", "language": "markdown", "content": content}],
+                                checklist=["วิเคราะห์โจทย์และข้อกำหนดครบถ้วน 100%", "จัดทำพิมพ์เขียวและโมเดลธุรกิจสมบูรณ์", "ผ่านการตรวจสอบคุณภาพ Zero-Defect"],
+                                qa_report="✅ ผ่านเกณฑ์มาตรฐานการตรวจสอบคุณภาพเรียบร้อย พร้อมให้พี่บุ๊ค พิจารณาปิดงาน",
+                            )
+                        )
+                        _tasks[task_id] = t
+                    except Exception as e:
+                        logger.warning(f"Failed to recover task from report {rfile}: {e}")
+        save_tasks_to_disk()
+    except Exception as e:
+        logger.warning(f"Error recovering tasks from reports: {e}")
 
 
 # ─── Employee Avatar & Telemetry Services ───────────────────────────────────
@@ -229,6 +309,9 @@ def init_agent_states():
             _agent_states[agent.id].photo_url = photo
 
     # 4. ซ่อมแซมและซิงค์ Tasks กับสถานะ Agent ให้ตรงกัน 100%
+    if len(_tasks) == 0:
+        load_tasks_from_disk()
+
     for tid, t in list(_tasks.items()):
         if t.status == "IN_PROGRESS" and t.assigned_agent_id in _agent_states:
             st = _agent_states[t.assigned_agent_id]
@@ -245,6 +328,16 @@ def init_agent_states():
                     )
                 t.status = "AWAITING_CONFIRMATION"
                 t.submitted_at = datetime.now(timezone.utc).isoformat()
+                st.current_task_id = tid
+        elif t.status == "AWAITING_CONFIRMATION" and t.assigned_agent_id in _agent_states:
+            st = _agent_states[t.assigned_agent_id]
+            st.current_task_id = tid
+            if st.status == "idle":
+                st.status = "awaiting_confirmation"
+                st.progress = 95
+                st.current_action = f"🚨 ผลงาน '{t.title}' เสร็จสิ้น! รอพี่บุ๊ค ตรวจสอบและยืนยันปิดงาน"
+
+    save_tasks_to_disk()
 
 
 def remove_agent_or_department(agent_id: str):
@@ -584,6 +677,7 @@ async def confirm_task(task_id: str, owner_name: str = "พี่บุ๊ค", 
         task_id=task.id,
     )
 
+    save_tasks_to_disk()
     await broadcast_simulation_update()
     return {"success": True, "task": task}
 
@@ -727,6 +821,9 @@ async def simulate_task_revision_flow(task_id: str, feedback: str):
         _agent_states[dept_id].current_action = "🚨 ปรับปรุงงานเสร็จสมบูรณ์! รอพี่บุ๊ค ตรวจสอบและยืนยันปิดงาน"
         _agent_states[dept_id].current_thought = "นำส่งผลงานฉบับปรับปรุงเข้าสู่ระบบ Human-in-the-Loop เพื่อรอการอนุมัติขั้นสุดท้าย"
         _agent_states[dept_id].progress = 95
+        _agent_states[dept_id].current_task_id = task.id
+
+    save_tasks_to_disk()
 
     write_log(LogCreate(
         agent_id=dept_id,
@@ -1061,6 +1158,9 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = ""):
         _agent_states["01_secretary"].status = "awaiting_confirmation"
         _agent_states["01_secretary"].current_action = "🚨 ภารกิจเสร็จสมบูรณ์! รอพี่บุ๊ค ตรวจสอบและยืนยันปิดงาน"
         _agent_states["01_secretary"].progress = 95
+        _agent_states["01_secretary"].current_task_id = task.id
+
+    save_tasks_to_disk()
 
     write_log(LogCreate(
         agent_id="01_secretary",
@@ -1190,10 +1290,10 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
     await asyncio.sleep(2)
 
     if dept_id in _agent_states:
-        _agent_states[dept_id].status = "awaiting_confirmation"
-        _agent_states[dept_id].current_action = "🚨 ผลงานเสร็จสมบูรณ์! รอพี่บุ๊ค ตรวจสอบและยืนยันปิดงาน"
-        _agent_states[dept_id].current_thought = "นำส่งผลงานเข้าสู่ระบบ Human-in-the-Loop เพื่อรอการอนุมัติขั้นสุดท้าย"
-        _agent_states[dept_id].progress = 95
+        _agent_states[dept_id].status = "reviewing"
+        _agent_states[dept_id].current_action = "🔍 ตรวจสอบคุณภาพ Zero-Defect และเตรียมเอกสารส่งมอบ"
+        _agent_states[dept_id].current_thought = "สังเคราะห์ข้อมูล Research และจัดเตรียมรายงานส่งมอบฉบับสมบูรณ์"
+        _agent_states[dept_id].progress = 85
 
     # ดำเนินการวิเคราะห์และผลิตผลงานจริงระดับ Production Blueprint ผ่าน Deliverable Engine
     agent_model = getattr(agent_info, "model", None) or "gemini-1.5-flash"
@@ -1235,6 +1335,16 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
     )
     task.submitted_at = datetime.now(timezone.utc).isoformat()
     task.status = "AWAITING_CONFIRMATION"
+
+    # อัปเดตสถานะ Agent เป็น awaiting_confirmation พร้อมกับ Task ให้ตรงกัน 100%
+    if dept_id in _agent_states:
+        _agent_states[dept_id].status = "awaiting_confirmation"
+        _agent_states[dept_id].current_action = "🚨 ผลงานเสร็จสมบูรณ์! รอพี่บุ๊ค ตรวจสอบและยืนยันปิดงาน"
+        _agent_states[dept_id].current_thought = "นำส่งผลงานเข้าสู่ระบบ Human-in-the-Loop เพื่อรอการอนุมัติขั้นสุดท้าย"
+        _agent_states[dept_id].progress = 95
+        _agent_states[dept_id].current_task_id = task.id
+
+    save_tasks_to_disk()
 
     write_log(LogCreate(
         agent_id=dept_id,

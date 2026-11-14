@@ -104,6 +104,11 @@ function initSimulation() {
 document.addEventListener('DOMContentLoaded', () => {
   fetchSimulationState();
   connectSimulationWS();
+
+  // Polling fallback to guarantee 100% real-time UI synchronization
+  setInterval(() => {
+    fetchSimulationState();
+  }, 2500);
 });
 
 async function fetchSimulationState() {
@@ -190,25 +195,29 @@ function updateSimulationUI(state) {
   if (heroTgCount) heroTgCount.textContent = notifCount;
 
   // 3. Render AI Workforce Presence Strip
-  renderWorkforceStrip(state.agents || []);
+  try { renderWorkforceStrip(state.agents || []); } catch (e) { console.error('[UI] renderWorkforceStrip error:', e); }
 
   // 3.1 Render Department Command Hub (1-Click Dispatch)
-  renderDeptCommandHub(state.agents || []);
+  try { renderDeptCommandHub(state.agents || []); } catch (e) { console.error('[UI] renderDeptCommandHub error:', e); }
 
   // 3.2 Render Dynamic Top 1-Click Presets
-  renderDynamicPresetChips(state.agents || []);
+  try { renderDynamicPresetChips(state.agents || []); } catch (e) { console.error('[UI] renderDynamicPresetChips error:', e); }
 
   // 4. Render 4 Kanban Columns
-  renderKanbanColumns(state);
+  try { renderKanbanColumns(state); } catch (e) { console.error('[UI] renderKanbanColumns error:', e); }
 
   // 5. Render Telegram Live Drawer
-  renderTelegramDrawer(state.notifications || []);
+  try { renderTelegramDrawer(state.notifications || []); } catch (e) { console.error('[UI] renderTelegramDrawer error:', e); }
 
   // 6. Real-time sync for active employee workstation if open
-  if (document.getElementById('page-workstations')?.classList.contains('active')) {
-    if (typeof loadActiveEmployeeDetails === 'function' && typeof _activeEmpId !== 'undefined') {
-      loadActiveEmployeeDetails(_activeEmpId);
+  try {
+    if (document.getElementById('page-workstations')?.classList.contains('active')) {
+      if (typeof loadActiveEmployeeDetails === 'function' && typeof _activeEmpId !== 'undefined') {
+        loadActiveEmployeeDetails(_activeEmpId);
+      }
     }
+  } catch (e) {
+    console.error('[UI] sync active employee workstation error:', e);
   }
 }
 
@@ -266,7 +275,6 @@ function renderKanbanColumns(state) {
   const pendingHireCount = state.pending_hires ? state.pending_hires.length : 0;
   const totalPending = pendingConfirmCount + pendingHireCount;
 
-  if (colCountTodo) colCountTodo.textContent = '5';
   if (colCountActive) colCountActive.textContent = state.active_tasks ? state.active_tasks.length : 0;
   if (colCountPending) colCountPending.textContent = totalPending;
   if (colCountDone) colCountDone.textContent = state.confirmed_tasks ? state.confirmed_tasks.length : 0;
@@ -394,6 +402,7 @@ function renderDeptCommandHub(agents = []) {
     activeAgentMap[a.department_id || a.id] = a;
     activeAgentMap[a.id] = a;
   });
+  const agentStatusMap = activeAgentMap;
 
   // Dynamic palette for any dynamically registered departments
   const extraPalettes = [
