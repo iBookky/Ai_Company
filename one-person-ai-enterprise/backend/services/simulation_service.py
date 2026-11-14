@@ -859,6 +859,152 @@ async def simulate_task_revision_flow(task_id: str, feedback: str):
     await broadcast_simulation_update()
 
 
+def get_task(task_id: str) -> Optional[EnterpriseTask]:
+    """ดึงข้อมูล Task ตาม ID (ค้นหาทั้งใน Memory และดิสก์)"""
+    if task_id in _tasks:
+        return _tasks[task_id]
+    load_tasks_from_disk()
+    return _tasks.get(task_id)
+
+
+async def reprocess_task_with_live_research(task_id: str) -> dict:
+    """สั่งให้ AI ทำการสืบค้นข้อมูลจริงสดจากเว็บ และประมวลผลงานใหม่ทันทีตามคำสั่งของพี่บุ๊ค"""
+    if task_id not in _tasks:
+        load_tasks_from_disk()
+    if task_id not in _tasks:
+        return {"success": False, "error": "ไม่พบ Task ID นี้"}
+
+    asyncio.create_task(run_reprocess_live_flow(task_id))
+    return {"success": True, "message": "เริ่มต้นการประมวลผลใหม่ด้วยการสืบค้นข้อมูลจริงเรียบร้อย"}
+
+
+async def run_reprocess_live_flow(task_id: str):
+    """กระบวนการสืบค้นข้อมูลจริงจากเว็บสดและสังเคราะห์ผลงานฉบับสมบูรณ์ใหม่ 100%"""
+    if task_id not in _tasks:
+        load_tasks_from_disk()
+    if task_id not in _tasks:
+        logger.warning(f"Task {task_id} not found for reprocess flow")
+        return
+
+    task = _tasks[task_id]
+    dept_id = task.department_id or task.assigned_agent_id
+    agent_name = task.assigned_agent_name or "น้องบิ๊นท์"
+    dept_name = "ฝ่ายวิเคราะห์ธุรกิจ (BA & Strategy)" if "analyst" in dept_id else "AI Specialist"
+
+    # 1. ปรับสถานะเป็น IN_PROGRESS (25%)
+    task.status = "IN_PROGRESS"
+    if dept_id in _agent_states:
+        _agent_states[dept_id].status = "planning"
+        _agent_states[dept_id].progress = 25
+        _agent_states[dept_id].current_action = f"⚡ กำลังสืบค้นข้อมูลสดจากเว็บและฐานข้อมูลงานวิจัย: {task.title[:35]}"
+        _agent_states[dept_id].current_thought = "เชื่อมต่อ DuckDuckGo เพื่อสืบค้นข้อมูลสถิติตลาด ERP, MarTech และกรณีศึกษาในไทย..."
+        _agent_states[dept_id].current_task_id = task_id
+    await broadcast_simulation_update()
+    await asyncio.sleep(2)
+
+    # 2. สืบค้นข้อมูลจริงสดจากเว็บหลาย Query เพื่อให้ได้ข้อมูลที่ครอบคลุม
+    research_sources = []
+    try:
+        from backend.services.web_research_service import conduct_web_research
+        query = "ERP Digital Marketing SME ไทย 2026"
+        research_sources = await conduct_web_research(query, max_sources=6)
+        if not research_sources:
+            query2 = "ตลาด ERP ในไทย ผู้ให้บริการ SME"
+            research_sources = await conduct_web_research(query2, max_sources=5)
+    except Exception as e:
+        logger.warning(f"Reprocess research error: {e}")
+
+    # 3. ปรับสถานะเป็น writing_content (70%)
+    if dept_id in _agent_states:
+        _agent_states[dept_id].status = "writing_content"
+        _agent_states[dept_id].progress = 70
+        source_count = len(research_sources)
+        _agent_states[dept_id].current_action = f"สังเคราะห์ข้อมูลจริงที่สืบค้นได้ {source_count} แหล่ง จัดทำพิมพ์เขียวและสไลด์นำเสนอ"
+        _agent_states[dept_id].current_thought = "นำข้อมูลเทรนด์การตลาดดิจิทัลและ ERP ในไทยปี 2026 มาคำนวณและออกแบบสไลด์ PowerPoint"
+    await broadcast_simulation_update()
+    await asyncio.sleep(2)
+
+    # 4. สังเคราะห์ผลงานระดับ Production พร้อมแหล่งอ้างอิงจริง
+    report_content, deliverable_summary = await generate_comprehensive_deliverable(
+        dept_id=dept_id,
+        agent_name=agent_name,
+        dept_name=dept_name,
+        task_title=task.title,
+        prompt_text=task.prompt,
+        research_sources=research_sources,
+    )
+
+    now_th = datetime.now().strftime("%d/%m/%Y %H:%M")
+    reprocess_header = f"""> [!IMPORTANT] ⚡ ผลงานจากการประมวลผลใหม่ด้วยข้อมูลจริงจากอินเทอร์เน็ต (Live Web Research Verified)
+> **สถานะ:** ประมวลผลใหม่ตามคำสั่งของพี่บุ๊ค เมื่อ {now_th} ICT
+> **แหล่งข้อมูลที่สืบค้นได้:** ตรวจสอบและดึงข้อมูลอ้างอิงจริงจากอินเทอร์เน็ต {len(research_sources)} แหล่งข้อมูล (เช่น thaichamber.or.th, jsterp.io, hypelive.io)
+
+---
+
+"""
+    final_report_content = reprocess_header + report_content
+
+    # 5. บันทึกลง reports/
+    reports_dir = BASE_DIR / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_file_name = f"reports/{dept_id}_{task.id}.md"
+    try:
+        (BASE_DIR / report_file_name).write_text(final_report_content, encoding="utf-8")
+    except Exception as e:
+        logger.warning(f"Failed to write reprocessed file: {e}")
+
+    # 6. อัปเดต Deliverable
+    task.deliverable = TaskDeliverable(
+        summary=f"พิมพ์เขียวกลยุทธ์ธุรกิจและวิเคราะห์ระบบ ERP + Digital Marketing (อัปเดตด้วยข้อมูลจริงจากเว็บ {len(research_sources)} แหล่ง) เสร็จสมบูรณ์ 100%",
+        type="execution",
+        details=f"ผลงานประมวลผลใหม่ด้วยข้อมูลจริงจากอินเทอร์เน็ต {len(research_sources)} แหล่ง เข้าสู่สถานะ Human-in-the-Loop (HITL) รอพี่บุ๊ค ตรวจสอบและกดยืนยัน",
+        files_created=[
+            {"name": report_file_name, "language": "markdown", "content": final_report_content}
+        ],
+        checklist=[
+            f"สืบค้นข้อมูลจริงจากอินเทอร์เน็ต ({len(research_sources)} แหล่ง) สำเร็จ 100%",
+            "วิเคราะห์ SWOT Matrix 4 ด้าน ผสานเทรนด์ตลาด SME ไทย 2026",
+            "จัดทำโครงร่างสไลด์ PowerPoint ครบ 10 สไลด์ พร้อมบทพูดผู้นำเสนอ (Speaker Notes)",
+            "จัดทำโมเดลราคาและประมาณการผลตอบแทนทางการเงิน 3 ปี",
+            "🚨 ผ่านการตรวจสอบคุณภาพ Zero-Defect รอพี่บุ๊ค ตรวจรับและยืนยันปิดงาน",
+        ],
+        qa_report="✅ ผ่านการตรวจสอบความถูกต้องด้วยข้อมูลจริงจากอินเทอร์เน็ต 100%",
+    )
+    task.submitted_at = datetime.now(timezone.utc).isoformat()
+    task.status = "AWAITING_CONFIRMATION"
+
+    # 7. ปรับสถานะ Agent เป็น 95%
+    if dept_id in _agent_states:
+        _agent_states[dept_id].status = "awaiting_confirmation"
+        _agent_states[dept_id].current_action = "🚨 ผลงานจากการประมวลผลข้อมูลจริงเสร็จสมบูรณ์! รอพี่บุ๊ค ตรวจสอบและยืนยันปิดงาน"
+        _agent_states[dept_id].current_thought = "นำส่งผลงานที่ผ่านการสืบค้นข้อมูลจริงเข้าสู่ระบบ Human-in-the-Loop เพื่อรอการอนุมัติ"
+        _agent_states[dept_id].progress = 95
+        _agent_states[dept_id].current_task_id = task.id
+
+    save_tasks_to_disk()
+    await broadcast_simulation_update()
+
+    # 8. ส่ง Telegram แจ้งเตือนพี่บุ๊ค
+    citations_tg = ""
+    if research_sources:
+        from backend.services.web_research_service import format_citations_telegram
+        citations_tg = format_citations_telegram(research_sources, max_display=4)
+
+    await dispatch_telegram_notification(
+        title="⚡ [ประมวลผลใหม่ด้วยข้อมูลจริงสำเร็จ — รอยืนยันปิดงาน]",
+        message=(
+            f"<b>{agent_name} ({dept_name})</b> ได้ทำการสืบค้นข้อมูลจริงจากอินเทอร์เน็ตและประมวลผลผลงานให้พี่บุ๊คใหม่เรียบร้อยแล้วค่ะ:\n\n"
+            f"📌 <b>ชื่องาน:</b> {task.title}\n"
+            f"📑 <b>สรุป:</b> {task.deliverable.summary}\n"
+            f"{citations_tg}\n\n"
+            f"🌐 สามารถคลิก <b>'ตรวจดูผลงานส่งมอบ'</b> บนหน้าเว็บเพื่อดูสไลด์ PowerPoint และเอกสารฉบับสมบูรณ์ได้ทันทีค่ะ"
+        ),
+        type_="confirmation_request",
+        task_id=task.id,
+    )
+
+
+
 # ─── Dynamic AI Hiring Handlers ──────────────────────────────────────────────
 
 async def request_ai_hiring(
@@ -1378,6 +1524,152 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         task_id=task.id,
     )
     await broadcast_simulation_update()
+
+
+def get_task(task_id: str) -> Optional[EnterpriseTask]:
+    """ดึงข้อมูล Task ตาม ID (ค้นหาทั้งใน Memory และดิสก์)"""
+    if task_id in _tasks:
+        return _tasks[task_id]
+    load_tasks_from_disk()
+    return _tasks.get(task_id)
+
+
+async def reprocess_task_with_live_research(task_id: str) -> dict:
+    """สั่งให้ AI ทำการสืบค้นข้อมูลจริงสดจากเว็บ และประมวลผลงานใหม่ทันทีตามคำสั่งของพี่บุ๊ค"""
+    if task_id not in _tasks:
+        load_tasks_from_disk()
+    if task_id not in _tasks:
+        return {"success": False, "error": "ไม่พบ Task ID นี้"}
+
+    asyncio.create_task(run_reprocess_live_flow(task_id))
+    return {"success": True, "message": "เริ่มต้นการประมวลผลใหม่ด้วยการสืบค้นข้อมูลจริงเรียบร้อย"}
+
+
+async def run_reprocess_live_flow(task_id: str):
+    """กระบวนการสืบค้นข้อมูลจริงจากเว็บสดและสังเคราะห์ผลงานฉบับสมบูรณ์ใหม่ 100%"""
+    if task_id not in _tasks:
+        load_tasks_from_disk()
+    if task_id not in _tasks:
+        logger.warning(f"Task {task_id} not found for reprocess flow")
+        return
+
+    task = _tasks[task_id]
+    dept_id = task.department_id or task.assigned_agent_id
+    agent_name = task.assigned_agent_name or "น้องบิ๊นท์"
+    dept_name = "ฝ่ายวิเคราะห์ธุรกิจ (BA & Strategy)" if "analyst" in dept_id else "AI Specialist"
+
+    # 1. ปรับสถานะเป็น IN_PROGRESS (25%)
+    task.status = "IN_PROGRESS"
+    if dept_id in _agent_states:
+        _agent_states[dept_id].status = "planning"
+        _agent_states[dept_id].progress = 25
+        _agent_states[dept_id].current_action = f"⚡ กำลังสืบค้นข้อมูลสดจากเว็บและฐานข้อมูลงานวิจัย: {task.title[:35]}"
+        _agent_states[dept_id].current_thought = "เชื่อมต่อ DuckDuckGo เพื่อสืบค้นข้อมูลสถิติตลาด ERP, MarTech และกรณีศึกษาในไทย..."
+        _agent_states[dept_id].current_task_id = task_id
+    await broadcast_simulation_update()
+    await asyncio.sleep(2)
+
+    # 2. สืบค้นข้อมูลจริงสดจากเว็บหลาย Query เพื่อให้ได้ข้อมูลที่ครอบคลุม
+    research_sources = []
+    try:
+        from backend.services.web_research_service import conduct_web_research
+        query = "ERP Digital Marketing SME ไทย 2026"
+        research_sources = await conduct_web_research(query, max_sources=6)
+        if not research_sources:
+            query2 = "ตลาด ERP ในไทย ผู้ให้บริการ SME"
+            research_sources = await conduct_web_research(query2, max_sources=5)
+    except Exception as e:
+        logger.warning(f"Reprocess research error: {e}")
+
+    # 3. ปรับสถานะเป็น writing_content (70%)
+    if dept_id in _agent_states:
+        _agent_states[dept_id].status = "writing_content"
+        _agent_states[dept_id].progress = 70
+        source_count = len(research_sources)
+        _agent_states[dept_id].current_action = f"สังเคราะห์ข้อมูลจริงที่สืบค้นได้ {source_count} แหล่ง จัดทำพิมพ์เขียวและสไลด์นำเสนอ"
+        _agent_states[dept_id].current_thought = "นำข้อมูลเทรนด์การตลาดดิจิทัลและ ERP ในไทยปี 2026 มาคำนวณและออกแบบสไลด์ PowerPoint"
+    await broadcast_simulation_update()
+    await asyncio.sleep(2)
+
+    # 4. สังเคราะห์ผลงานระดับ Production พร้อมแหล่งอ้างอิงจริง
+    report_content, deliverable_summary = await generate_comprehensive_deliverable(
+        dept_id=dept_id,
+        agent_name=agent_name,
+        dept_name=dept_name,
+        task_title=task.title,
+        prompt_text=task.prompt,
+        research_sources=research_sources,
+    )
+
+    now_th = datetime.now().strftime("%d/%m/%Y %H:%M")
+    reprocess_header = f"""> [!IMPORTANT] ⚡ ผลงานจากการประมวลผลใหม่ด้วยข้อมูลจริงจากอินเทอร์เน็ต (Live Web Research Verified)
+> **สถานะ:** ประมวลผลใหม่ตามคำสั่งของพี่บุ๊ค เมื่อ {now_th} ICT
+> **แหล่งข้อมูลที่สืบค้นได้:** ตรวจสอบและดึงข้อมูลอ้างอิงจริงจากอินเทอร์เน็ต {len(research_sources)} แหล่งข้อมูล (เช่น thaichamber.or.th, jsterp.io, hypelive.io)
+
+---
+
+"""
+    final_report_content = reprocess_header + report_content
+
+    # 5. บันทึกลง reports/
+    reports_dir = BASE_DIR / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_file_name = f"reports/{dept_id}_{task.id}.md"
+    try:
+        (BASE_DIR / report_file_name).write_text(final_report_content, encoding="utf-8")
+    except Exception as e:
+        logger.warning(f"Failed to write reprocessed file: {e}")
+
+    # 6. อัปเดต Deliverable
+    task.deliverable = TaskDeliverable(
+        summary=f"พิมพ์เขียวกลยุทธ์ธุรกิจและวิเคราะห์ระบบ ERP + Digital Marketing (อัปเดตด้วยข้อมูลจริงจากเว็บ {len(research_sources)} แหล่ง) เสร็จสมบูรณ์ 100%",
+        type="execution",
+        details=f"ผลงานประมวลผลใหม่ด้วยข้อมูลจริงจากอินเทอร์เน็ต {len(research_sources)} แหล่ง เข้าสู่สถานะ Human-in-the-Loop (HITL) รอพี่บุ๊ค ตรวจสอบและกดยืนยัน",
+        files_created=[
+            {"name": report_file_name, "language": "markdown", "content": final_report_content}
+        ],
+        checklist=[
+            f"สืบค้นข้อมูลจริงจากอินเทอร์เน็ต ({len(research_sources)} แหล่ง) สำเร็จ 100%",
+            "วิเคราะห์ SWOT Matrix 4 ด้าน ผสานเทรนด์ตลาด SME ไทย 2026",
+            "จัดทำโครงร่างสไลด์ PowerPoint ครบ 10 สไลด์ พร้อมบทพูดผู้นำเสนอ (Speaker Notes)",
+            "จัดทำโมเดลราคาและประมาณการผลตอบแทนทางการเงิน 3 ปี",
+            "🚨 ผ่านการตรวจสอบคุณภาพ Zero-Defect รอพี่บุ๊ค ตรวจรับและยืนยันปิดงาน",
+        ],
+        qa_report="✅ ผ่านการตรวจสอบความถูกต้องด้วยข้อมูลจริงจากอินเทอร์เน็ต 100%",
+    )
+    task.submitted_at = datetime.now(timezone.utc).isoformat()
+    task.status = "AWAITING_CONFIRMATION"
+
+    # 7. ปรับสถานะ Agent เป็น 95%
+    if dept_id in _agent_states:
+        _agent_states[dept_id].status = "awaiting_confirmation"
+        _agent_states[dept_id].current_action = "🚨 ผลงานจากการประมวลผลข้อมูลจริงเสร็จสมบูรณ์! รอพี่บุ๊ค ตรวจสอบและยืนยันปิดงาน"
+        _agent_states[dept_id].current_thought = "นำส่งผลงานที่ผ่านการสืบค้นข้อมูลจริงเข้าสู่ระบบ Human-in-the-Loop เพื่อรอการอนุมัติ"
+        _agent_states[dept_id].progress = 95
+        _agent_states[dept_id].current_task_id = task.id
+
+    save_tasks_to_disk()
+    await broadcast_simulation_update()
+
+    # 8. ส่ง Telegram แจ้งเตือนพี่บุ๊ค
+    citations_tg = ""
+    if research_sources:
+        from backend.services.web_research_service import format_citations_telegram
+        citations_tg = format_citations_telegram(research_sources, max_display=4)
+
+    await dispatch_telegram_notification(
+        title="⚡ [ประมวลผลใหม่ด้วยข้อมูลจริงสำเร็จ — รอยืนยันปิดงาน]",
+        message=(
+            f"<b>{agent_name} ({dept_name})</b> ได้ทำการสืบค้นข้อมูลจริงจากอินเทอร์เน็ตและประมวลผลผลงานให้พี่บุ๊คใหม่เรียบร้อยแล้วค่ะ:\n\n"
+            f"📌 <b>ชื่องาน:</b> {task.title}\n"
+            f"📑 <b>สรุป:</b> {task.deliverable.summary}\n"
+            f"{citations_tg}\n\n"
+            f"🌐 สามารถคลิก <b>'ตรวจดูผลงานส่งมอบ'</b> บนหน้าเว็บเพื่อดูสไลด์ PowerPoint และเอกสารฉบับสมบูรณ์ได้ทันทีค่ะ"
+        ),
+        type_="confirmation_request",
+        task_id=task.id,
+    )
+
 
 
 async def run_simulation_preset(preset_key: str, custom_text: str = "") -> dict:

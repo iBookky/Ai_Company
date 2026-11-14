@@ -446,10 +446,17 @@ function renderCockpitTaskCard(task, emp) {
           <button class="btn btn-sm btn-primary" style="background:#10b981; border-color:#059669; font-weight:700;" onclick="workstationConfirmAction('${escapeHtml(task.id)}')">
             ✅ อนุมัติปิดงานทันที (Confirm)
           </button>
+          <button class="btn btn-sm" style="background:linear-gradient(135deg, #0284c7, #0369a1); border-color:#0284c7; color:#fff; font-weight:700;" onclick="workstationReprocessAction('${escapeHtml(task.id)}')">
+            ⚡ ประมวลผลใหม่ด้วยข้อมูลจริง
+          </button>
           <button class="btn btn-sm btn-danger" onclick="workstationReviseAction('${escapeHtml(task.id)}')">
             🔄 สั่งแก้ไข
           </button>
-        ` : ''}
+        ` : `
+          <button class="btn btn-sm" style="background:linear-gradient(135deg, #0284c7, #0369a1); border-color:#0284c7; color:#fff; font-weight:700;" onclick="workstationReprocessAction('${escapeHtml(task.id)}')">
+            ⚡ ประมวลผลใหม่ด้วยข้อมูลจริง
+          </button>
+        `}
         <button class="btn btn-sm" onclick="openDeliverableForTask('${escapeHtml(task.id)}')">
           📦 ตรวจดูผลงานส่งมอบ (Deliverable)
         </button>
@@ -512,9 +519,14 @@ function renderHistoryTaskList(tasks, filter) {
             <span>🧪</span>
             <span>${escapeHtml(qaReport)}</span>
           </span>
-          <button class="btn btn-sm" onclick="openDeliverableForTask('${escapeHtml(t.id)}')">
-            📦 ตรวจสอบผลงานส่งมอบ →
-          </button>
+          <div style="display:inline-flex; gap:6px;">
+            <button class="btn btn-sm" style="background:rgba(2,132,199,0.18); border-color:rgba(2,132,199,0.4); color:#38bdf8; font-size:0.75rem;" onclick="workstationReprocessAction('${escapeHtml(t.id)}')">
+              ⚡ ประมวลผลใหม่
+            </button>
+            <button class="btn btn-sm" onclick="openDeliverableForTask('${escapeHtml(t.id)}')">
+              📦 ตรวจสอบผลงานส่งมอบ →
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -586,6 +598,35 @@ async function workstationConfirmAction(taskId) {
 function workstationReviseAction(taskId) {
   if (typeof openRevisionDialog === 'function') {
     openRevisionDialog(taskId);
+  }
+}
+
+async function workstationReprocessAction(taskId) {
+  if (!confirm('ต้องการสั่งให้ AI ทำการสืบค้นข้อมูลจริงจากอินเทอร์เน็ต และประมวลผลงานชิ้นนี้ใหม่ทันทีหรือไม่?')) {
+    return;
+  }
+  try {
+    if (typeof showToast === 'function') {
+      showToast('⚡ กำลังเริ่มสืบค้นข้อมูลจริงจากอินเทอร์เน็ตและประมวลผลใหม่...', 'info');
+    }
+    const res = await apiPost('/api/simulation/tasks/' + taskId + '/reprocess', {});
+    if (res && (res.status === 'reprocessing_started' || res.detail?.success)) {
+      if (typeof showToast === 'function') {
+        showToast('🚀 เริ่มค้นคว้าข้อมูลจริงและประมวลผลใหม่เรียบร้อยแล้ว!', 'success');
+      }
+      if (_activeEmpId) {
+        await loadActiveEmployeeDetails(_activeEmpId);
+      }
+    } else {
+      if (typeof showToast === 'function') {
+        showToast('เกิดข้อผิดพลาด: ' + (res.detail || 'ไม่สามารถเริ่มได้'), 'error');
+      }
+    }
+  } catch (err) {
+    console.error('Reprocess task error:', err);
+    if (typeof showToast === 'function') {
+      showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+    }
   }
 }
 
@@ -831,6 +872,7 @@ if (typeof window !== 'undefined') {
   window.workstationViewLogs = workstationViewLogs;
   window.workstationConfirmAction = workstationConfirmAction;
   window.workstationReviseAction = workstationReviseAction;
+  window.workstationReprocessAction = workstationReprocessAction;
   window.openDeliverableForTask = openDeliverableForTask;
   window.openAvatarModal = openAvatarModal;
   window.switchAvatarTab = switchAvatarTab;

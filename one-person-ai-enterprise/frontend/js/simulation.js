@@ -857,11 +857,32 @@ async function openDeliverableModal(taskId) {
   let task = allTasks.find(t => t.id === taskId);
 
   // If not found in currentSimState, fallback to active employee workstation context
+  if (!task && typeof _currentWorkspaceData !== 'undefined' && _currentWorkspaceData) {
+    if (_currentWorkspaceData.current_task && _currentWorkspaceData.current_task.id === taskId) {
+      task = _currentWorkspaceData.current_task;
+    } else if (Array.isArray(_currentWorkspaceData.tasks_history)) {
+      task = _currentWorkspaceData.tasks_history.find(t => t.id === taskId);
+    }
+  }
+
+  // Also check _activeEmpWorkspace if defined
   if (!task && typeof _activeEmpWorkspace !== 'undefined' && _activeEmpWorkspace) {
     if (_activeEmpWorkspace.current_task && _activeEmpWorkspace.current_task.id === taskId) {
       task = _activeEmpWorkspace.current_task;
     } else if (Array.isArray(_activeEmpWorkspace.tasks_history)) {
       task = _activeEmpWorkspace.tasks_history.find(t => t.id === taskId);
+    }
+  }
+
+  // If still not found, fetch directly from /api/simulation/tasks/{task_id}
+  if (!task) {
+    try {
+      const directRes = await simGet('/api/simulation/tasks/' + taskId);
+      if (directRes && directRes.task) {
+        task = directRes.task;
+      }
+    } catch (e) {
+      console.warn('Direct fetch /api/simulation/tasks/' + taskId + ' failed:', e);
     }
   }
 

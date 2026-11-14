@@ -208,6 +208,24 @@ async def revise_task(task_id: str, req: RequestRevisionRequest):
     return {"status": "revision_requested", "task": result["task"]}
 
 
+@router.get("/tasks/{task_id}")
+async def get_task_by_id(task_id: str):
+    """ดึงรายละเอียด Task และ Deliverable ฉบับสมบูรณ์"""
+    task = simulation_service.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="ไม่พบ Task ID นี้")
+    return {"status": "success", "task": task}
+
+
+@router.post("/tasks/{task_id}/reprocess")
+async def reprocess_task_live(task_id: str):
+    """สั่งให้ AI ทำการค้นคว้าวิจัยสดจากอินเทอร์เน็ต และประมวลผลงานใหม่ทันที"""
+    result = await simulation_service.reprocess_task_with_live_research(task_id)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed to reprocess task"))
+    return {"status": "reprocessing_started", "detail": result}
+
+
 @router.post("/hire/{proposal_id}/approve")
 async def approve_hiring(proposal_id: str, req: HiringDecisionRequest):
     """Owner อนุมัติการสร้าง AI พนักงานใหม่เข้าสู่บริษัท"""
