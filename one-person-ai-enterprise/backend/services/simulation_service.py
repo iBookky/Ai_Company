@@ -575,6 +575,7 @@ async def dispatch_telegram_notification(
 def get_simulation_state() -> dict:
     """ดึงภาพรวมสถานะทั้งหมดของบริษัท AI แบบ Real-Time (ซิงค์กับ departments บนดิสก์เสมอ)"""
     init_agent_states()
+    load_tasks_from_disk()
     active_agent_ids = set(_agent_states.keys())
 
     all_tasks = [
@@ -1772,6 +1773,7 @@ def list_employee_workspaces() -> List[Dict[str, Any]]:
 def get_employee_workspace(employee_id: str) -> Optional[Dict[str, Any]]:
     """ดึงข้อมูลโต๊ะทำงาน (Workspace), สถานะสด, สถิติ และประวัติงานย้อนหลังของพนักงานรายคน"""
     init_agent_states()
+    load_tasks_from_disk()
     if employee_id not in _agent_states:
         # พยายามค้นหาแบบ fuzzy
         matched_id = None

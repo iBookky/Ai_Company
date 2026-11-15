@@ -17,31 +17,40 @@ import httpx
 logger = logging.getLogger("WebResearchService")
 
 
+def _clean_and_extract_topic(prompt: str) -> str:
+    """ทำความสะอาดข้อความ ตัดคำขึ้นต้น สั่งงาน ทักทาย ชื่อ Agent เพื่อให้ได้หัวข้อธุรกิจแท้จริง"""
+    text = prompt.strip()
+    # ตัด regex สำหรับคำขึ้นต้น
+    pattern = r"^(คุยกับ|สั่งงาน|แจ้ง|บอก|ถาม|สวัสดี|รบกวน|ช่วย|ให้)\s*(น้องบิ๊นท์|น้องฟ้า|อิงฟ้า|เลขา|ba|business analyst|ทีมงาน)?\s*[:\s\-]*"
+    text = re.sub(pattern, "", text, flags=re.IGNORECASE).strip()
+    # ตัดคำขึ้นต้น เช่น "พี่มี...", "ผมมี...", "เรามี...", "อยากให้...", "ช่วย..."
+    text = re.sub(r"^(พี่มี|ผมมี|เรามี|มี|อยาก|ต้องการให้|ช่วย)\s*", "", text).strip()
+    # ตัดคำลงท้าย เช่น "วิเคราะห์และวางแผนการทำงานให้ที", "ช่วยที", "หน่อยครับ", "หน่อยค่ะ"
+    text = re.sub(r"\s*(วิเคราะห์และวางแผนการทำงานให้ที|วิเคราะห์ให้ที|วางแผนให้ที|ช่วยที|หน่อยครับ|หน่อยค่ะ|หน่อย|ด้วยครับ|ด้วยค่ะ)$", "", text).strip()
+    return text or prompt.strip()
+
+
 def _extract_search_queries(prompt: str) -> List[str]:
     """สกัดและสร้างคำค้นหา (Search Queries) ที่มีประสิทธิภาพจากโจทย์ของพี่บุ๊ค"""
-    clean = prompt.strip()
-    # ตัดคำทักทายหรือคำนำหน้าออก
-    prefixes_to_strip = [
-        "น้องบิ๊นท์", "บิ๊นท์", "อิงฟ้า", "เลขา", "ช่วย", "ทำการ", "ทำ", "วิเคราะห์",
-        "research", "สืบค้น", "ค้นคว้า", "หาข้อมูล", "เกี่ยวกับ", "เรื่อง", "หน่อยค่ะ", "หน่อยครับ", "หน่อย"
-    ]
-    topic = clean
-    for p in prefixes_to_strip:
-        # ลบคำนำหน้า/ลงท้ายแบบยืดหยุ่น
-        topic = re.sub(rf"(?i)^\s*{p}\s*", "", topic)
-        topic = re.sub(rf"(?i)\s*{p}\s*$", "", topic)
+    clean_topic = _clean_and_extract_topic(prompt)
+    queries = []
+    topic_lower = clean_topic.lower()
 
-    topic = topic.strip()
-    if not topic:
-        topic = clean
-
-    queries = [topic]
-
-    # สร้าง Query เสริมตามประเภทงาน
-    if "crm" in topic.lower() or "erp" in topic.lower() or "ระบบ" in topic:
-        queries.append(f"{topic} best practices กรณีศึกษา")
+    if any(k in topic_lower for k in ["อะไหล่", "รถยนต์", "ยานยนต์", "ประดับยนต์", "อู่ซ่อม", "ซ่อมรถ"]):
+        queries.append("ร้านอะไหล่รถยนต์ ขายออนไลน์ Shopee Lazada TikTok")
+        queries.append("ตลาดอะไหล่รถยนต์ e-commerce เพิ่มยอดขาย 2026")
+        queries.append("กลยุทธ์การขายอะไหล่ยานยนต์ marketplace ไทย")
+    elif any(k in topic_lower for k in ["crm", "erp", "ระบบบัญชี", "ระบบคลัง"]):
+        queries.append(f"{clean_topic[:45]} best practices กรณีศึกษา")
+        queries.append("Cloud ERP และ Digital Marketing สำหรับ SME ไทย")
+    elif any(k in topic_lower for k in ["ร้านอาหาร", "คาเฟ่", "กาแฟ", "เบเกอรี่"]):
+        queries.append("ธุรกิจร้านอาหาร คาเฟ่ กลยุทธ์การตลาด เพิ่มยอดขาย 2026")
+    elif any(k in topic_lower for k in ["คลินิก", "ความงาม", "ผิวพรรณ", "ศัลยกรรม"]):
+        queries.append("ธุรกิจคลินิกความงาม กลยุทธ์การตลาด เพิ่มยอดขาย")
     else:
-        queries.append(f"{topic} แนวโน้มและข้อกำหนด")
+        concise = re.sub(r"\s+", " ", clean_topic)[:60]
+        queries.append(concise)
+        queries.append(f"{concise} กลยุทธ์และแนวโน้มตลาด")
 
     return queries
 
@@ -89,8 +98,14 @@ async def _search_duckduckgo(query: str, max_results: int = 5) -> List[Dict[str,
 
                 domain = urlparse(actual_url).netloc.replace("www.", "")
 
-                # กรองเว็บแสปม หรือผลลัพธ์ซ้ำ
+                # กรองเว็บแสปม ผลลัพธ์ซ้ำ หรือโปรไฟล์ส่วนตัวที่ไม่เกี่ยวกับธุรกิจ
                 if any(r["url"] == actual_url for r in results):
+                    continue
+
+                # กรองกรณีเจอโปรไฟล์บุคคลหรือนางงามที่บังเอิญชื่อพ้องกับ Agent
+                lowered_url = actual_url.lower()
+                lowered_title = clean_title.lower()
+                if any(k in lowered_url or k in lowered_title for k in ["bintsireethorn", "bint_sireethorn", "missuniverse", "นางสาวไทย"]):
                     continue
 
                 results.append({

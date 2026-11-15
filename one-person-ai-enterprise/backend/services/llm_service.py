@@ -41,13 +41,19 @@ class LLMService:
         if self._provider == "ollama":
             return await self._call_ollama(system_instruction, user_message, history)
         elif self._provider == "anthropic":
-            return await self._call_claude(system_instruction, user_message, history)
+            resp = await self._call_claude(system_instruction, user_message, history)
+            if resp.startswith("[Claude Error]") or resp.startswith("[Config Error]"):
+                return self._call_zero_token_autonomous_engine(system_instruction, user_message, history)
+            return resp
         elif self._provider == "google":
             api_key = os.getenv("GEMINI_API_KEY", "")
             if not api_key:
                 # พยายามเชื่อมต่อ Local LLM ก่อน หากไม่มีใช้ Zero-Token Engine อัจฉริยะ
                 return await self._call_ollama(system_instruction, user_message, history)
-            return await self._call_gemini(system_instruction, user_message, history)
+            resp = await self._call_gemini(system_instruction, user_message, history)
+            if resp.startswith("[Gemini Error]"):
+                return self._call_zero_token_autonomous_engine(system_instruction, user_message, history)
+            return resp
         return self._call_zero_token_autonomous_engine(system_instruction, user_message, history)
 
     async def _call_gemini(
