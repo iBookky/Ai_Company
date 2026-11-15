@@ -7,10 +7,10 @@
   <meta name="description" content="ระบบบริหารทีม AI สำหรับเจ้าของธุรกิจ — สั่งงาน ติดตาม ประชุม ผ่านเว็บและ Telegram" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/css/main.css?v=2.3" />
-  <link rel="stylesheet" href="/static/css/simulation.css?v=2.3" />
-  <link rel="stylesheet" href="/static/css/kanban.css?v=2.3" />
-  <link rel="stylesheet" href="/static/css/workstation.css?v=2.3" />
+  <link rel="stylesheet" href="/static/css/main.css?v=2.4" />
+  <link rel="stylesheet" href="/static/css/simulation.css?v=2.4" />
+  <link rel="stylesheet" href="/static/css/kanban.css?v=2.4" />
+  <link rel="stylesheet" href="/static/css/workstation.css?v=2.4" />
 </head>
 <body>
 
@@ -297,7 +297,10 @@
               <span>🚨</span>
               <span>รอยืนยันอนุมัติปิดงาน</span>
             </div>
-            <span class="kanban-badge-count" id="col-count-pending">0</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button class="btn-clear-pending-col" onclick="clearAllUnwantedTasks()" title="ล้างงานที่ค้างและรอยืนยันที่ไม่ต้องการทั้งหมด">🧹 ล้างงานค้าง</button>
+              <span class="kanban-badge-count" id="col-count-pending">0</span>
+            </div>
           </div>
           <div class="kanban-col-body" id="kanban-col-pending-body">
             <!-- Loaded dynamically -->
@@ -1314,9 +1317,9 @@
 <div id="toast-container"></div>
 
 <!-- Scripts -->
-<script src="/static/js/simulation.js?v=2.3"></script>
-<script src="/static/js/workstation.js?v=2.3"></script>
-<script src="/static/js/main.js?v=2.3"></script>
+<script src="/static/js/simulation.js?v=2.4"></script>
+<script src="/static/js/workstation.js?v=2.4"></script>
+<script src="/static/js/main.js?v=2.4"></script>
 
 </body>
 </html>

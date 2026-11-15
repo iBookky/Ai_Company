@@ -687,6 +687,12 @@ function renderColActive(activeTasks) {
           <div class="card-progress-bar">
             <div class="card-progress-fill" style="width: ${progress}%"></div>
           </div>
+
+          <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+            <button class="btn-card-delete" style="padding:2px 7px; font-size:0.7rem;" onclick="deleteSimulationTask('${task.id}')" title="ยกเลิกงานนี้ทันที">
+              🗑️ ยกเลิกงาน
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -752,6 +758,9 @@ function renderColPending(pendingTasks, pendingHires) {
           </button>
           <button class="btn-card-revise" title="ขอให้ AI ปรับปรุงแก้ไข" onclick="openRevisionDialog('${task.id}')">
             🔄 แก้ไข
+          </button>
+          <button class="btn-card-delete" title="ยกเลิกหรือลบงานนี้ทิ้ง" onclick="deleteSimulationTask('${task.id}')">
+            🗑️ ลบทิ้ง
           </button>
         </div>
       </div>
@@ -1033,6 +1042,9 @@ async function openDeliverableModal(taskId) {
   const footerActions = document.getElementById('modal-del-footer-actions');
   if (isPending) {
     footerActions.innerHTML = `
+      <button class="btn btn-outline-danger" onclick="deleteSimulationTask('${task.id}'); closeModal('modal-deliverable-detail');" title="ยกเลิกหรือลบงานนี้ออกจากระบบ">
+        🗑️ ยกเลิก/ลบงานนี้
+      </button>
       <button class="btn btn-secondary" onclick="openRevisionDialog('${task.id}'); closeModal('modal-deliverable-detail');">
         🔄 ขอสั่งแก้ไขงาน
       </button>
@@ -1043,6 +1055,9 @@ async function openDeliverableModal(taskId) {
   } else {
     footerActions.innerHTML = `
       <span style="font-size:0.82rem; color:#34d399; margin-right:auto;">✓ งานนี้ได้รับการอนุมัติปิดงานโดยพี่บุ๊ค เรียบร้อยแล้ว</span>
+      <button class="btn btn-outline-danger" style="margin-right:8px;" onclick="deleteSimulationTask('${task.id}'); closeModal('modal-deliverable-detail');" title="ลบงานนี้ออกจากประวัติ">
+        🗑️ ลบงานนี้ทิ้ง
+      </button>
       <button class="btn" onclick="closeModal('modal-deliverable-detail')">ปิดหน้าต่าง</button>
     `;
   }
@@ -1790,10 +1805,55 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+// ─── Task Deletion & Cancellation ────────────────────────────
+async function deleteSimulationTask(taskId) {
+  if (!confirm('ยืนยันการยกเลิกและลบงานนี้ทิ้งใช่หรือไม่?\n(ข้อมูลงานและไฟล์ผลงานที่เกี่ยวข้องจะถูกนำออกจากระบบถาวร)')) {
+    return;
+  }
+  try {
+    simToast('🗑️ กำลังลบงาน...', 'info');
+    const res = await simPost('/api/simulation/tasks/' + taskId + '/delete', {});
+    if (res && res.status === 'success') {
+      simToast('🗑️ ลบงานออกจากระบบเรียบร้อยแล้ว', 'success');
+      await fetchSimulationState();
+      if (typeof loadWorkstations === 'function' && typeof _activeEmpId !== 'undefined' && _activeEmpId) {
+        await loadActiveEmployeeDetails(_activeEmpId);
+      }
+    } else {
+      simToast('ไม่สามารถลบงานได้: ' + (res?.detail || 'เกิดข้อผิดพลาด'), 'error');
+    }
+  } catch (e) {
+    console.error('Delete task error:', e);
+    simToast('เกิดข้อผิดพลาดในการลบงาน: ' + e.message, 'error');
+  }
+}
+
+async function clearAllUnwantedTasks() {
+  if (!confirm('ต้องการล้างงานที่ค้างและรอยืนยันทั้งหมดที่ไม่ต้องการทิ้งในคราวเดียวใช่หรือไม่?\n(ระบบจะลบเฉพาะงานที่ค้างอยู่ และคืนสถานะว่างให้พนักงาน)')) {
+    return;
+  }
+  try {
+    simToast('🧹 กำลังล้างงานค้างทั้งหมด...', 'info');
+    const res = await simPost('/api/simulation/tasks/clear-unwanted', {});
+    if (res && res.status === 'success') {
+      simToast(`🧹 ล้างงานที่ค้างออกไปทั้งหมด ${res.detail?.deleted_count || 0} รายการเรียบร้อย`, 'success');
+      await fetchSimulationState();
+      if (typeof loadWorkstations === 'function' && typeof _activeEmpId !== 'undefined' && _activeEmpId) {
+        await loadActiveEmployeeDetails(_activeEmpId);
+      }
+    }
+  } catch (e) {
+    console.error('Clear unwanted tasks error:', e);
+    simToast('เกิดข้อผิดพลาด: ' + e.message, 'error');
+  }
+}
+
 // Window Bindings
 window.initSimulation = initSimulation;
 window.fetchSimulationState = fetchSimulationState;
 window.confirmTaskAction = confirmTaskAction;
+window.deleteSimulationTask = deleteSimulationTask;
+window.clearAllUnwantedTasks = clearAllUnwantedTasks;
 window.openRevisionDialog = openRevisionDialog;
 window.submitRevision = submitRevision;
 window.approveHiringAction = approveHiringAction;

@@ -300,6 +300,11 @@ function renderWorkstationCockpit(data) {
               <button class="history-tab-btn ${_historyFilter === 'AWAITING_CONFIRMATION' ? 'active' : ''}" onclick="setWorkstationHistoryFilter('AWAITING_CONFIRMATION')">
                 🚨 รอยืนยัน (${tel.pending_confirm_count})
               </button>
+              ${tel.pending_confirm_count > 1 ? `
+                <button class="btn btn-sm btn-outline-danger" style="margin-left:8px; font-size:0.75rem; padding:0.25rem 0.65rem;" onclick="workstationClearPendingTasksAction()" title="ล้างงานที่ค้างและรอยืนยันที่ไม่ต้องการทั้งหมดในคราวเดียว">
+                  🧹 ล้างงานค้างทั้งหมด
+                </button>
+              ` : ''}
             </div>
           </div>
 
@@ -460,6 +465,9 @@ function renderCockpitTaskCard(task, emp) {
         <button class="btn btn-sm" onclick="openDeliverableForTask('${escapeHtml(task.id)}')">
           📦 ตรวจดูผลงานส่งมอบ (Deliverable)
         </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="workstationDeleteTaskAction('${escapeHtml(task.id)}')" title="ยกเลิกหรือลบงานนี้ออกจากระบบ">
+          🗑️ ยกเลิก/ลบงานนี้
+        </button>
       </div>
     </div>
   `;
@@ -519,12 +527,15 @@ function renderHistoryTaskList(tasks, filter) {
             <span>🧪</span>
             <span>${escapeHtml(qaReport)}</span>
           </span>
-          <div style="display:inline-flex; gap:6px;">
+          <div style="display:inline-flex; gap:6px; flex-wrap:wrap;">
             <button class="btn btn-sm" style="background:rgba(2,132,199,0.18); border-color:rgba(2,132,199,0.4); color:#38bdf8; font-size:0.75rem;" onclick="workstationReprocessAction('${escapeHtml(t.id)}')">
               ⚡ ประมวลผลใหม่
             </button>
             <button class="btn btn-sm" onclick="openDeliverableForTask('${escapeHtml(t.id)}')">
               📦 ตรวจสอบผลงานส่งมอบ →
+            </button>
+            <button class="btn btn-sm btn-outline-danger" style="font-size:0.75rem; padding:0.25rem 0.6rem;" onclick="workstationDeleteTaskAction('${escapeHtml(t.id)}')" title="ยกเลิกหรือลบงานนี้">
+              🗑️ ลบ
             </button>
           </div>
         </div>
@@ -624,6 +635,66 @@ async function workstationReprocessAction(taskId) {
     }
   } catch (err) {
     console.error('Reprocess task error:', err);
+    if (typeof showToast === 'function') {
+      showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+    }
+  }
+}
+
+async function workstationDeleteTaskAction(taskId) {
+  if (!confirm('ต้องการยกเลิกและลบงานนี้ออกจากระบบใช่หรือไม่?\n(งานและไฟล์สรุปที่เกี่ยวข้องจะถูกนำออกจากระบบ)')) {
+    return;
+  }
+  try {
+    if (typeof showToast === 'function') {
+      showToast('🗑️ กำลังดำเนินการลบงาน...', 'info');
+    }
+    const res = await apiPost('/api/simulation/tasks/' + taskId + '/delete', {});
+    if (res && res.status === 'success') {
+      if (typeof showToast === 'function') {
+        showToast('🗑️ ลบงานออกจากระบบเรียบร้อยแล้ว', 'success');
+      }
+      if (_activeEmpId) {
+        await loadActiveEmployeeDetails(_activeEmpId);
+      }
+      if (typeof fetchSimulationState === 'function') {
+        await fetchSimulationState();
+      }
+    } else {
+      if (typeof showToast === 'function') {
+        showToast('ไม่สามารถลบงานได้: ' + (res?.detail || 'เกิดข้อผิดพลาด'), 'error');
+      }
+    }
+  } catch (err) {
+    console.error('Delete task error:', err);
+    if (typeof showToast === 'function') {
+      showToast('เกิดข้อผิดพลาดในการลบงาน: ' + err.message, 'error');
+    }
+  }
+}
+
+async function workstationClearPendingTasksAction() {
+  if (!confirm('ต้องการล้างงานที่ค้างและรอยืนยันที่ไม่ต้องการทั้งหมดในคราวเดียวใช่หรือไม่?')) {
+    return;
+  }
+  try {
+    if (typeof showToast === 'function') {
+      showToast('🧹 กำลังล้างงานค้างทั้งหมด...', 'info');
+    }
+    const res = await apiPost('/api/simulation/tasks/clear-unwanted', {});
+    if (res && res.status === 'success') {
+      if (typeof showToast === 'function') {
+        showToast(`🧹 ล้างงานค้างออกไปแล้ว ${res.detail?.deleted_count || 0} รายการ`, 'success');
+      }
+      if (_activeEmpId) {
+        await loadActiveEmployeeDetails(_activeEmpId);
+      }
+      if (typeof fetchSimulationState === 'function') {
+        await fetchSimulationState();
+      }
+    }
+  } catch (err) {
+    console.error('Clear pending tasks error:', err);
     if (typeof showToast === 'function') {
       showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
     }
@@ -873,6 +944,8 @@ if (typeof window !== 'undefined') {
   window.workstationConfirmAction = workstationConfirmAction;
   window.workstationReviseAction = workstationReviseAction;
   window.workstationReprocessAction = workstationReprocessAction;
+  window.workstationDeleteTaskAction = workstationDeleteTaskAction;
+  window.workstationClearPendingTasksAction = workstationClearPendingTasksAction;
   window.openDeliverableForTask = openDeliverableForTask;
   window.openAvatarModal = openAvatarModal;
   window.switchAvatarTab = switchAvatarTab;

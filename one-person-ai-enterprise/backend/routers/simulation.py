@@ -226,6 +226,23 @@ async def reprocess_task_live(task_id: str):
     return {"status": "reprocessing_started", "detail": result}
 
 
+@router.delete("/tasks/{task_id}")
+@router.post("/tasks/{task_id}/delete")
+async def delete_task_by_id(task_id: str):
+    """พี่บุ๊คขอยกเลิกหรือลบ Task ที่ค้างหรือไม่ต้องการออกจากระบบ"""
+    result = await simulation_service.delete_task(task_id)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "ไม่สามารถลบงานได้"))
+    return {"status": "success", "detail": result}
+
+
+@router.post("/tasks/clear-unwanted")
+async def clear_unwanted_tasks(keep_task_id: Optional[str] = None):
+    """ล้างงานที่ค้างหรือไม่ต้องการทั้งหมดในคราวเดียว (ยกเว้นงานที่เลือกเก็บไว้)"""
+    result = await simulation_service.clear_unwanted_pending_tasks(keep_task_id=keep_task_id)
+    return {"status": "success", "detail": result}
+
+
 @router.post("/hire/{proposal_id}/approve")
 async def approve_hiring(proposal_id: str, req: HiringDecisionRequest):
     """Owner อนุมัติการสร้าง AI พนักงานใหม่เข้าสู่บริษัท"""
