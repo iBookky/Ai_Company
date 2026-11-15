@@ -1089,19 +1089,17 @@ function parseSlidesFromMarkdown(mdContent) {
     const headlineMatch = body.match(/-\s+\*\*หัวข้อ:\*\*\s*"([^"]+)"|-\s+\*\*หัวข้อ:\*\*\s*([^\n]+)/i);
     const headline = headlineMatch ? (headlineMatch[1] || headlineMatch[2]).trim() : category;
 
-    const visualMatch = body.match(/-\s+\*\*ภาพประกอบ:\*\*\s*([^\n]+)/i);
+    const subMatch = body.match(/-\s+\*\*หัวข้อย่อย:\*\*\s*([^\n]+)/i);
+    const subtitle = subMatch ? subMatch[1].trim() : '';
+
+    const visualMatch = body.match(/-\s+\*\*ภาพประกอบ(?:\s*\/\s*กราฟิก)?:\*\*\s*([^\n]+)/i);
     const visual = visualMatch ? visualMatch[1].trim() : '';
 
     let speakerNotes = '';
-    const spIndex = body.indexOf('Speaker Notes');
-    if (spIndex !== -1) {
-      const spSub = body.slice(spIndex);
-      const spQuote = spSub.match(/\*"([^"]+)"\*|\*([^*]+)\*/);
-      if (spQuote) speakerNotes = (spQuote[1] || spQuote[2]).trim();
-    }
-    if (!speakerNotes) {
-      const spDirect = body.match(/🎙️[^*]*\*\s*\*?"?([^\n*"]+)\*?"?/);
-      if (spDirect) speakerNotes = spDirect[1].trim();
+    const spMatch = body.match(/🎙️[^\n]*?:\*\*\s*(?:\*"|")?([^\n*]+?)(?:\"\*|\"|\*|\n|$)/) ||
+                    body.match(/(?:Speaker Notes|คำพูดผู้นำเสนอ)[^\n]*?:\*\*\s*(?:\*"|")?([^\n*]+?)(?:\"\*|\"|\*|\n|$)/);
+    if (spMatch) {
+      speakerNotes = spMatch[1].trim().replace(/^"|"$/g, '');
     }
 
     const bullets = [];
@@ -1114,6 +1112,14 @@ function parseSlidesFromMarkdown(mdContent) {
           inKeyPoints = false;
           continue;
         }
+        const bMatch = line.match(/^\s*[-•]\s*(?:[•\-0-9\.]*\s*)?(.*)$/);
+        if (bMatch && bMatch[1].trim()) bullets.push(bMatch[1].trim());
+      }
+    }
+    if (bullets.length === 0) {
+      if (subtitle) bullets.push(subtitle);
+      for (const line of lines) {
+        if (line.trim().startsWith('- **ภาพประกอบ') || line.trim().startsWith('- 🎙️') || line.trim().startsWith('- **หัวข้อ') || line.trim().startsWith('###')) continue;
         const bMatch = line.match(/^\s*[-•]\s*(?:[•\-0-9\.]*\s*)?(.*)$/);
         if (bMatch && bMatch[1].trim()) bullets.push(bMatch[1].trim());
       }
@@ -1161,23 +1167,67 @@ function renderSlideDeck(slides, index = 0) {
 
   container.innerHTML = `
     <div class="presentation-deck-wrap">
-      <!-- Toolbar Top -->
-      <div class="deck-toolbar-top">
-        <div style="display:flex; align-items:center; gap:0.6rem;">
-          <span class="deck-info-badge">📽️ PowerPoint Presentation</span>
-          <span style="font-size:0.8rem; color:var(--text-muted);">โหมดนำเสนอสไลด์สำหรับพี่บุ๊ค</span>
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TOP CONTROLLER BAR: Always Visible (Navigation & Shortcuts) -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <div class="deck-toolbar-top" style="flex-wrap: wrap; gap: 0.75rem;">
+        <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+          <button class="deck-nav-btn" onclick="navigateSlideDeck(-1)" ${isFirst ? 'disabled' : ''} style="background:rgba(99,102,241,0.25); border-color:#6366f1; color:#fff; font-weight:700; padding:0.45rem 0.9rem;" title="สไลด์ก่อนหน้า (กด ◀ บนคีย์บอร์ด)">
+            ◀ ก่อนหน้า
+          </button>
+
+          <!-- Dropdown Quick Jump -->
+          <select class="deck-slide-select" onchange="jumpToSlideDeck(parseInt(this.value))" style="background:#0f172a; color:#38bdf8; border:1px solid rgba(56,189,248,0.5); border-radius:6px; padding:0.45rem 0.8rem; font-size:0.85rem; font-weight:700; cursor:pointer; outline:none;" title="เลือกสไลด์ที่ต้องการดู">
+            ${slides.map((sItem, sIdx) => `
+              <option value="${sIdx}" ${sIdx === _currentSlideIdx ? 'selected' : ''}>
+                📄 สไลด์ ${sItem.num}/${total}: ${escapeHtml(sItem.category)}
+              </option>
+            `).join('')}
+          </select>
+
+          <button class="deck-nav-btn" onclick="navigateSlideDeck(1)" ${isLast ? 'disabled' : ''} style="background:linear-gradient(135deg, #0284c7, #0369a1); border-color:#38bdf8; color:#fff; font-weight:700; padding:0.45rem 0.9rem;" title="สไลด์ถัดไป (กด ▶ บนคีย์บอร์ด)">
+            ถัดไป ▶
+          </button>
         </div>
-        <div style="display:flex; align-items:center; gap:0.5rem;">
-          <button class="btn btn-sm" onclick="copyCurrentPresentationText()">📋 คัดลอกบทสไลด์ทั้งหมด</button>
-          <button class="btn btn-sm" onclick="downloadCurrentPresentationFile()">📥 ดาวน์โหลดสไลด์ (.md)</button>
+
+        <!-- Dots Quick Strip (Top) -->
+        <div class="deck-dots-strip" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:3px 8px;">
+          ${dotsHtml}
+        </div>
+
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-left:auto;">
+          <span style="font-size:0.75rem; color:var(--text-dim);">⌨️ กด ◀ ▶ บนคีย์บอร์ดได้</span>
+          <button class="btn btn-sm" onclick="copyCurrentPresentationText()">📋 คัดลอกบทสไลด์</button>
+          <button class="btn btn-sm" onclick="downloadCurrentPresentationFile()">📥 ดาวน์โหลด</button>
         </div>
       </div>
 
-      <!-- 16:9 Presentation Stage -->
-      <div class="slide-canvas" id="active-slide-canvas">
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- 16:9 Presentation Stage (With Floating Side Arrows)         -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <div class="slide-canvas" id="active-slide-canvas" style="position:relative;">
+        <!-- Left Floating Arrow -->
+        ${!isFirst ? `
+          <button class="slide-floating-arrow left" onclick="navigateSlideDeck(-1)" title="สไลด์ก่อนหน้า (หรือกดแป้น ◀ บนคีย์บอร์ด)">
+            ‹
+          </button>
+        ` : ''}
+
+        <!-- Right Floating Arrow -->
+        ${!isLast ? `
+          <button class="slide-floating-arrow right" onclick="navigateSlideDeck(1)" title="สไลด์ถัดไป (หรือกดแป้น ▶ บนคีย์บอร์ด)">
+            ›
+          </button>
+        ` : ''}
+
         <div>
           <div class="slide-header-row">
-            <span class="slide-number-chip">SLIDE ${_currentSlideIdx + 1} / ${total}</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="slide-number-chip">SLIDE ${_currentSlideIdx + 1} / ${total}</span>
+              <button class="mini-slide-nav-btn" onclick="navigateSlideDeck(-1)" ${isFirst ? 'disabled' : ''} title="สไลด์ก่อนหน้า">◀</button>
+              <button class="mini-slide-nav-btn" onclick="navigateSlideDeck(1)" ${isLast ? 'disabled' : ''} title="สไลด์ถัดไป">▶</button>
+              <span style="font-size:0.75rem; color:#94a3b8;">(คลิกปุ่ม ‹ หรือ › ด้านข้างเพื่อเลื่อนสไลด์)</span>
+            </div>
             <span class="slide-brand-watermark">ONE-PERSON AI ENTERPRISE</span>
           </div>
 
@@ -1216,7 +1266,9 @@ function renderSlideDeck(slides, index = 0) {
         </div>
       </div>
 
-      <!-- Navigation & Controls Bar -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- Navigation & Controls Bar (Bottom)                          -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
       <div class="deck-navigation-bar">
         <button class="deck-nav-btn" onclick="navigateSlideDeck(-1)" ${isFirst ? 'disabled' : ''}>
           <span>◀</span>
@@ -1224,10 +1276,11 @@ function renderSlideDeck(slides, index = 0) {
         </button>
 
         <div class="deck-dots-strip">
+          <span style="font-size:0.75rem; color:var(--text-muted); margin-right:4px;">สไลด์:</span>
           ${dotsHtml}
         </div>
 
-        <button class="deck-nav-btn" onclick="navigateSlideDeck(1)" ${isLast ? 'disabled' : ''}>
+        <button class="deck-nav-btn" onclick="navigateSlideDeck(1)" ${isLast ? 'disabled' : ''} style="background:linear-gradient(135deg, #0284c7, #0369a1); border-color:#38bdf8; color:#fff;">
           <span>สไลด์ถัดไป</span>
           <span>▶</span>
         </button>
@@ -1765,4 +1818,23 @@ window.copyCurrentPresentationText = copyCurrentPresentationText;
 window.downloadCurrentPresentationFile = downloadCurrentPresentationFile;
 window.copyCurrentDeliverableDoc = copyCurrentDeliverableDoc;
 window.downloadCurrentDeliverableDoc = downloadCurrentDeliverableDoc;
+
+// ─── Global Keyboard Shortcuts for Slide Deck (Left / Right Arrow) ───
+if (typeof window !== 'undefined' && !window._slideKeyboardListenerAttached) {
+  window._slideKeyboardListenerAttached = true;
+  window.addEventListener('keydown', (e) => {
+    const modal = document.getElementById('modal-deliverable-detail');
+    if (!modal || (!modal.classList.contains('open') && !modal.classList.contains('active'))) return;
+    const presPane = document.getElementById('del-pane-presentation');
+    if (!presPane || !presPane.classList.contains('active')) return;
+
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+      e.preventDefault();
+      navigateSlideDeck(1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault();
+      navigateSlideDeck(-1);
+    }
+  });
+}
 window.copyFileContentAtIndex = copyFileContentAtIndex;
