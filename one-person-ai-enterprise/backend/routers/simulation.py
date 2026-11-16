@@ -13,6 +13,9 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 ALLOWED_AVATAR_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_AVATAR_SIZE = 5 * 1024 * 1024  # 5 MB
 
+ALLOWED_ATTACHMENT_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".bmp"}
+MAX_ATTACHMENT_SIZE = 15 * 1024 * 1024  # 15 MB
+
 router = APIRouter(prefix="/api/simulation", tags=["Simulation"])
 
 
@@ -23,6 +26,7 @@ class SetAvatarUrlRequest(BaseModel):
 class StartSimulationRequest(BaseModel):
     preset: str = "systems_dev"  # systems_dev, social_content, collaborative, hiring_request, custom
     prompt: Optional[str] = ""
+    attachments: Optional[List[dict]] = None
 
 
 class ConfirmTaskRequest(BaseModel):
@@ -176,8 +180,76 @@ async def reset_employee_avatar(employee_id: str):
 @router.post("/start")
 async def start_simulation(req: StartSimulationRequest):
     """สั่งเริ่มการจำลองการทำงานของทีม AI ตาม Preset หรือ Custom Prompt"""
-    result = await simulation_service.run_simulation_preset(req.preset, req.prompt or "")
+    result = await simulation_service.run_simulation_preset(
+        req.preset, req.prompt or "", attachments=req.attachments
+    )
     return {"status": "success", "detail": result}
+
+
+@router.post("/upload-attachment")
+async def upload_attachment(file: UploadFile = File(...)):
+    """อัปโหลดรูปภาพหรือเอกสารแนบประกอบการทำงานสำหรับแนบไปกับคำสั่งงาน"""
+    import uuid
+    original_filename = file.filename or "attachment.jpg"
+    ext = Path(original_filename).suffix.lower()
+    if ext not in ALLOWED_ATTACHMENT_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="ประเภทไฟล์ไม่รองรับ กรุณาใช้ไฟล์รูปภาพ (.jpg, .jpeg, .png, .webp, .gif, .svg, .bmp)"
+        )
+    content = await file.read()
+    if len(content) > MAX_ATTACHMENT_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"ขนาดไฟล์เกินกำหนด (สูงสุด 15 MB, ขนาดที่ส่งมา: {len(content) / (1024*1024):.2f} MB)"
+        )
+    # Magic bytes check
+    is_valid = False
+    if ext in (".jpg", ".jpeg") and content[:3] == b"\xff\xd8\xff":
+        is_valid = True
+    elif ext == ".png" and content[:8] == b"\x89PNG\r\n\x1a\n":
+        is_valid = True
+    elif ext == ".webp" and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        is_valid = True
+    elif ext == ".gif" and content[:6] in (b"GIF87a", b"GIF89a"):
+        is_valid = True
+    elif ext == ".bmp" and content[:2] == b"BM":
+        is_valid = True
+    elif ext == ".svg":
+        header_sample = content[:1024].lower()
+        if b"<svg" in header_sample or b"<?xml" in header_sample:
+            is_valid = True
+
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="โครงสร้างไฟล์รูปภาพไม่ถูกต้อง หรือถูกดัดแปลงเนื้อหา")
+
+    attachments_dir = FRONTEND_DIR / "uploads" / "attachments"
+    attachments_dir.mkdir(parents=True, exist_ok=True)
+
+    att_id = f"att_{uuid.uuid4().hex[:10]}"
+    safe_name = f"{att_id}_{re.sub(r'[^a-zA-Z0-9_.-]', '_', original_filename)}"
+    dest_path = (attachments_dir / safe_name).resolve()
+
+    if not dest_path.is_relative_to(attachments_dir.resolve()):
+        raise HTTPException(status_code=403, detail="ไม่อนุญาตให้เขียนไฟล์นอกไดเรกทอรีที่กำหนด")
+
+    dest_path.write_bytes(content)
+
+    url = f"/static/uploads/attachments/{safe_name}"
+    content_type = file.content_type or f"image/{ext.lstrip('.')}"
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    return {
+        "status": "success",
+        "attachment": {
+            "id": att_id,
+            "filename": original_filename,
+            "url": url,
+            "content_type": content_type,
+            "size": len(content),
+            "uploaded_at": now_iso,
+        }
+    }
 
 
 @router.post("/tasks/{task_id}/confirm")

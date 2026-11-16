@@ -982,6 +982,24 @@
         <label class="form-label">คำสั่งงานไปยัง PM ทีมนี้</label>
         <textarea class="form-textarea" id="dc-text" rows="4" placeholder="พิมพ์คำสั่งงาน เช่น เขียน Content โปรโมชั่นสำหรับแคมเปญเดือนนี้..."></textarea>
       </div>
+
+      <!-- Attachments Dropzone -->
+      <div class="form-group" style="margin-top:0.75rem;">
+        <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>🖼️ รูปภาพประกอบการทำงาน (Attached Assets)</span>
+          <span style="font-size:0.72rem; color:var(--text-dim);">ลากวาง, คลิก หรือกด Ctrl+V</span>
+        </label>
+        <div class="attachment-dropzone" id="dc-attachment-dropzone" onclick="document.getElementById('dc-attachment-file').click()">
+          <input type="file" id="dc-attachment-file" accept="image/*" multiple style="display:none;" onchange="handleAttachmentFileInput(event, 'dc')" />
+          <div class="dropzone-content">
+            <span class="dropzone-icon">📷</span>
+            <div class="dropzone-text">คลิกเพื่อเลือกรูปภาพ หรือลากไฟล์มาวางที่นี่</div>
+            <div class="dropzone-hint">รองรับ JPG, PNG, WEBP, GIF, SVG (ส่งต่อให้ AI ใช้อ้างอิงในงาน)</div>
+          </div>
+        </div>
+        <div class="attachment-preview-container" id="dc-attachment-previews"></div>
+      </div>
+
       <input type="hidden" id="dc-dept-id" />
       <div class="dc-result" id="dc-result" style="display:none;"></div>
     </div>
@@ -1031,6 +1049,23 @@
       <div class="form-group" style="margin-top:1rem;">
         <label class="form-label required">ระบุรายละเอียดคำสั่งงานที่ต้องการให้ AI ปฏิบัติงาน</label>
         <textarea class="form-textarea" id="dispatch-prompt-input" rows="4" placeholder="พิมพ์คำสั่งงานที่นี่ เช่น 'สร้างระบบ OTP สำหรับยืนยันตัวตน'"></textarea>
+      </div>
+
+      <!-- Attachments Dropzone -->
+      <div class="form-group" style="margin-top:1rem;">
+        <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>🖼️ รูปภาพประกอบการทำงาน (Attached Assets)</span>
+          <span style="font-size:0.72rem; color:var(--text-dim);">ลากวาง, คลิกอัปโหลด หรือกด Ctrl+V วางรูปได้</span>
+        </label>
+        <div class="attachment-dropzone" id="dispatch-attachment-dropzone" onclick="document.getElementById('dispatch-attachment-file').click()">
+          <input type="file" id="dispatch-attachment-file" accept="image/*" multiple style="display:none;" onchange="handleAttachmentFileInput(event, 'dispatch')" />
+          <div class="dropzone-content">
+            <span class="dropzone-icon">📷</span>
+            <div class="dropzone-text">คลิกเพื่อเลือกรูปภาพ หรือลากไฟล์มาวางที่นี่</div>
+            <div class="dropzone-hint">รองรับ JPG, PNG, WEBP, GIF, SVG (รูปภาพจะถูกส่งต่อให้ทีม AI ใช้วิเคราะห์และใส่ในผลงาน)</div>
+          </div>
+        </div>
+        <div class="attachment-preview-container" id="dispatch-attachment-previews"></div>
       </div>
 
       <!-- AI Autonomous Guarantee Box -->
@@ -1107,6 +1142,9 @@
       <button class="del-tab-btn" id="del-tab-btn-swot" data-tab="swot" onclick="switchDeliverableTab('swot')">
         🔬 วิเคราะห์ SWOT Matrix
       </button>
+      <button class="del-tab-btn" id="del-tab-btn-attachments" data-tab="attachments" onclick="switchDeliverableTab('attachments')">
+        🖼️ รูปภาพประกอบ (<span id="del-tab-attachments-count">0</span>)
+      </button>
       <button class="del-tab-btn active" id="del-tab-btn-summary" data-tab="summary" onclick="switchDeliverableTab('summary')">
         📝 สรุปผลงาน & QA
       </button>
@@ -1134,6 +1172,11 @@
     <!-- Tab 0.8: Interactive SWOT Matrix Dashboard -->
     <div class="deliverable-tab-pane" id="del-pane-swot">
       <div id="modal-del-swot-container"></div>
+    </div>
+
+    <!-- Tab 0.9: Attached Images & Assets Viewer -->
+    <div class="deliverable-tab-pane" id="del-pane-attachments">
+      <div id="modal-del-attachments-container"></div>
     </div>
 
     <!-- Tab 1: Summary -->
@@ -1310,6 +1353,16 @@
   </div>
   <div class="tg-drawer-body" id="telegram-drawer-list">
     <div style="text-align: center; padding: 2rem; opacity: 0.5;">กำลังโหลดประวัติการแจ้งเตือน...</div>
+  </div>
+</div>
+
+<!-- Lightbox Modal for Attachment Zoom -->
+<div class="modal" id="modal-image-lightbox" style="z-index: 9999;">
+  <div class="modal-backdrop" onclick="closeModal('modal-image-lightbox')"></div>
+  <div class="lightbox-container">
+    <button class="lightbox-close-btn" onclick="closeModal('modal-image-lightbox')" title="ปิดหน้าต่าง">✕</button>
+    <img id="lightbox-image" src="" alt="Full view" />
+    <div id="lightbox-caption"></div>
   </div>
 </div>
 

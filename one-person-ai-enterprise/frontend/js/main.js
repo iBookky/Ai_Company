@@ -796,6 +796,9 @@ function openDirectCommandModal(deptId, name) {
   document.getElementById('dc-team-name').textContent = name;
   document.getElementById('dc-text').value = '';
   document.getElementById('dc-result').style.display = 'none';
+  if (typeof clearAttachments === 'function') {
+    clearAttachments('dc');
+  }
   openModal('modal-direct-cmd');
 }
 
@@ -807,12 +810,21 @@ async function sendDirectCommand() {
   const btn = document.getElementById('btn-dc-send');
   btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...';
 
+  const attachments = (typeof currentDcAttachments !== 'undefined') ? currentDcAttachments : [];
+
   try {
-    const res = await apiPost('/api/telegram/direct-command', { dept_id: deptId, text });
+    const res = await apiPost('/api/telegram/direct-command', {
+      dept_id: deptId,
+      text,
+      attachments: attachments.length ? attachments : undefined
+    });
     const result = document.getElementById('dc-result');
     result.style.display = 'block';
     result.textContent = res.reply || res.message || res.result || JSON.stringify(res, null, 2);
     toast('✅ ส่งคำสั่งสำเร็จ!', 'success');
+    if (typeof clearAttachments === 'function') {
+      clearAttachments('dc');
+    }
   } catch (err) {
     toast('ส่งคำสั่งไม่สำเร็จ: ' + err.message, 'error');
   } finally {

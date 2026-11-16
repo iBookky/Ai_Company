@@ -16,7 +16,7 @@ import asyncio
 import re
 from pathlib import Path
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 import httpx
 
@@ -26,6 +26,7 @@ from backend.models.schemas import LogCreate, LogLevel
 logger = logging.getLogger("telegram_service")
 
 BASE_DIR = Path(__file__).parent.parent.parent
+FRONTEND_DIR = BASE_DIR / "frontend"
 DEPARTMENTS_DIR = BASE_DIR / "departments"
 
 # ─── Environment Credentials ─────────────────────────────────────────────────
@@ -615,8 +616,60 @@ def resolve_target_agent(text: str, chat_id: str) -> tuple[dict, str, bool]:
     return current_agent, clean_text, False
 
 
+async def download_telegram_file(file_id: str, bot_token: Optional[str] = None, suggested_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """ดาวน์โหลดรูปภาพหรือไฟล์จาก Telegram API และจัดเก็บใน frontend/uploads/attachments/"""
+    token = bot_token or get_bot_token()
+    if not token:
+        return None
+    try:
+        get_file_url = f"https://api.telegram.org/bot{token}/getFile?file_id={file_id}"
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(get_file_url)
+            data = resp.json()
+            if not data.get("ok"):
+                logger.warning(f"Telegram getFile error: {data}")
+                return None
+            file_path = data.get("result", {}).get("file_path", "")
+            if not file_path:
+                return None
+
+            download_url = f"https://api.telegram.org/file/bot{token}/{file_path}"
+            dl_resp = await client.get(download_url)
+            if dl_resp.status_code != 200:
+                logger.warning(f"Telegram download failed status={dl_resp.status_code}")
+                return None
+            content = dl_resp.content
+
+            ext = Path(file_path).suffix.lower() or ".jpg"
+            if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"]:
+                ext = ".jpg"
+
+            attachments_dir = FRONTEND_DIR / "uploads" / "attachments"
+            attachments_dir.mkdir(parents=True, exist_ok=True)
+
+            att_id = f"att_tg_{file_id[-8:]}"
+            base_fn = suggested_name or Path(file_path).name or "telegram_image.jpg"
+            clean_fn = re.sub(r'[^a-zA-Z0-9_.-]', '_', base_fn)
+            safe_name = f"{att_id}_{clean_fn}"
+            dest_path = attachments_dir / safe_name
+            dest_path.write_bytes(content)
+
+            url = f"/static/uploads/attachments/{safe_name}"
+            return {
+                "id": att_id,
+                "filename": base_fn,
+                "url": url,
+                "content_type": f"image/{ext.lstrip('.')}",
+                "size": len(content),
+                "uploaded_at": datetime.now(timezone.utc).isoformat()
+            }
+    except Exception as e:
+        logger.error(f"Error downloading telegram file: {e}")
+        return None
+
+
 async def handle_webhook(payload: dict, bot_token: Optional[str] = None) -> dict:
-    """ประมวลผล Incoming Webhook Update จาก Telegram รองรับทุก Agent ผ่าน Telegram ตัวเดียว"""
+    """ประมวลผล Incoming Webhook Update จาก Telegram รองรับทุก Agent ผ่าน Telegram ตัวเดียว พร้อมรองรับรูปภาพแนบ"""
     message = payload.get("message", {}) or payload.get("channel_post", {})
     if not message:
         return {"status": "ignored", "reason": "no_message"}
@@ -625,8 +678,37 @@ async def handle_webhook(payload: dict, bot_token: Optional[str] = None) -> dict
     from_user = message.get("from", {})
     sender_name = from_user.get("first_name") or "พี่บุ๊ค"
     text = message.get("text", "").strip() if isinstance(message.get("text"), str) else ""
+    caption = message.get("caption", "").strip() if isinstance(message.get("caption"), str) else ""
+    if not text and caption:
+        text = caption
 
-    if not text:
+    attachments: List[Dict[str, Any]] = []
+
+    # ตรวจจับรูปภาพแนบมา (Photo)
+    photos = message.get("photo", [])
+    if isinstance(photos, list) and photos:
+        best_photo = photos[-1]
+        file_id = best_photo.get("file_id")
+        if file_id:
+            att = await download_telegram_file(file_id, bot_token=bot_token, suggested_name=f"telegram_photo_{file_id[-6:]}.jpg")
+            if att:
+                attachments.append(att)
+
+    # ตรวจจับเอกสารแนบมา (Document รูปภาพ)
+    doc = message.get("document", {})
+    if isinstance(doc, dict) and doc.get("file_id"):
+        mime = doc.get("mime_type", "").lower()
+        fn = doc.get("file_name", "document")
+        if "image" in mime or any(fn.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"]):
+            file_id = doc.get("file_id")
+            att = await download_telegram_file(file_id, bot_token=bot_token, suggested_name=fn)
+            if att:
+                attachments.append(att)
+
+    if not text and attachments:
+        text = "วิเคราะห์และดำเนินการตามภาพประกอบที่แนบมานี้"
+
+    if not text and not attachments:
         return {"status": "ignored", "reason": "empty_text"}
 
     cleaned_lower = text.strip().lower()
@@ -729,11 +811,18 @@ async def handle_webhook(payload: dict, bot_token: Optional[str] = None) -> dict
 
     # ส่งให้ Agent คนนั้นตอบสนองและปฏิบัติงาน
     actual_prompt = prompt_text if prompt_text else text
-    return await _dispatch_agent_response(chat_id, sender_name, target_agent, actual_prompt, bot_token=bot_token)
+    return await _dispatch_agent_response(chat_id, sender_name, target_agent, actual_prompt, bot_token=bot_token, attachments=attachments)
 
 
-async def _dispatch_agent_response(chat_id: str, sender_name: str, agent: dict, prompt_text: str, bot_token: Optional[str] = None) -> dict:
-    """ประมวลผลคำสั่งงานและโต้ตอบโดยใช้ Persona, Identity, และทักษะเฉพาะตัวของ Agent คนนั้นๆ"""
+async def _dispatch_agent_response(
+    chat_id: str,
+    sender_name: str,
+    agent: dict,
+    prompt_text: str,
+    bot_token: Optional[str] = None,
+    attachments: Optional[List[Dict[str, Any]]] = None,
+) -> dict:
+    """ประมวลผลคำสั่งงานและโต้ตอบโดยใช้ Persona, Identity, และทักษะเฉพาะตัวของ Agent คนนั้นๆ พร้อมรองรับรูปภาพแนบ"""
     from backend.services.llm_service import LLMService
     from backend.services.status_service import set_agent_status
     from backend.services import simulation_service
@@ -748,7 +837,7 @@ async def _dispatch_agent_response(chat_id: str, sender_name: str, agent: dict, 
         agent_id=dept_id,
         agent_name=agent_name,
         level=LogLevel.INFO,
-        message=f"ได้รับคำสั่งจาก Telegram ({sender_name}) หา {agent_name}: {prompt_text[:60]}...",
+        message=f"ได้รับคำสั่งจาก Telegram ({sender_name}) หา {agent_name}: {prompt_text[:60]}... (แนบ {len(attachments or [])} รูป)",
     ))
 
     system_instruction = (
@@ -760,7 +849,7 @@ async def _dispatch_agent_response(chat_id: str, sender_name: str, agent: dict, 
         f"บทบาท:\n"
         f"1. สวมบทบาท '{agent_name}' อย่างสมบูรณ์แบบ ตอบเป็นภาษาไทยอย่างฉลาด สุภาพ มีไหวพริบ กระตือรือร้นและตรงประเด็น\n"
         f"2. หากพี่บุ๊ค ถามหรือคุยทั่วไป ให้คำปรึกษาและคำแนะนำอย่างผู้เชี่ยวชาญในสายงาน {dept_name}\n"
-        f"3. หากพี่บุ๊ค สั่งงาน ให้ตอบรับคำสั่ง อธิบายขั้นตอนการทำงานหรือข้อเสนอแนะอย่างชัดเจนและลงมือปฏิบัติงานทันที\n"
+        f"3. หากพี่บุ๊ค สั่งงาน หรือส่งรูปภาพประกอบ ให้ตอบรับคำสั่ง อธิบายขั้นตอนการทำงานหรือข้อเสนอแนะอย่างชัดเจนและลงมือปฏิบัติงานทันที\n"
     )
     system_instruction += _get_owner_prompt_context()
 
@@ -770,14 +859,17 @@ async def _dispatch_agent_response(chat_id: str, sender_name: str, agent: dict, 
     try:
         model_name = agent.get("model") or "gemini-1.5-flash"
         llm = LLMService(model=model_name, temperature=0.7)
+        user_msg = prompt_text
+        if attachments:
+            user_msg += f"\n[มีแนบรูปภาพประกอบ {len(attachments)} รายการ]"
         reply = await llm.generate(
             system_instruction=system_instruction,
-            user_message=prompt_text,
+            user_message=user_msg,
             history=history
         )
     except Exception as e:
         logger.error(f"LLM generation failed for agent {agent_name}: {e}")
-        reply = f"สวัสดีค่ะพี่บุ๊ค {agent_name} รับทราบคำสั่งเรียบร้อยค่ะ กำลังเร่งตรวจสอบและดำเนินการให้ทันทีค่ะ!"
+        reply = f"สวัสดีค่ะพี่บุ๊ค {agent_name} รับทราบคำสั่งและได้รับรูปภาพประกอบเรียบร้อยค่ะ กำลังเร่งตรวจสอบและดำเนินการให้ทันทีค่ะ!"
     finally:
         set_agent_status(dept_id, "idle")
 
@@ -801,19 +893,21 @@ async def _dispatch_agent_response(chat_id: str, sender_name: str, agent: dict, 
 
     # Format reply with agent persona header
     formatted_reply = f"🤖 <b>[{agent_name} — {dept_name}]</b>\n\n{reply}"
+    if attachments:
+        formatted_reply += f"\n\n🖼️ <i>ได้รับรูปภาพประกอบ {len(attachments)} รายการ บรรจุเข้าสู่พิมพ์เขียวผลงานเรียบร้อยค่ะ</i>"
     if research_citations_tg:
         formatted_reply += f"\n{research_citations_tg}\n\n📁 <i>กำลังสร้างเอกสารสเปกและพิมพ์เขียวฉบับเต็มลงในห้องทำงานบนเว็บ พร้อมส่งแจ้งเตือนให้พี่บุ๊คตรวจสอบค่ะ</i>"
 
     await send_telegram_message(chat_id, formatted_reply, bot_token=bot_token)
 
-    # เช็คว่ามีคำสั่งที่เป็น Action/งาน/Research หรือไม่ เพื่อนำขึ้น Kanban Board และส่งเข้าห้องทำงาน
+    # เช็คว่ามีคำสั่งที่เป็น Action/งาน/Research หรือมีรูปภาพแนบหรือไม่ เพื่อนำขึ้น Kanban Board และส่งเข้าห้องทำงาน
     action_keywords = [
         "ช่วย", "ทำ", "สร้าง", "เขียน", "ออกแบบ", "วิเคราะห์", "ตรวจ", "สรุป", "พัฒนา", "แก้",
         "report", "code", "research", "วิจัย", "สืบค้น", "ค้นคว้า", "หาข้อมูล", "วางแผน", "จัดการ", "ระบบ"
     ]
-    if any(k in prompt_text.lower() for k in action_keywords):
+    if any(k in prompt_text.lower() for k in action_keywords) or attachments:
         try:
-            asyncio.create_task(simulation_service.run_simulation_preset(dept_id, prompt_text))
+            asyncio.create_task(simulation_service.run_simulation_preset(dept_id, prompt_text, attachments=attachments))
         except Exception as err:
             logger.warning(f"Failed to auto-spawn simulation preset: {err}")
 
@@ -1221,8 +1315,12 @@ async def run_director_meeting(message: str) -> dict:
     }
 
 
-async def run_department_direct_command(dept_id: str, message: str) -> dict:
-    """สั่งงานตรงไปยังหัวหน้าแผนก (PM) ของแผนกนั้นๆ บน Web UI"""
+async def run_department_direct_command(
+    dept_id: str,
+    message: str,
+    attachments: Optional[List[Dict[str, Any]]] = None,
+) -> dict:
+    """สั่งงานตรงไปยังหัวหน้าแผนก (PM) ของแผนกนั้นๆ บน Web UI พร้อมรองรับรูปภาพแนบ"""
     dept_rooms = get_all_department_rooms()
     dept_info = dept_rooms.get(dept_id, {})
     dept_name = dept_info.get("name", dept_id)
@@ -1230,6 +1328,7 @@ async def run_department_direct_command(dept_id: str, message: str) -> dict:
     pm_bot_token = dept_info.get("bot_token", "")
 
     from backend.services.llm_service import LLMService
+    from backend.services import simulation_service
     llm = LLMService(model="gemini-1.5-flash", temperature=0.5)
 
     system_instruction = (
@@ -1241,7 +1340,10 @@ async def run_department_direct_command(dept_id: str, message: str) -> dict:
     from backend.services.status_service import set_agent_status
     set_agent_status(dept_id, "processing")
     try:
-        reply = await llm.generate(system_instruction=system_instruction, user_message=message)
+        user_msg = message
+        if attachments:
+            user_msg += f"\n[มีแนบรูปภาพประกอบ {len(attachments)} รายการ]"
+        reply = await llm.generate(system_instruction=system_instruction, user_message=user_msg)
     finally:
         set_agent_status(dept_id, "idle")
 
@@ -1250,9 +1352,16 @@ async def run_department_direct_command(dept_id: str, message: str) -> dict:
         agent_id=dept_id,
         agent_name=pm_name,
         level=LogLevel.INFO,
-        message=f"📌 [{pm_name}] รับคำสั่งตรง: '{message[:50]}...'",
+        message=f"📌 [{pm_name}] รับคำสั่งตรง: '{message[:50]}...' (แนบ {len(attachments or [])} รูป)",
         thought_process=reply,
     ))
+
+    # หากมีการแนบรูปภาพ หรือเป็นคำสั่งงาน ให้รันการจำลองและสร้างพิมพ์เขียวผลงานพร้อมรูปภาพแนบ
+    if attachments or any(kw in message.lower() for kw in ["ทำ", "สร้าง", "วิเคราะห์", "สรุป", "ระบบ", "แผน", "deck", "สไลด์", "swot"]):
+        try:
+            asyncio.create_task(simulation_service.run_simulation_preset(dept_id, message, attachments=attachments))
+        except Exception as err:
+            logger.warning(f"Failed to auto-spawn simulation preset from direct command: {err}")
 
     # 2. Log ลูกทีมตำแหน่งงานย่อย (Sub-agent Workers Task Logging - ข้อ 2)
     write_log(LogCreate(

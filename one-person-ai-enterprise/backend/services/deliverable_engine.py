@@ -39,6 +39,29 @@ def format_citations_markdown(sources: List[Dict[str, str]]) -> str:
 > *หมายเหตุ: แหล่งข้อมูลด้านบนได้รับการสืบค้นและคัดกรองแบบสด (Live Web Research) ผ่านเกณฑ์การประเมินความน่าเชื่อถือระดับสากล เพื่อสนับสนุนการตัดสินใจเชิงธุรกิจของพี่บุ๊ค อย่างแม่นยำสูงสุด*"""
 
 
+def format_attachments_markdown(attachments: Optional[List[Dict[str, Any]]] = None) -> str:
+    """แปลงรายการรูปภาพและเอกสารแนบประกอบการทำงานเป็นส่วนแสดงผลใน Markdown"""
+    if not attachments:
+        return ""
+
+    rows = []
+    for idx, att in enumerate(attachments, 1):
+        fn = att.get("filename", f"attachment_{idx}")
+        url = att.get("url", "#")
+        rows.append(
+            f"### 📷 ภาพประกอบที่ {idx}: {fn}\n\n"
+            f"![{fn}]({url})\n\n"
+            f"> 📌 *คำอธิบาย:* ไฟล์รูปภาพประกอบที่พี่บุ๊คแนบเข้ามาใช้งาน ถูกจัดเก็บและนำมาวิเคราะห์ร่วมกับภารกิจนี้เรียบร้อย (ที่มา: `{url}`)\n\n"
+        )
+
+    return f"""---
+
+## 🖼️ เอกสารและภาพประกอบการทำงาน (Attached Work Assets)
+เอกสารและภาพถ่ายที่พี่บุ๊คแนบเข้ามาประกอบการสั่งงาน ได้รับการตรวจสอบและนำมาใช้อ้างอิงในเอกสารส่งมอบฉบับนี้:
+
+{"".join(rows)}"""
+
+
 def build_fallback_comprehensive_blueprint(
     dept_id: str,
     agent_name: str,
@@ -46,6 +69,7 @@ def build_fallback_comprehensive_blueprint(
     task_title: str,
     prompt_text: str,
     research_sources: Optional[List[Dict[str, str]]] = None,
+    attachments: Optional[List[Dict[str, Any]]] = None,
 ) -> tuple[str, str]:
     """
     สร้างเอกสารผลงานและพิมพ์เขียวระดับ Production ฉบับสมบูรณ์ พร้อมสรุปสำหรับ Telegram และหน้าเว็บ
@@ -61,6 +85,7 @@ def build_fallback_comprehensive_blueprint(
             topic=topic,
             now_str=now_str,
             research_sources=research_sources,
+            attachments=attachments,
         )
         summary = f"พิมพ์เขียวกลยุทธ์ธุรกิจและวิเคราะห์ระบบ '{task_title}' (รวม SWOT, Pricing, 10-Slide Pitch Deck, และแหล่งอ้างอิง) โดย {agent_name} เสร็จสมบูรณ์ 100%"
     elif dept_id == "01_secretary" or "secretary" in dept_id.lower():
@@ -71,6 +96,7 @@ def build_fallback_comprehensive_blueprint(
             topic=topic,
             now_str=now_str,
             research_sources=research_sources,
+            attachments=attachments,
         )
         summary = f"รายงานแผนกลยุทธ์และการบริหารจัดการภารกิจ '{task_title}' โดย {agent_name} จัดเตรียมพร้อมส่งมอบ 100%"
     else:
@@ -82,8 +108,11 @@ def build_fallback_comprehensive_blueprint(
             topic=topic,
             now_str=now_str,
             research_sources=research_sources,
+            attachments=attachments,
         )
         summary = f"เอกสารส่งมอบงานระดับ Production สำหรับ '{task_title}' โดย {agent_name} เสร็จสมบูรณ์"
+
+    return report_content, summary
 
     return report_content, summary
 
@@ -113,6 +142,7 @@ def _build_business_analyst_blueprint(
     topic: str,
     now_str: str,
     research_sources: Optional[List[Dict[str, str]]] = None,
+    attachments: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """สร้างเอกสาร Business Strategy, SWOT Matrix, Commercial Model, และ 10-Slide Pitch Deck ให้ตรงตามโจทย์จริง"""
     domain = _detect_business_domain(topic)
@@ -124,6 +154,7 @@ def _build_business_analyst_blueprint(
             topic=topic,
             now_str=now_str,
             research_sources=research_sources,
+            attachments=attachments,
         )
     elif domain == "it_erp":
         return _build_erp_strategy_blueprint(
@@ -133,6 +164,7 @@ def _build_business_analyst_blueprint(
             topic=topic,
             now_str=now_str,
             research_sources=research_sources,
+            attachments=attachments,
         )
     else:
         return _build_dynamic_tailored_blueprint(
@@ -143,6 +175,7 @@ def _build_business_analyst_blueprint(
             topic=topic,
             now_str=now_str,
             research_sources=research_sources,
+            attachments=attachments,
         )
 
 
@@ -153,9 +186,11 @@ def _build_auto_parts_strategy_blueprint(
     topic: str,
     now_str: str,
     research_sources: Optional[List[Dict[str, str]]] = None,
+    attachments: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """สร้างพิมพ์เขียวกลยุทธ์สำหรับ 'ธุรกิจร้านอะไหล่รถยนต์ออนไลน์ & Marketplace' ฉบับเจาะลึก 100%"""
     citations_md = format_citations_markdown(research_sources or [])
+    attachments_md = format_attachments_markdown(attachments)
 
     research_highlights = ""
     if research_sources:
@@ -343,6 +378,8 @@ def _build_auto_parts_strategy_blueprint(
 
 ---
 
+{attachments_md}
+
 {citations_md}
 
 ---
@@ -357,9 +394,11 @@ def _build_erp_strategy_blueprint(
     topic: str,
     now_str: str,
     research_sources: Optional[List[Dict[str, str]]] = None,
+    attachments: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """สร้างเอกสาร Business Strategy สำหรับระบบ IT / ERP & Digital Marketing"""
     citations_md = format_citations_markdown(research_sources or [])
+    attachments_md = format_attachments_markdown(attachments)
 
     research_highlights = ""
     if research_sources:
@@ -542,6 +581,8 @@ def _build_erp_strategy_blueprint(
 
 ---
 
+{attachments_md}
+
 {citations_md}
 
 ---
@@ -557,9 +598,11 @@ def _build_dynamic_tailored_blueprint(
     topic: str,
     now_str: str,
     research_sources: Optional[List[Dict[str, str]]] = None,
+    attachments: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """สร้างพิมพ์เขียวกลยุทธ์แบบ Dynamic ตามโจทย์เฉพาะตัว ปรับแต่งเนื้อหา SWOT, โมเดลราคา และ 10 สไลด์ตรงประเด็น 100%"""
     citations_md = format_citations_markdown(research_sources or [])
+    attachments_md = format_attachments_markdown(attachments)
     clean_topic = topic.replace("\n", " ").strip()
 
     # สกัดสาระสำคัญ
@@ -701,6 +744,8 @@ def _build_dynamic_tailored_blueprint(
 
 ---
 
+{attachments_md}
+
 {citations_md}
 
 ---
@@ -716,9 +761,11 @@ def _build_secretary_strategic_blueprint(
     topic: str,
     now_str: str,
     research_sources: Optional[List[Dict[str, str]]] = None,
+    attachments: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """สร้างเอกสารสรุปภารกิจและการบริหารจัดการตามคำสั่งของพี่บุ๊ค โดยสำนักเลขานุการ"""
     citations_md = format_citations_markdown(research_sources or []) if research_sources else ""
+    attachments_md = format_attachments_markdown(attachments)
 
     return f"""# 🏛️ รายงานแผนกลยุทธ์และการบริหารจัดการภารกิจตามคำสั่ง (Executive Task Management Briefing)
 **วาระ / คำสั่งงาน:** {task_title}  
@@ -763,6 +810,8 @@ def _build_secretary_strategic_blueprint(
 
 ---
 
+{attachments_md}
+
 {citations_md}
 
 ---
@@ -777,9 +826,11 @@ def _build_generic_specialist_blueprint(
     topic: str,
     now_str: str,
     research_sources: Optional[List[Dict[str, str]]] = None,
+    attachments: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """สร้างเอกสารส่งมอบงานสำหรับแผนกเฉพาะทางอื่นๆ"""
     citations_md = format_citations_markdown(research_sources or []) if research_sources else ""
+    attachments_md = format_attachments_markdown(attachments)
 
     return f"""# 📄 รายงานผลการปฏิบัติงานเฉพาะทาง (Specialist Deliverable Report)
 **ภารกิจ:** {task_title}  
@@ -804,6 +855,8 @@ def _build_generic_specialist_blueprint(
 
 ---
 
+{attachments_md}
+
 {citations_md}
 
 ---
@@ -818,6 +871,7 @@ async def generate_comprehensive_deliverable(
     prompt_text: str,
     model_name: Optional[str] = None,
     research_sources: Optional[List[Dict[str, str]]] = None,
+    attachments: Optional[List[Dict[str, Any]]] = None,
 ) -> tuple[str, str]:
     """
     สร้างเอกสารผลงานส่งมอบฉบับสมบูรณ์ (Comprehensive Production Deliverable)
@@ -870,6 +924,9 @@ async def generate_comprehensive_deliverable(
 
     # หาก LLM ไม่สามารถให้เนื้อหาที่สมบูรณ์ได้ ใช้ Autonomous Production Blueprint Generator
     if llm_generated_content:
+        # แนบรูปภาพประกอบหากมี
+        if attachments and "Attached Work Assets" not in llm_generated_content:
+            llm_generated_content += "\n\n" + format_attachments_markdown(attachments)
         # แนบท้ายด้วยตารางแหล่งอ้างอิงถ้ายังไม่มี
         if research_sources and "Verified Research Citations" not in llm_generated_content:
             llm_generated_content += "\n\n---\n\n" + format_citations_markdown(research_sources)
@@ -882,6 +939,7 @@ async def generate_comprehensive_deliverable(
         task_title=task_title,
         prompt_text=clean_prompt,
         research_sources=research_sources,
+        attachments=attachments,
     )
 
 
@@ -893,6 +951,7 @@ async def generate_revised_deliverable(
     original_prompt: str,
     revision_feedback: str,
     research_sources: Optional[List[Dict[str, str]]] = None,
+    attachments: Optional[List[Dict[str, Any]]] = None,
 ) -> tuple[str, str]:
     """
     สร้างเอกสารผลงานส่งมอบฉบับปรับปรุง (Revised Deliverable) ตามข้อเสนอแนะของพี่บุ๊ค
@@ -907,6 +966,7 @@ async def generate_revised_deliverable(
         task_title=task_title,
         prompt_text=combined_prompt,
         research_sources=research_sources,
+        attachments=attachments,
     )
 
     revision_header = f"""> [!NOTE] 🔄 บันทึกการปรับปรุงผลงานตามข้อเสนอแนะของพี่บุ๊ค (Revision Log)

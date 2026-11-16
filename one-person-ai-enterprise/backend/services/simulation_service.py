@@ -55,6 +55,7 @@ class TaskDeliverable(BaseModel):
     files_created: List[Dict[str, str]] = []  # [{name, language, content}]
     social_posts: List[Dict[str, Any]] = []  # [{platform, hook, content, hashtags, image_prompt}]
     checklist: List[str] = []
+    attachments: List[Dict[str, Any]] = []  # [{id, filename, url, content_type, size, uploaded_at}]
     qa_report: Optional[str] = None
     cost_estimate: Optional[str] = None
 
@@ -69,6 +70,7 @@ class EnterpriseTask(BaseModel):
     collaborators: List[str] = []
     status: str = "QUEUED"  # QUEUED, IN_PROGRESS, QA_REVIEW, AWAITING_CONFIRMATION, CONFIRMED, REVISION_REQUESTED
     prompt: str
+    attachments: List[Dict[str, Any]] = []  # [{id, filename, url, content_type, size, uploaded_at}]
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     submitted_at: Optional[str] = None
     confirmed_at: Optional[str] = None
@@ -1279,7 +1281,7 @@ async def simulate_ai_hiring_flow():
     return proposal
 
 
-async def simulate_secretary_flow(task_title: str, custom_prompt: str = ""):
+async def simulate_secretary_flow(task_title: str, custom_prompt: str = "", attachments: Optional[List[Dict[str, Any]]] = None):
     """
     การจำลองการทำงานสำนักเลขานุการ & CKO (Executive Secretary & Strategic Sync)
     Flow:
@@ -1307,6 +1309,7 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = ""):
         collaborators=collab_ids,
         status="IN_PROGRESS",
         prompt=prompt_text,
+        attachments=attachments or [],
     )
     _tasks[task_id] = task
 
@@ -1356,6 +1359,7 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = ""):
         prompt_text=prompt_text,
         model_name="gemini-1.5-flash",
         research_sources=sec_sources,
+        attachments=attachments,
     )
 
     reports_dir = BASE_DIR / "reports"
@@ -1378,6 +1382,7 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = ""):
         files_created=[
             {"name": report_file_name, "language": "markdown", "content": report_content}
         ],
+        attachments=attachments or [],
         checklist=[
             f"ดำเนินการตามคำสั่ง '{prompt_text[:40]}' ครบถ้วน",
             "จัดทำแผนปฏิบัติการและการประสานงานข้ามสายงานชัดเจน",
@@ -1428,7 +1433,7 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = ""):
     return task
 
 
-async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prompt: str = ""):
+async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prompt: str = "", attachments: Optional[List[Dict[str, Any]]] = None):
     """ประมวลผลงานสำหรับ Agent ประจำการจริงแบบ Dynamic โดยใช้ Persona, Identity และ Skills จริงของเขา"""
     task_id = f"task_{uuid.uuid4().hex[:8]}"
     prompt_text = custom_prompt or task_title
@@ -1453,6 +1458,7 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         collaborators=["01_secretary"],
         status="IN_PROGRESS",
         prompt=prompt_text,
+        attachments=attachments or [],
     )
     _tasks[task_id] = task
 
@@ -1532,6 +1538,7 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         prompt_text=prompt_text,
         model_name=agent_model,
         research_sources=research_sources,
+        attachments=attachments,
     )
 
     # บันทึกไฟล์ผลงานจริงลงในโฟลเดอร์ reports
@@ -1551,6 +1558,7 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         files_created=[
             {"name": report_file_name, "language": "markdown", "content": report_content}
         ],
+        attachments=attachments or [],
         checklist=[
             f"วิเคราะห์ Requirement สำหรับ '{prompt_text[:40]}' ครบถ้วน",
             f"สืบค้นข้อมูลและระบุแหล่งอ้างอิงที่ได้รับการรับรอง ({len(research_sources)} แหล่ง) สมบูรณ์" if research_sources else f"สืบค้นและวางผังกระบวนการตามมาตรฐาน {dept_name} สำเร็จ",
@@ -1605,10 +1613,11 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         task_id=task.id,
     )
     await broadcast_simulation_update()
+    return task
 
 
 
-async def run_simulation_preset(preset_key: str, custom_text: str = "") -> dict:
+async def run_simulation_preset(preset_key: str, custom_text: str = "", attachments: Optional[List[Dict[str, Any]]] = None) -> dict:
     """
     เริ่มรัน Preset หรือวิเคราะห์เป้าหมายผ่าน Autonomous AI Auto-Orchestrator
     กระจายงานให้แผนกประจำการจริงแบบ Dynamic 100% โดยไม่พึ่งพา Agent ที่ถูกลบ
@@ -1622,7 +1631,7 @@ async def run_simulation_preset(preset_key: str, custom_text: str = "") -> dict:
     # 1. แผนกเลขาธิการ & บริหารกลยุทธ์ (อิงฟ้า - 01_secretary)
     if preset_key in ("secretary", "01_secretary"):
         task_title = custom_text or "จัดทำรายงานสรุปภาพรวมองค์กร และอัปเดตคลังความรู้บริษัท"
-        _active_simulation_task = asyncio.create_task(simulate_secretary_flow(task_title, custom_text))
+        _active_simulation_task = asyncio.create_task(simulate_secretary_flow(task_title, custom_text, attachments=attachments))
         return {"status": "started", "preset": "secretary", "assigned_to": "อิงฟ้า (เลขา AI & CKO)", "title": task_title}
 
     # 2. ขออนุมัติสร้างทีมเพิ่ม (Hiring Request)
@@ -1635,7 +1644,7 @@ async def run_simulation_preset(preset_key: str, custom_text: str = "") -> dict:
         target_agent = active_map[preset_key]
         assigned_name = f"{target_agent.pm_name or target_agent.name} ({target_agent.name})"
         task_title = custom_text or f"ปฏิบัติงานตามหน้าที่รับผิดชอบ: {target_agent.name}"
-        _active_simulation_task = asyncio.create_task(simulate_dynamic_agent_flow(preset_key, task_title, custom_text))
+        _active_simulation_task = asyncio.create_task(simulate_dynamic_agent_flow(preset_key, task_title, custom_text, attachments=attachments))
         return {"status": "started", "preset": preset_key, "assigned_to": assigned_name, "title": task_title}
 
     # 4. 🧠 Autonomous AI Orchestrator Auto-Router (กระจายงานไปยัง Agent ประจำการจริง)
@@ -1648,7 +1657,7 @@ async def run_simulation_preset(preset_key: str, custom_text: str = "") -> dict:
             assigned_name = "อิงฟ้า (Executive Secretary & CKO)"
             dept_name = "สำนักเลขานุการ & CKO"
             task_title = custom_text or "จัดทำรายงานสรุปภาพรวมองค์กร และอัปเดตคลังความรู้บริษัท"
-            _active_simulation_task = asyncio.create_task(simulate_secretary_flow(task_title, custom_text))
+            _active_simulation_task = asyncio.create_task(simulate_secretary_flow(task_title, custom_text, attachments=attachments))
         else:
             # เลือกแผนกปฏิบัติการที่ประจำการจริง (เช่น 07_business_analyst หรือทีมงานอื่นๆ ที่ไม่ใช่เลขา)
             other_agents = [a for a in active_agents if a.id != "01_secretary"]
@@ -1658,13 +1667,13 @@ async def run_simulation_preset(preset_key: str, custom_text: str = "") -> dict:
                 assigned_name = f"{chosen_agent.pm_name or chosen_agent.name} ({chosen_agent.name})"
                 dept_name = chosen_agent.name
                 task_title = custom_text or f"ปฏิบัติงานและวิเคราะห์ข้อมูลสำหรับ {dept_name}"
-                _active_simulation_task = asyncio.create_task(simulate_dynamic_agent_flow(chosen_agent_id, task_title, custom_text))
+                _active_simulation_task = asyncio.create_task(simulate_dynamic_agent_flow(chosen_agent_id, task_title, custom_text, attachments=attachments))
             else:
                 chosen_agent_id = "01_secretary"
                 assigned_name = "อิงฟ้า (Executive Secretary & CKO)"
                 dept_name = "สำนักเลขานุการ & CKO"
                 task_title = custom_text or "จัดทำรายงานสรุปภาพรวมองค์กร"
-                _active_simulation_task = asyncio.create_task(simulate_secretary_flow(task_title, custom_text))
+                _active_simulation_task = asyncio.create_task(simulate_secretary_flow(task_title, custom_text, attachments=attachments))
 
         write_log(LogCreate(
             agent_id="01_secretary",

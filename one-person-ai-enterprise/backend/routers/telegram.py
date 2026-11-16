@@ -104,6 +104,7 @@ async def confirm_verification(verification_id: str, req: VerifyConfirmRequest):
 class DirectCommandRequest(BaseModel):
     dept_id: str
     text: str
+    attachments: Optional[List[dict]] = None
 
 
 @router.post("/simulate")
@@ -125,8 +126,10 @@ async def director_meeting(req: SimulateRequest):
 
 @router.post("/direct-command")
 async def direct_command(req: DirectCommandRequest):
-    """สั่งงานตรงไปยัง PM หัวหน้าแผนกบน Web UI"""
+    """สั่งงานตรงไปยัง PM หัวหน้าแผนกบน Web UI พร้อมรองรับรูปภาพแนบ"""
     if not req.dept_id or not req.text.strip():
         raise HTTPException(status_code=400, detail="กรุณาระบุแผนกและข้อความสั่งงาน")
-    return await telegram_service.run_department_direct_command(req.dept_id, req.text.strip())
+    return await telegram_service.run_department_direct_command(
+        req.dept_id, req.text.strip(), attachments=req.attachments
+    )
 

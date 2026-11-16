@@ -438,6 +438,11 @@ function renderCockpitTaskCard(task, emp) {
         <span style="font-size:0.75rem; color:var(--text-dim); font-family:var(--font-mono);">Task ID: ${escapeHtml(task.id)}</span>
       </div>
       <div class="current-task-title">${escapeHtml(task.title)}</div>
+      ${(task.attachments && task.attachments.length > 0) ? `
+        <div style="margin: 4px 0;">
+          <span class="task-card-attachment-badge"><span class="badge-icon">🖼️</span> มีภาพประกอบ (${task.attachments.length} รูป)</span>
+        </div>
+      ` : ''}
       <div style="font-size:0.78rem; color:var(--text-muted); line-height:1.4;">
         ${escapeHtml(task.prompt || 'ไม่มีคำอธิบาย')}
       </div>
@@ -519,6 +524,11 @@ function renderHistoryTaskList(tasks, filter) {
         </div>
 
         <div class="history-item-body">
+          ${(t.attachments && t.attachments.length > 0) ? `
+            <div style="margin-bottom: 6px;">
+              <span class="task-card-attachment-badge"><span class="badge-icon">🖼️</span> มีภาพประกอบ (${t.attachments.length} รูป)</span>
+            </div>
+          ` : ''}
           ${escapeHtml(summaryText)}
         </div>
 

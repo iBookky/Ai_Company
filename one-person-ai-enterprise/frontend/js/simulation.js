@@ -104,6 +104,7 @@ function initSimulation() {
 document.addEventListener('DOMContentLoaded', () => {
   fetchSimulationState();
   connectSimulationWS();
+  setupAttachmentDropzones();
 
   // Polling fallback to guarantee 100% real-time UI synchronization
   setInterval(() => {
@@ -504,6 +505,152 @@ function renderDeptCommandHub(agents = []) {
   }).join('');
 }
 
+// ─── Attachments & Media Assets Support ───────────────────────
+let currentDispatchAttachments = [];
+let currentDcAttachments = [];
+
+async function uploadAttachmentFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const resp = await fetch('/api/simulation/upload-attachment', {
+    method: 'POST',
+    body: formData,
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.detail || 'อัปโหลดไฟล์ไม่สำเร็จ');
+  }
+  const data = await resp.json();
+  return data.attachment;
+}
+
+function renderAttachmentPreviews(type) {
+  const container = document.getElementById(`${type}-attachment-previews`);
+  if (!container) return;
+  const list = type === 'dispatch' ? currentDispatchAttachments : currentDcAttachments;
+  container.innerHTML = list.map((att, idx) => `
+    <div class="attachment-preview-card">
+      <img src="${att.url}" alt="${escapeHtml(att.filename)}" />
+      <button type="button" class="att-remove-btn" onclick="removeAttachment('${type}', ${idx})" title="ลบรูปนี้">✕</button>
+      <div class="att-name-tooltip">${escapeHtml(att.filename)}</div>
+    </div>
+  `).join('');
+}
+
+function removeAttachment(type, index) {
+  if (type === 'dispatch') {
+    currentDispatchAttachments.splice(index, 1);
+  } else {
+    currentDcAttachments.splice(index, 1);
+  }
+  renderAttachmentPreviews(type);
+}
+
+function clearAttachments(type) {
+  if (type === 'dispatch') {
+    currentDispatchAttachments = [];
+  } else {
+    currentDcAttachments = [];
+  }
+  renderAttachmentPreviews(type);
+}
+
+async function handleAttachmentFileInput(event, type) {
+  const files = event.target.files;
+  if (!files || !files.length) return;
+  await processFilesUpload(Array.from(files), type);
+  event.target.value = '';
+}
+
+async function processFilesUpload(files, type) {
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) {
+      simToast(`ไฟล์ ${file.name} ไม่ใช่รูปภาพ`, 'warning');
+      continue;
+    }
+    try {
+      simToast(`กำลังอัปโหลด ${file.name}...`, 'info');
+      const att = await uploadAttachmentFile(file);
+      if (type === 'dispatch') {
+        currentDispatchAttachments.push(att);
+      } else {
+        currentDcAttachments.push(att);
+      }
+      renderAttachmentPreviews(type);
+      simToast(`แนบรูปภาพ ${file.name} เรียบร้อย`, 'success');
+    } catch (err) {
+      simToast(`อัปโหลดรูปภาพล้มเหลว: ${err.message}`, 'error');
+    }
+  }
+}
+
+function openImageLightbox(url, caption) {
+  const modal = document.getElementById('modal-image-lightbox');
+  const img = document.getElementById('lightbox-image');
+  const cap = document.getElementById('lightbox-caption');
+  if (!modal || !img) return;
+  img.src = url;
+  if (cap) cap.textContent = caption || '';
+  modal.classList.add('active');
+}
+
+function setupAttachmentDropzones() {
+  ['dispatch', 'dc'].forEach(type => {
+    const dropzone = document.getElementById(`${type}-attachment-dropzone`);
+    if (!dropzone) return;
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropzone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('dragover');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropzone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+      }, false);
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const files = dt ? dt.files : null;
+      if (files && files.length) {
+        processFilesUpload(Array.from(files), type);
+      }
+    }, false);
+  });
+
+  // Global paste support when modal is active
+  window.addEventListener('paste', (e) => {
+    const activeModalDispatch = document.getElementById('modal-dept-dispatch');
+    const activeModalDc = document.getElementById('modal-direct-cmd');
+    let targetType = null;
+    if (activeModalDispatch && activeModalDispatch.classList.contains('active')) {
+      targetType = 'dispatch';
+    } else if (activeModalDc && activeModalDc.classList.contains('active')) {
+      targetType = 'dc';
+    }
+    if (!targetType) return;
+
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    const files = [];
+    for (const item of items) {
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) files.push(file);
+      }
+    }
+    if (files.length) {
+      e.preventDefault();
+      processFilesUpload(files, targetType);
+    }
+  });
+}
+
 // ─── Department Dispatch Modal Logic ──────────────────────────
 function openDeptDispatchModal(deptId) {
   const dept = ENTERPRISE_DEPARTMENTS[deptId];
@@ -511,6 +658,8 @@ function openDeptDispatchModal(deptId) {
     simToast(`ไม่พบข้อมูลแผนก ${deptId}`, 'warning');
     return;
   }
+
+  clearAttachments('dispatch');
 
   const avatarEl = document.getElementById('dispatch-modal-avatar');
   const titleEl = document.getElementById('dispatch-modal-title');
@@ -583,8 +732,11 @@ async function submitDeptDispatch() {
   try {
     const res = await simPost('/api/simulation/start', {
       preset: preset,
-      prompt: promptText
+      prompt: promptText,
+      attachments: currentDispatchAttachments.length ? currentDispatchAttachments : undefined
     });
+
+    clearAttachments('dispatch');
 
     if (typeof closeModal === 'function') {
       closeModal('modal-dept-dispatch');
@@ -742,6 +894,12 @@ function renderColPending(pendingTasks, pendingHires) {
         <div class="card-deliverable-summary">
           <strong>สรุปผลงาน:</strong> ${escapeHtml(deliverable.summary || task.prompt)}
         </div>
+
+        ${((task.attachments && task.attachments.length > 0) || (deliverable.attachments && deliverable.attachments.length > 0)) ? `
+          <div style="margin-bottom:0.4rem;">
+            <span class="task-card-attachment-badge"><span class="badge-icon">🖼️</span> มีภาพประกอบ (${(task.attachments || deliverable.attachments).length} รูป)</span>
+          </div>
+        ` : ''}
 
         <div style="display:flex; gap:0.35rem; flex-wrap:wrap; font-size:0.7rem;">
           ${hasFiles ? `<span class="card-category-tag" style="background:rgba(90,110,240,0.15); color:#818cf8;">📄 Code พร้อมส่ง</span>` : ''}
@@ -973,6 +1131,47 @@ async function openDeliverableModal(taskId) {
   if (tabDocBtn) tabDocBtn.style.display = mdContent ? '' : 'none';
   if (mdContent) {
     renderRichMarkdownDocument(mdContent, 'modal-del-doc-container', task.title);
+  }
+
+  // 3.5 Render Attached Images & Assets
+  const taskAttachments = (task.attachments && task.attachments.length > 0)
+    ? task.attachments
+    : (deliverable.attachments || []);
+  const tabAttBtn = document.getElementById('del-tab-btn-attachments');
+  const attCountEl = document.getElementById('del-tab-attachments-count');
+  const attPane = document.getElementById('modal-del-attachments-container');
+
+  if (attCountEl) attCountEl.textContent = taskAttachments.length;
+  if (tabAttBtn) tabAttBtn.style.display = taskAttachments.length > 0 ? '' : 'none';
+
+  if (attPane) {
+    if (taskAttachments.length > 0) {
+      attPane.innerHTML = `
+        <div style="margin-bottom:1rem; color:var(--text-muted); font-size:0.85rem;">
+          📷 รูปภาพและเอกสารแนบที่นำมาใช้ประกอบการทำงาน (${taskAttachments.length} รายการ):
+        </div>
+        <div class="del-attachments-grid">
+          ${taskAttachments.map((att, idx) => `
+            <div class="del-attachment-item">
+              <div class="del-attachment-thumb" onclick="openImageLightbox('${att.url}', '${escapeHtml(att.filename)}')">
+                <img src="${att.url}" alt="${escapeHtml(att.filename)}" />
+                <div class="del-attachment-thumb-overlay">🔍 ขยาย</div>
+              </div>
+              <div class="del-attachment-info">
+                <div class="del-attachment-filename" title="${escapeHtml(att.filename)}">${escapeHtml(att.filename)}</div>
+                <div class="del-attachment-meta">${att.size ? (att.size / 1024).toFixed(1) + ' KB' : 'Image'} • ${formatIsoTime(att.uploaded_at)}</div>
+                <div class="del-attachment-actions">
+                  <button type="button" class="btn-att-action" onclick="openImageLightbox('${att.url}', '${escapeHtml(att.filename)}')">🔍 ดูรูปเต็ม</button>
+                  <a href="${att.url}" target="_blank" download="${escapeHtml(att.filename)}" class="btn-att-action">⬇️ ดาวน์โหลด</a>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else {
+      attPane.innerHTML = `<div style="text-align:center; padding:2rem; opacity:0.5;">ไม่มีรูปภาพแนบในงานชิ้นนี้</div>`;
+    }
   }
 
   // 4. Pane: Summary & QA
@@ -1898,3 +2097,10 @@ if (typeof window !== 'undefined' && !window._slideKeyboardListenerAttached) {
   });
 }
 window.copyFileContentAtIndex = copyFileContentAtIndex;
+window.handleAttachmentFileInput = handleAttachmentFileInput;
+window.removeAttachment = removeAttachment;
+window.clearAttachments = clearAttachments;
+window.openImageLightbox = openImageLightbox;
+window.setupAttachmentDropzones = setupAttachmentDropzones;
+window.currentDispatchAttachments = currentDispatchAttachments;
+window.currentDcAttachments = currentDcAttachments;
