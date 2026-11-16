@@ -52,7 +52,7 @@ async def generate_morning_briefing() -> str:
     try:
         from backend.services.llm_service import LLMService
         from backend.services.telegram_service import _get_owner_prompt_context
-        llm = LLMService(model="gemini-1.5-flash", temperature=0.7)
+        llm = LLMService(model=os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high"), temperature=0.7)
         briefing_text = await llm.generate(
             system_instruction=(
                 f"คุณคือ 'อิงฟ้า' เลขา AI และเพื่อนคู่คิดบริหาร สรุปรายงานยามเช้า 08:30 น. ให้แก่คุณ {owner_name} "
@@ -89,7 +89,7 @@ async def generate_evening_summary() -> str:
     try:
         from backend.services.llm_service import LLMService
         from backend.services.telegram_service import _get_owner_prompt_context
-        llm = LLMService(model="gemini-1.5-flash", temperature=0.6)
+        llm = LLMService(model=os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high"), temperature=0.6)
         summary_text = await llm.generate(
             system_instruction=(
                 f"คุณคือ 'อิงฟ้า' เลขา AI สรุปรายงานการทำงานประจำวัน 18:00 น. (EOD Summary) แก่คุณ {owner_name} "

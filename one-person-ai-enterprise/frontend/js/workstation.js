@@ -196,7 +196,7 @@ function renderWorkstationCockpit(data) {
           <div class="identity-detail-row">
             <span class="identity-detail-label">🧠 AI Engine</span>
             <span class="identity-detail-val" style="display:inline-flex; align-items:center; gap:6px;">
-              <span style="font-family:var(--font-mono); font-size:0.75rem; color:#60a5fa;">${escapeHtml(emp.model || 'gemini-1.5-flash')}</span>
+              <span style="font-family:var(--font-mono); font-size:0.75rem; color:#60a5fa;">${escapeHtml(emp.model || 'gemini-3.8-flash-high')}</span>
               <button class="btn btn-sm" onclick="editAgent('${escapeHtml(emp.id)}')" style="padding:1px 7px; font-size:10px; border-radius:4px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); cursor:pointer;" title="เปลี่ยนโมเดล AI สำหรับ Agent คนนี้">⚙️ เปลี่ยนโมเดล</button>
             </span>
           </div>

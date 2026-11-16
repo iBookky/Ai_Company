@@ -2,7 +2,7 @@
   "name": "Business Analyst",
   "role": "pm_07_business_analyst",
   "pm_name": "น้องบิ๊นท์",
-  "model": "gemini-2.0-flash-exp",
+  "model": "gemini-3.8-flash-high",
   "temperature": 0.5,
   "department": "07_business_analyst",
   "ops_chat_id": "",

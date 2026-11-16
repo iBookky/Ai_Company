@@ -1,11 +1,16 @@
 """
-llm_service.py — Pluggable LLM wrapper รองรับ Gemini และ Claude
+llm_service.py — Pluggable LLM wrapper รองรับ AGY Engine (Gemini 3.8 / 4.0 / Claude 5.5), Google, และ Claude
 """
 
 import os
+import shutil
+import asyncio
+import logging
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
+
+logger = logging.getLogger("llm_service")
 
 BASE_DIR = Path(__file__).parent.parent.parent
 load_dotenv(BASE_DIR / ".env", override=True)
@@ -16,20 +21,118 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
 
 class LLMService:
-    """Wrapper ที่รองรับหลาย LLM provider"""
+    """Wrapper ที่รองรับหลาย LLM provider พร้อม AGY Modern Engine เป็นแกนหลัก"""
 
-    def __init__(self, model: str = "gemini-1.5-flash", temperature: float = 0.5):
+    def __init__(self, model: str = "gemini-3.8-flash-high", temperature: float = 0.5):
         self.model = model
         self.temperature = temperature
         self._provider = self._detect_provider(model)
 
     def _detect_provider(self, model: str) -> str:
         model_lower = model.lower()
+        if any(k in model_lower for k in ["3.8", "argon", "hydrogen", "5-5", "opus-5", "sonnet-5", "gpt-oss"]):
+            return "agy"
         if model_lower.startswith(("ollama", "local", "llama", "qwen", "mistral", "deepseek", "phi")):
             return "ollama"
         elif model_lower.startswith("claude"):
             return "anthropic"
         return "google"
+
+    @staticmethod
+    def _map_to_active_model(model: str) -> str:
+        """แมปชื่อโมเดลเป็นโมเดลรุ่นใหม่ที่ใช้งานได้จริงในปัจจุบันบนระบบ agy"""
+        m = (model or "").lower().strip()
+        valid_agy_models = [
+            "gemini-3.8-flash-high",
+            "gemini-3.8-flash-medium",
+            "gemini-3.8-flash-low",
+            "gemini-4-argon-medium",
+            "gemini-4-argon-high",
+            "gemini-4-argon-low",
+            "gemini-4-hydrogen-high",
+            "gemini-4-hydrogen-xhigh",
+            "gemini-4-hydrogen-medium",
+            "gemini-4-hydrogen-low",
+            "gemini-pro-orchestrator-g1-pro",
+            "claude-opus-5-5-high",
+            "claude-opus-5-5-medium",
+            "claude-opus-5-5-low",
+            "claude-sonnet-5-5-high",
+            "claude-sonnet-5-5-medium",
+            "claude-sonnet-5-5-low",
+            "gpt-oss-120b-medium",
+        ]
+        if m in valid_agy_models:
+            return m
+
+        if "opus" in m:
+            return "claude-opus-5-5-high"
+        if "sonnet" in m or "claude" in m:
+            return "claude-sonnet-5-5-high"
+        if "argon" in m or "pro" in m:
+            return "gemini-4-argon-medium"
+        if "hydrogen" in m:
+            return "gemini-4-hydrogen-high"
+        if "gpt" in m:
+            return "gpt-oss-120b-medium"
+        return "gemini-3.8-flash-high"
+
+    async def _call_agy(
+        self, system_instruction: str, user_message: str, history: Optional[list] = None
+    ) -> str:
+        """เรียก Antigravity CLI (agy) ที่เชื่อมต่อโมเดล AI ยุคใหม่ (Gemini 3.8 / 4.0 / Claude 5.5) โดยตรง 100%"""
+        agy_path = "/Users/ibookky/.gemini/bin/agy"
+        if not os.path.exists(agy_path):
+            agy_path = shutil.which("agy") or "agy"
+
+        mapped_model = self._map_to_active_model(self.model)
+
+        prompt_parts = []
+        if system_instruction:
+            prompt_parts.append(f"### SYSTEM INSTRUCTIONS & IDENTITY:\n{system_instruction}")
+
+        if history:
+            history_lines = []
+            for h in history:
+                role = h.get("role", "user")
+                content = h.get("content", "")
+                history_lines.append(f"{role}: {content}")
+            if history_lines:
+                prompt_parts.append("### CONVERSATION HISTORY:\n" + "\n".join(history_lines[-6:]))
+
+        prompt_parts.append(f"### USER PROMPT:\n{user_message}")
+        full_prompt = "\n\n".join(prompt_parts)
+
+        cmd = [agy_path, "--model", mapped_model, "--disable-slash-commands", "-p", full_prompt]
+        try:
+            logger.info(f"Calling agy with modern model {mapped_model}...")
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=240.0)
+            if proc.returncode == 0:
+                output = stdout.decode("utf-8").strip()
+                if output:
+                    logger.info(f"Successfully received response from agy ({mapped_model})")
+                    try:
+                        from backend.services.usage_service import record_usage
+                        approx_tokens = len(output) // 4
+                        record_usage(
+                            model=mapped_model,
+                            input_tokens=len(full_prompt) // 4,
+                            output_tokens=approx_tokens
+                        )
+                    except Exception:
+                        pass
+                    return output
+            err_msg = stderr.decode("utf-8").strip()
+            logger.warning(f"agy execution returned error (code {proc.returncode}): {err_msg}")
+        except Exception as e:
+            logger.error(f"Failed to call agy CLI: {e}")
+        return ""
 
     async def generate(
         self,
@@ -37,23 +140,49 @@ class LLMService:
         user_message: str,
         history: Optional[list] = None,
     ) -> str:
-        """ส่ง prompt และรับ response จาก LLM (รองรับ Google, Claude, Ollama, และ Zero-Token Engine)"""
-        if self._provider == "ollama":
-            return await self._call_ollama(system_instruction, user_message, history)
-        elif self._provider == "anthropic":
+        """ส่ง prompt และรับ response จาก LLM (รองรับ AGY Modern Engine, Google, Claude, Ollama)"""
+        # 1. หากระบุเป็นโมเดลของ AGY โดยตรง ให้เรียก AGY CLI ทันที
+        if self._provider == "agy":
+            resp = await self._call_agy(system_instruction, user_message, history)
+            if resp:
+                return resp
+
+        # 2. หากระบุ Anthropic
+        if self._provider == "anthropic":
             resp = await self._call_claude(system_instruction, user_message, history)
-            if resp.startswith("[Claude Error]") or resp.startswith("[Config Error]"):
-                return self._call_zero_token_autonomous_engine(system_instruction, user_message, history)
-            return resp
-        elif self._provider == "google":
+            if not resp.startswith("[Claude Error]") and not resp.startswith("[Config Error]"):
+                return resp
+            # หาก Claude API ภายนอก Error ให้ Fallback ไปยัง AGY CLI ซึ่งมี Claude Sonnet 5.5 และ Opus 5.5
+            agy_resp = await self._call_agy(system_instruction, user_message, history)
+            if agy_resp:
+                return agy_resp
+
+        # 3. หากระบุ Google Gemini
+        if self._provider == "google":
             api_key = os.getenv("GEMINI_API_KEY", "")
-            if not api_key:
-                # พยายามเชื่อมต่อ Local LLM ก่อน หากไม่มีใช้ Zero-Token Engine อัจฉริยะ
-                return await self._call_ollama(system_instruction, user_message, history)
-            resp = await self._call_gemini(system_instruction, user_message, history)
-            if resp.startswith("[Gemini Error]"):
-                return self._call_zero_token_autonomous_engine(system_instruction, user_message, history)
-            return resp
+            if api_key:
+                resp = await self._call_gemini(system_instruction, user_message, history)
+                if not resp.startswith("[Gemini Error]") and not resp.startswith("[Gemini Quota Limit]") and not resp.startswith("[Config Error]"):
+                    return resp
+            # หากไม่มี Key หรือ Gemini API มีปัญหา ให้ใช้ AGY CLI ทันที (Gemini 3.8 / 4.0)
+            agy_resp = await self._call_agy(system_instruction, user_message, history)
+            if agy_resp:
+                return agy_resp
+
+        # 4. หากระบุ Ollama
+        if self._provider == "ollama":
+            resp = await self._call_ollama(system_instruction, user_message, history)
+            if resp and not resp.startswith("[Ollama Error]"):
+                return resp
+            agy_resp = await self._call_agy(system_instruction, user_message, history)
+            if agy_resp:
+                return agy_resp
+
+        # 5. ลอง AGY CLI ทันที
+        agy_resp = await self._call_agy(system_instruction, user_message, history)
+        if agy_resp:
+            return agy_resp
+
         return self._call_zero_token_autonomous_engine(system_instruction, user_message, history)
 
     async def _call_gemini(

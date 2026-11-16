@@ -144,39 +144,19 @@ def _build_business_analyst_blueprint(
     research_sources: Optional[List[Dict[str, str]]] = None,
     attachments: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
-    """สร้างเอกสาร Business Strategy, SWOT Matrix, Commercial Model, และ 10-Slide Pitch Deck ให้ตรงตามโจทย์จริง"""
+    """สร้างเอกสาร Business Strategy, SWOT Matrix, Commercial Model, และ 10-Slide Pitch Deck ให้ตรงตามโจทย์จริง 100%"""
     domain = _detect_business_domain(topic)
-    if domain == "auto_parts":
-        return _build_auto_parts_strategy_blueprint(
-            agent_name=agent_name,
-            dept_name=dept_name,
-            task_title=task_title,
-            topic=topic,
-            now_str=now_str,
-            research_sources=research_sources,
-            attachments=attachments,
-        )
-    elif domain == "it_erp":
-        return _build_erp_strategy_blueprint(
-            agent_name=agent_name,
-            dept_name=dept_name,
-            task_title=task_title,
-            topic=topic,
-            now_str=now_str,
-            research_sources=research_sources,
-            attachments=attachments,
-        )
-    else:
-        return _build_dynamic_tailored_blueprint(
-            domain=domain,
-            agent_name=agent_name,
-            dept_name=dept_name,
-            task_title=task_title,
-            topic=topic,
-            now_str=now_str,
-            research_sources=research_sources,
-            attachments=attachments,
-        )
+    # ใช้ Dynamic Tailored Blueprint เสมอเพื่อให้เนื้อหาตรงกับโจทย์ที่พี่บุ๊คสั่งจริง ไม่ค้างกับพิมพ์เขียวเก่า
+    return _build_dynamic_tailored_blueprint(
+        domain=domain,
+        agent_name=agent_name,
+        dept_name=dept_name,
+        task_title=task_title,
+        topic=topic,
+        now_str=now_str,
+        research_sources=research_sources,
+        attachments=attachments,
+    )
 
 
 def _build_auto_parts_strategy_blueprint(
@@ -887,7 +867,7 @@ async def generate_comprehensive_deliverable(
     # พยายามสร้างผลงานผ่าน LLM
     llm_generated_content = ""
     try:
-        model = model_name or "gemini-1.5-flash"
+        model = model_name or os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high")
         llm = LLMService(model=model, temperature=0.5)
         sys_inst, _ = llm.load_agent_instructions(dept_id)
 
@@ -901,11 +881,20 @@ async def generate_comprehensive_deliverable(
 
         enhanced_instruction = (
             f"{sys_inst}\n\n"
-            f"--- คำสั่งภารกิจจัดทำผลงานฉบับสมบูรณ์ครบถ้วน (Comprehensive Deliverable Order) ---\n"
-            f"คุณคือ '{agent_name}' ({dept_name}) ผู้เชี่ยวชาญระดับสูงใน One-Person AI Enterprise\n"
-            f"หน้าที่ของคุณ: ปฏิบัติงานตามคำสั่งของพี่บุ๊คให้สำเร็จสมบูรณ์ 100% ตามมาตรฐาน Zero-Defect\n"
-            f"ข้อกำหนดสำคัญ: ห้ามตอบสั้นๆ หรือตอบเพียงแค่รับทราบโจทย์เด็ดขาด! คุณต้องจัดทำเอกสารส่งมอบงานฉบับสมบูรณ์ (Full Production Specification / Process Blueprint) มีเนื้อหาเจาะลึก ครบทุกกระบวนการ รายละเอียดขั้นตอน 1-2-3-4 ผังการทำงาน Data Models และ Action Plan ที่สามารถนำไปใช้งานหรือพัฒนาระบบจริงได้ทันที\n"
-            f"ให้เขียนรายงานเป็น Markdown ภาษาไทยอย่างเป็นทางการ สุภาพ และมีคุณภาพสูงสุด{research_context}"
+            f"--- คำสั่งภารกิจจัดทำผลงานและพิมพ์เขียวฉบับสมบูรณ์ครบถ้วน (Comprehensive Deliverable Order) ---\n"
+            f"คุณคือ '{agent_name}' ({dept_name}) ในบริษัท One-Person AI Enterprise\n"
+            f"หน้าที่ของคุณ: ปฏิบัติงานวิเคราะห์ สังเคราะห์ และจัดทำเอกสารพิมพ์เขียวกลยุทธ์ตามคำสั่งของพี่บุ๊ค ให้สำเร็จสมบูรณ์ 100% ตามมาตรฐาน Zero-Defect\n"
+            f"ข้อกำหนดสำคัญที่สุด:\n"
+            f"1. ต้องวิเคราะห์และให้ผลลัพธ์ตรงกับโจทย์ที่พี่บุ๊คสั่งจริงๆ ห้ามตอบเนื้อหาเดิมที่ค้างหรือเนื้อหาทั่วไปที่ไม่ตรงโจทย์เด็ดขาด!\n"
+            f"2. จัดทำเอกสารส่งมอบงานฉบับสมบูรณ์ (Comprehensive Production Specification & Strategic Blueprint) ในรูปแบบ Markdown ภาษาไทยระดับมืออาชีพ โดยต้องมีโครงสร้างหัวข้อดังนี้:\n"
+            f"   - # [ชื่อหัวข้อเอกสารที่ตรงกับโจทย์จริง]\n"
+            f"   - ## 🎯 1. บทสรุปผู้บริหารและการฟันธงทิศทางธุรกิจ (Executive Summary & Strategic Verdict) — ฟันธงชัดเจนว่าจะทำอย่างไร (GO/NO-GO), แนวทางสำคัญ 3 ประการที่ตอบโจทย์นี้ตรงๆ\n"
+            f"   - ## 🔬 2. การวิเคราะห์ SWOT Matrix เชิงลึก 4 มิติ (Comprehensive SWOT Analysis) — มีตาราง SWOT 4 ด้าน และกลยุทธ์ TOWS ที่ตรงกับโจทย์นี้โดยเฉพาะ\n"
+            f"   - ## 💼 3. โมเดลธุรกิจ โครงสร้างรายได้ และราคา (Commercial Model & Pricing Strategy) — แจกแจงแพ็กเกจ Starter/Pro/Enterprise และประมาณการรายได้\n"
+            f"   - ## 📽️ 4. โครงร่างสไลด์นำเสนอ PowerPoint (10-Slide Pitch Deck with Speaker Notes) — เขียนเนื้อหาให้ครบทั้ง 10 สไลด์ พร้อมบทพูดผู้นำเสนอ (Speaker Notes) ในแต่ละสไลด์\n"
+            f"   - ## 🗺️ 5. แผนปฏิบัติการ 30-60-90-180 วัน (Action Milestones) — ตารางการลงมือทำรายเดือน\n"
+            f"   - ## 🛡️ 6. เกณฑ์การควบคุมคุณภาพและการอนุมัติ (Governance & HITL Gate)\n"
+            f"ให้เขียนรายงานอย่างละเอียด เจาะลึก มีตัวเลข ขั้นตอน และคำแนะนำที่นำไปปฏิบัติได้จริงทันที{research_context}"
         )
 
         resp = await llm.generate(
@@ -914,9 +903,12 @@ async def generate_comprehensive_deliverable(
         )
 
         # ตรวจสอบว่าคำตอบที่ได้จาก LLM มีเนื้อหาเชิงลึกแท้จริงระดับรายงานสมบูรณ์
-        is_dialogue_greeting = resp.strip().startswith("สวัสดีค่ะพี่บุ๊ค") or resp.strip().startswith("สวัสดีครับ/ค่ะพี่บุ๊ค")
-        has_deep_content = len(resp.strip()) >= 1200 and ("##" in resp or "---" in resp or "Workflow" in resp)
-        if resp and has_deep_content and not is_dialogue_greeting and not resp.strip().startswith("[Config Error]") and not resp.strip().startswith("[Claude Error]"):
+        is_canned_dialogue = (
+            resp.strip().startswith("สวัสดีค่ะพี่บุ๊ค น้องบิ๊นท์ (Lead Business Analyst) พร้อมลุยงาน")
+            or resp.strip().startswith("สวัสดีครับ/ค่ะพี่บุ๊ค ทีมงาน AI ได้รับคำสั่ง")
+        )
+        is_error = resp.strip().startswith("[Config Error]") or resp.strip().startswith("[Claude Error]") or resp.strip().startswith("[Gemini Error]")
+        if resp and len(resp.strip()) >= 500 and not is_canned_dialogue and not is_error:
             llm_generated_content = resp.strip()
             logger.info("Successfully generated deliverable via live LLM")
     except Exception as e:

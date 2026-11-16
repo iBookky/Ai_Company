@@ -89,7 +89,7 @@ class HiringProposal(BaseModel):
     reason_and_need: str
     proposed_skills: str
     proposed_identity: str
-    recommended_model: str = "gemini-1.5-flash"
+    recommended_model: str = "gemini-3.8-flash-high"
     status: str = "PENDING_APPROVAL"  # PENDING_APPROVAL, APPROVED, REJECTED
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     approved_at: Optional[str] = None
@@ -318,19 +318,9 @@ def init_agent_states():
     for tid, t in list(_tasks.items()):
         if t.status == "IN_PROGRESS" and t.assigned_agent_id in _agent_states:
             st = _agent_states[t.assigned_agent_id]
-            if st.status == "awaiting_confirmation":
-                if not t.deliverable:
-                    report_content = f"# 📋 รายงานสรุปผลงาน: {t.title}\n\n**ผู้จัดทำ:** {t.assigned_agent_name}\n**สถานะ:** เสร็จสมบูรณ์พร้อมส่งมอบ (รอพี่บุ๊ค ตรวจรับตามหลัก HITL)\n\n### 🎯 สาระสำคัญและการดำเนินงาน:\n- ดำเนินการวิเคราะห์และจัดทำข้อกำหนดตามคำสั่งเรียบร้อยแล้ว\n- ผลงานผ่านการตรวจสอบคุณภาพ Zero-Defect 100%"
-                    t.deliverable = TaskDeliverable(
-                        summary=f"ผลงาน '{t.title}' จัดทำโดย {t.assigned_agent_name} เสร็จสมบูรณ์",
-                        type="execution",
-                        details="ผลงานพร้อมส่งมอบ เข้าสู่สถานะ Human-in-the-Loop (HITL) รอพี่บุ๊ค ตรวจสอบและกดยืนยัน",
-                        files_created=[{"name": f"reports/{t.assigned_agent_id}_deliverable.md", "language": "markdown", "content": report_content}],
-                        checklist=["วิเคราะห์โจทย์และข้อกำหนดครบถ้วน", "จัดทำเอกสารส่งมอบระดับ Production สมบูรณ์", "ผ่านเกณฑ์คุณภาพ HITL"],
-                        qa_report="✅ ผ่านเกณฑ์มาตรฐานการตรวจสอบคุณภาพเรียบร้อย พร้อมให้พี่บุ๊ค พิจารณาปิดงาน",
-                    )
-                t.status = "AWAITING_CONFIRMATION"
-                t.submitted_at = datetime.now(timezone.utc).isoformat()
+            # ไม่ overwrite deliverable ของ task ที่กำลังประมวลผลอยู่
+            if st.current_task_id != tid and st.status == "awaiting_confirmation":
+                st.status = "working"
                 st.current_task_id = tid
         elif t.status == "AWAITING_CONFIRMATION" and t.assigned_agent_id in _agent_states:
             st = _agent_states[t.assigned_agent_id]
@@ -1109,7 +1099,7 @@ async def request_ai_hiring(
     reason: str,
     skills: str,
     identity: str,
-    model: str = "gemini-1.5-flash"
+    model: str = "gemini-3.8-flash-high"
 ) -> HiringProposal:
     """AI ยื่นคำขอจัดจ้าง / สร้าง AI เพิ่มเติม เมื่บิ๊นท์งานเฉพาะทางหรือโหลดงานสูง"""
     prop_id = str(uuid.uuid4())[:8]
@@ -1276,7 +1266,7 @@ async def simulate_ai_hiring_flow():
         reason="เพื่อรองรับการ Deploy ระบบขึ้น Cloud (Docker, Kubernetes, CI/CD) และดูแลความเสถียรของเซิร์ฟเวอร์แบบอัตโนมัติ 24/7 เพื่อให้ บิ๊นท์ มีสมาธิกับการเขียนโค้ด Feature หลัก",
         skills="Docker, Kubernetes, GitHub Actions, AWS/GCP Setup, Automated Monitoring, Server Security",
         identity="# ⚡ ก้อง (Cloud DevOps Specialist)\nรับผิดชอบด้าน Infrastructure, CI/CD Pipelines, และ Server Uptime 99.99%",
-        model="gemini-1.5-flash"
+        model="gemini-3.8-flash-high"
     )
     return proposal
 
@@ -1357,7 +1347,7 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = "", atta
         dept_name="สำนักเลขานุการ & CKO",
         task_title=task_title,
         prompt_text=prompt_text,
-        model_name="gemini-1.5-flash",
+        model_name="gemini-3.8-flash-high",
         research_sources=sec_sources,
         attachments=attachments,
     )
@@ -1529,7 +1519,7 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         _agent_states[dept_id].progress = 85
 
     # ดำเนินการวิเคราะห์และผลิตผลงานจริงระดับ Production Blueprint ผ่าน Deliverable Engine
-    agent_model = getattr(agent_info, "model", None) or "gemini-1.5-flash"
+    agent_model = getattr(agent_info, "model", None) or os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high")
     report_content, deliverable_summary = await generate_comprehensive_deliverable(
         dept_id=dept_id,
         agent_name=agent_name,
@@ -1895,7 +1885,7 @@ def get_employee_workspace(employee_id: str) -> Optional[Dict[str, Any]]:
             "avatar": state.avatar,
             "photo_url": photo_url,
             "motto": motto,
-            "model": config_data.get("model", "gemini-1.5-flash"),
+            "model": config_data.get("model", "gemini-3.8-flash-high"),
             "temperature": config_data.get("temperature", 0.5),
             "status": state.status,
             "status_label_th": status_label_th,

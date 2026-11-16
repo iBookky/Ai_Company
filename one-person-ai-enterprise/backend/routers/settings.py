@@ -58,7 +58,7 @@ def _load_settings() -> AppSettings:
         telegram_admin_chat_id=os.getenv("TELEGRAM_ADMIN_CHAT_ID", ""),
         telegram_ops_chat_id=os.getenv("TELEGRAM_OPS_CHAT_ID", ""),
         telegram_ops_chat_ids=ops_chat_ids,
-        default_model=os.getenv("DEFAULT_MODEL", "gemini-1.5-flash"),
+        default_model=os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high"),
         gemini_fallback_models=os.getenv("GEMINI_FALLBACK_MODELS", ""),
         available_models=os.getenv("AVAILABLE_MODELS", ""),
         gemini_configured=bool(os.getenv("GEMINI_API_KEY")),
@@ -276,8 +276,11 @@ async def test_send_message(req: TestMessageRequest):
 async def get_available_models():
     """ดึงรายชื่อโมเดลที่รองรับทั้งหมด"""
     return [
-        {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro", "provider": "Google", "context": "1M tokens", "tier": "premium"},
-        {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash", "provider": "Google", "context": "1M tokens", "tier": "fast"},
-        {"id": "claude-3-5-sonnet-20241022", "name": "Claude 3.5 Sonnet", "provider": "Anthropic", "context": "200K tokens", "tier": "premium"},
-        {"id": "claude-3-haiku-20240307", "name": "Claude 3 Haiku", "provider": "Anthropic", "context": "200K tokens", "tier": "fast"},
+        {"id": "gemini-3.8-flash-high", "name": "Gemini 3.8 Flash High (ความเร็ว & แม่นยำสูงสุด)", "provider": "Google (Active)", "context": "1M tokens", "tier": "recommended"},
+        {"id": "gemini-3.8-flash-medium", "name": "Gemini 3.8 Flash Medium", "provider": "Google", "context": "1M tokens", "tier": "fast"},
+        {"id": "gemini-4-argon-medium", "name": "Gemini 4 Argon Medium (Next-Gen)", "provider": "Google", "context": "1M tokens", "tier": "next-gen"},
+        {"id": "gemini-4-hydrogen-high", "name": "Gemini 4 Hydrogen High (Flagship)", "provider": "Google", "context": "1M tokens", "tier": "flagship"},
+        {"id": "claude-sonnet-5-5-high", "name": "Claude Sonnet 5.5 High (การวิเคราะห์ลึก)", "provider": "Anthropic", "context": "200K tokens", "tier": "premium"},
+        {"id": "claude-opus-5-5-high", "name": "Claude Opus 5.5 High (งานซับซ้อนระดับสูง)", "provider": "Anthropic", "context": "200K tokens", "tier": "flagship"},
+        {"id": "gpt-oss-120b-medium", "name": "GPT-OSS 120B Medium (Open Model)", "provider": "OpenAI/OSS", "context": "128K tokens", "tier": "open-source"},
     ]

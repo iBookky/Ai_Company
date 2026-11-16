@@ -2,6 +2,7 @@
 agent_service.py — Business logic สำหรับ Agent CRUD operations
 """
 
+import os
 import json
 import re
 import shutil
@@ -66,7 +67,7 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
         id=dept_dir.name,
         name=config.get("name", dept_dir.name),
         role=config.get("role", "agent"),
-        model=config.get("model", "gemini-1.5-flash"),
+        model=config.get("model", os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high")),
         temperature=config.get("temperature", 0.5),
         department=dept_dir.name,
         ops_chat_id=config.get("ops_chat_id", ""),

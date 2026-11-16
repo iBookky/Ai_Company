@@ -7,6 +7,13 @@ from enum import Enum
 # ─── Enums ───────────────────────────────────────────────────────────────────
 
 class ModelChoice(str, Enum):
+    GEMINI_3_8_FLASH_HIGH = "gemini-3.8-flash-high"
+    GEMINI_3_8_FLASH_MEDIUM = "gemini-3.8-flash-medium"
+    GEMINI_4_ARGON_MEDIUM = "gemini-4-argon-medium"
+    GEMINI_4_HYDROGEN_HIGH = "gemini-4-hydrogen-high"
+    CLAUDE_SONNET_5_5_HIGH = "claude-sonnet-5-5-high"
+    CLAUDE_OPUS_5_5_HIGH = "claude-opus-5-5-high"
+    GPT_OSS_120B_MEDIUM = "gpt-oss-120b-medium"
     GEMINI_PRO = "gemini-1.5-pro"
     GEMINI_FLASH = "gemini-1.5-flash"
     CLAUDE_SONNET = "claude-3-5-sonnet-20241022"
@@ -41,7 +48,7 @@ class AgentCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="ชื่อตำแหน่ง Agent")
     department: str = Field(..., min_length=1, description="สังกัดแผนก เช่น 07_business_analyst")
     parent_department: Optional[str] = Field(None, description="สังกัดหัวหน้าทีม")
-    model: str = Field("gemini-1.5-flash", description="โมเดล LLM ที่ใช้")
+    model: str = Field("gemini-3.8-flash-high", description="โมเดล LLM ที่ใช้")
     temperature: float = Field(0.5, ge=0.0, le=1.0, description="ค่า Temperature")
     identity: str = Field(..., min_length=10, description="System Identity/Role")
     skill: str = Field(..., min_length=10, description="Skills และ Instructions")
@@ -200,7 +207,7 @@ class AppSettings(BaseModel):
     telegram_admin_chat_id: str = ""
     telegram_ops_chat_id: str = ""
     telegram_ops_chat_ids: dict[str, str] = {}
-    default_model: str = "gemini-1.5-flash"
+    default_model: str = "gemini-3.8-flash-high"
     gemini_fallback_models: str = ""
     available_models: str = ""
     gemini_configured: bool = False

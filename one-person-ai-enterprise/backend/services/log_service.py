@@ -7,7 +7,7 @@ import json
 import uuid
 import asyncio
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Callable
 from collections import deque
 
@@ -105,8 +105,14 @@ def get_logs(
         search_lower = search.lower()
         logs = [l for l in logs if search_lower in l.message.lower()]
 
-    # เรียงจากใหม่ไปเก่า
-    logs.sort(key=lambda x: x.timestamp, reverse=True)
+    # เรียงจากใหม่ไปเก่า (ป้องกันการเปรียบเทียบ naive กับ aware datetime)
+    def _ts_key(x):
+        ts = x.timestamp
+        if hasattr(ts, "tzinfo") and ts.tzinfo is not None:
+            return ts.astimezone(timezone.utc).replace(tzinfo=None)
+        return ts
+
+    logs.sort(key=_ts_key, reverse=True)
     return logs[:limit]
 
 

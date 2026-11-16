@@ -63,7 +63,7 @@ async def summarize_and_save_session(session_msgs: List[dict]) -> str:
         return "*ไม่มีข้อความในเซสชัน*"
 
     from backend.services.llm_service import LLMService
-    llm = LLMService(model="gemini-1.5-flash", temperature=0.3)
+    llm = LLMService(model=os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high"), temperature=0.3)
     
     history_str = ""
     for msg in session_msgs:
@@ -330,7 +330,7 @@ def create_department_room(name: str, chat_id: str = "", pm_name: str = "", dept
         "name": name,
         "role": f"pm_{dept_id}",
         "pm_name": pm_name or cfg.get("pm_name") or f"PM {name}",
-        "model": cfg.get("model", "gemini-1.5-flash"),
+        "model": cfg.get("model", os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high")),
         "temperature": cfg.get("temperature", 0.5),
         "department": dept_id,
         "ops_chat_id": chat_id or cfg.get("ops_chat_id", ""),
@@ -360,7 +360,7 @@ def create_department_room(name: str, chat_id: str = "", pm_name: str = "", dept
 async def propose_team_structure(dept_name: str, pm_name: str = "") -> dict:
     """เสนอร่างโครงสร้างทีม บทบาทลูกทีม และ KPI ที่เหมาะสมให้พี่บุ๊ค พิจารณาปรับแก้และอนุมัติก่อนสร้างจริง"""
     from backend.services.llm_service import LLMService
-    llm = LLMService(model="gemini-1.5-flash", temperature=0.5)
+    llm = LLMService(model=os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high"), temperature=0.5)
 
     prompt = (
         f"ขอให้นำเสนอโครงสร้างทีมสำหรับแผนก '{dept_name}'\n"
@@ -463,7 +463,7 @@ async def classify_intent(text: str) -> str:
     # ใช้ LLM ช่วยจำแนกความหมาย พร้อมกำหนด Timeout
     try:
         from backend.services.llm_service import LLMService
-        llm = LLMService(model="gemini-1.5-flash", temperature=0.0)
+        llm = LLMService(model=os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high"), temperature=0.0)
         prompt = (
             "โปรดจำแนกเจตนาข้อความของพี่บุ๊ค ว่าเป็น 'CHAT' หรือ 'TASK_ORDER'\n"
             "- ตอบ 'CHAT': ถ้าเป็นการพูดคุยส่วนตัวทั่วไป, ทักทาย, ปรึกษาไอเดีย, ถามความเห็น, สนทนาเรื่องทั่วไปที่ไม่ใช่การสั่งมอบหมายงาน\n"
@@ -509,7 +509,7 @@ def get_registered_agents_info() -> list[dict]:
                             "name": cfg.get("name", d.name),
                             "pm_name": cfg.get("pm_name") or f"PM {cfg.get('name', d.name)}",
                             "role": cfg.get("role", f"pm_{d.name}"),
-                            "model": cfg.get("model", "gemini-1.5-flash"),
+                            "model": cfg.get("model", os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high")),
                             "identity": identity,
                             "skills": skills,
                             "job_description": jd
@@ -566,7 +566,7 @@ def resolve_target_agent(text: str, chat_id: str) -> tuple[dict, str, bool]:
             "dept_id": "01_secretary",
             "name": "Secretary & CKO",
             "pm_name": "อิงฟ้า",
-            "model": "gemini-1.5-flash",
+            "model": os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high"),
             "identity": "", "skills": "", "job_description": ""
         }
         return fallback_agent, text, False
@@ -857,7 +857,7 @@ async def _dispatch_agent_response(
     history = _agent_chat_histories.get(history_key, [])
 
     try:
-        model_name = agent.get("model") or "gemini-1.5-flash"
+        model_name = agent.get("model") or os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high")
         llm = LLMService(model=model_name, temperature=0.7)
         user_msg = prompt_text
         if attachments:
@@ -930,7 +930,7 @@ async def _initiate_verification(chat_id: str, sender_name: str, text: str) -> d
 
     try:
         from backend.services.llm_service import LLMService
-        llm = LLMService(model="gemini-1.5-flash", temperature=0.3)
+        llm = LLMService(model=os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high"), temperature=0.3)
         summary = await llm.generate(
             system_instruction="คุณคือเลขา AI หน้าที่ของคุณคือทวนสรุปคำสั่งงานจากพี่บุ๊ค อย่างกระชับ ตรงประเด็น สั้นไม่เกิน 2 ประโยค",
             user_message=f"สรุปคำสั่งนี้เพื่อส่งทวนกับพี่บุ๊ค: '{text}'"
@@ -988,7 +988,7 @@ async def _process_confirmation(chat_id: str, sender_name: str) -> dict:
     # 1. PMs ร่วมวางแผนใน Executive Room
     try:
         from backend.services.llm_service import LLMService
-        llm = LLMService(model="gemini-1.5-flash", temperature=0.5)
+        llm = LLMService(model=os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high"), temperature=0.5)
         pm_plan = await llm.generate(
             system_instruction="คุณคือหัวหน้าทีม PM ในห้องประชุมผู้บริหาร วางแผนการทำงาน ระบุ Timeline และระบุชื่อแผนกที่จะต้องรับงานไปทำ (เช่น การตลาด/marketing)" + _get_owner_prompt_context(),
             user_message=f"คำสั่งที่ได้รับอนุมัติจากพี่บุ๊ค: '{pending['summary']}'"
@@ -1215,7 +1215,7 @@ async def run_director_meeting(message: str) -> dict:
             break
 
     from backend.services.llm_service import LLMService
-    llm = LLMService(model="gemini-1.5-flash", temperature=0.6)
+    llm = LLMService(model=os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high"), temperature=0.6)
 
     system_instruction = (
         f"คุณคือ 'คณะผู้บริหารและ PM หัวหน้าแผนกที่ถูกสร้างแล้วเท่านั้น' ({pm_list_str}) ในห้องประชุมผู้บริหาร (Director Boardroom)\n"
@@ -1329,7 +1329,7 @@ async def run_department_direct_command(
 
     from backend.services.llm_service import LLMService
     from backend.services import simulation_service
-    llm = LLMService(model="gemini-1.5-flash", temperature=0.5)
+    llm = LLMService(model=os.getenv("DEFAULT_MODEL", "gemini-3.8-flash-high"), temperature=0.5)
 
     system_instruction = (
         f"คุณคือ '{pm_name}' และทีมงานประจำแผนก {dept_name} ของบริษัท One-Person AI Enterprise\n"
