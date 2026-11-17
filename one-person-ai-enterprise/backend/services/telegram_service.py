@@ -937,12 +937,9 @@ async def _dispatch_agent_response(
 
     await send_telegram_message(chat_id, formatted_reply, bot_token=bot_token)
 
-    # เช็คว่ามีคำสั่งที่เป็น Action/งาน/Research หรือมีรูปภาพแนบหรือไม่ เพื่อนำขึ้น Kanban Board และส่งเข้าห้องทำงาน
-    action_keywords = [
-        "ช่วย", "ทำ", "สร้าง", "เขียน", "ออกแบบ", "วิเคราะห์", "ตรวจ", "สรุป", "พัฒนา", "แก้",
-        "report", "code", "research", "วิจัย", "สืบค้น", "ค้นคว้า", "หาข้อมูล", "วางแผน", "จัดการ", "ระบบ"
-    ]
-    if any(k in prompt_text.lower() for k in action_keywords) or attachments:
+    # รันการจำลองและสร้างพิมพ์เขียวผลงานพร้อมรูปภาพแนบ เพื่อนำขึ้น Kanban Board และส่งเข้าโต๊ะทำงาน
+    is_trivial_greeting = prompt_text.strip().lower() in ["สวัสดี", "hello", "hi", "หวัดดี", "ดีครับ", "ดีค่ะ", "เทส", "test", "555"]
+    if not is_trivial_greeting or attachments:
         try:
             asyncio.create_task(simulation_service.run_simulation_preset(dept_id, prompt_text, attachments=attachments))
         except Exception as err:
@@ -1393,12 +1390,11 @@ async def run_department_direct_command(
         thought_process=reply,
     ))
 
-    # หากมีการแนบรูปภาพ หรือเป็นคำสั่งงาน ให้รันการจำลองและสร้างพิมพ์เขียวผลงานพร้อมรูปภาพแนบ
-    if attachments or any(kw in message.lower() for kw in ["ทำ", "สร้าง", "วิเคราะห์", "สรุป", "ระบบ", "แผน", "deck", "สไลด์", "swot"]):
-        try:
-            asyncio.create_task(simulation_service.run_simulation_preset(dept_id, message, attachments=attachments))
-        except Exception as err:
-            logger.warning(f"Failed to auto-spawn simulation preset from direct command: {err}")
+    # รันการจำลองและสร้างพิมพ์เขียวผลงานพร้อมเอกสารส่งมอบระดับ Production ให้พี่บุ๊คทันที
+    try:
+        asyncio.create_task(simulation_service.run_simulation_preset(dept_id, message, attachments=attachments))
+    except Exception as err:
+        logger.warning(f"Failed to auto-spawn simulation preset from direct command: {err}")
 
     # 2. Log ลูกทีมตำแหน่งงานย่อย (Sub-agent Workers Task Logging - ข้อ 2)
     write_log(LogCreate(

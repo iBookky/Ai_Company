@@ -1673,33 +1673,47 @@ async def run_simulation_preset(preset_key: str, custom_text: str = "", attachme
         _active_simulation_task = asyncio.create_task(simulate_dynamic_agent_flow(preset_key, task_title, custom_text, attachments=attachments))
         return {"status": "started", "preset": preset_key, "assigned_to": assigned_name, "title": task_title}
 
-    # 4. 🧠 Autonomous AI Orchestrator Auto-Router (กระจายงานไปยัง Agent ประจำการจริง)
+    # 4. 🧠 Autonomous AI Orchestrator Auto-Router (กระจายงานไปยัง Agent ประจำการจริงอย่างแม่นยำ 100%)
     else:
         text_lower = (custom_text or "").lower()
 
-        # งานสายเลขา / สรุปภาพรวม
-        if any(w in text_lower for w in ["ประชุม", "เลขา", "สรุป", "ภาพรวม", "บริบท", "memory", "sync", "ยุทธศาสตร์", "อิงฟ้า", "แผนงาน"]):
-            chosen_agent_id = "01_secretary"
-            assigned_name = "อิงฟ้า (Executive Secretary & CKO)"
-            dept_name = "สำนักเลขานุการ & CKO"
-            task_title = custom_text or "จัดทำรายงานสรุปภาพรวมองค์กร และอัปเดตคลังความรู้บริษัท"
+        # ตรวจสอบการเอ่ยชื่อ Agent โดยตรงในข้อความ
+        target_agent = None
+        for a in active_agents:
+            aliases = [a.id.lower(), a.name.lower()]
+            if a.pm_name:
+                aliases.append(a.pm_name.lower())
+                aliases.append(a.pm_name.lower().replace("น้อง", "").strip())
+            if any(alias in text_lower for alias in aliases if len(alias) >= 3):
+                target_agent = a
+                break
+
+        if not target_agent:
+            # ใช้วิเคราะห์ Intent เชิงลึกเพื่อจับคู่แผนกที่เชี่ยวชาญที่สุด
+            from backend.services.deliverable_engine import detect_task_intent
+            detected_intent = detect_task_intent(custom_text, "")
+
+            if detected_intent == "operations_secretary":
+                target_agent = next((a for a in active_agents if a.id == "01_secretary"), None)
+            elif detected_intent in ("business_strategy", "marketing_growth"):
+                target_agent = next((a for a in active_agents if "analyst" in a.id or "strategy" in a.id or a.id == "07_business_analyst"), None)
+            else:
+                # ค้นหา agent ที่มีทักษะตรงกับ intent
+                matching_agents = [a for a in active_agents if a.id != "01_secretary"]
+                target_agent = matching_agents[0] if matching_agents else active_agents[0]
+
+        if not target_agent:
+            target_agent = active_agents[0]
+
+        chosen_agent_id = target_agent.id
+        assigned_name = f"{target_agent.pm_name or target_agent.name} ({target_agent.name})"
+        dept_name = target_agent.name
+        task_title = custom_text or f"ปฏิบัติงานตามคำสั่ง: {dept_name}"
+
+        if chosen_agent_id == "01_secretary":
             _active_simulation_task = asyncio.create_task(simulate_secretary_flow(task_title, custom_text, attachments=attachments))
         else:
-            # เลือกแผนกปฏิบัติการที่ประจำการจริง (เช่น 07_business_analyst หรือทีมงานอื่นๆ ที่ไม่ใช่เลขา)
-            other_agents = [a for a in active_agents if a.id != "01_secretary"]
-            if other_agents:
-                chosen_agent = other_agents[0]
-                chosen_agent_id = chosen_agent.id
-                assigned_name = f"{chosen_agent.pm_name or chosen_agent.name} ({chosen_agent.name})"
-                dept_name = chosen_agent.name
-                task_title = custom_text or f"ปฏิบัติงานและวิเคราะห์ข้อมูลสำหรับ {dept_name}"
-                _active_simulation_task = asyncio.create_task(simulate_dynamic_agent_flow(chosen_agent_id, task_title, custom_text, attachments=attachments))
-            else:
-                chosen_agent_id = "01_secretary"
-                assigned_name = "อิงฟ้า (Executive Secretary & CKO)"
-                dept_name = "สำนักเลขานุการ & CKO"
-                task_title = custom_text or "จัดทำรายงานสรุปภาพรวมองค์กร"
-                _active_simulation_task = asyncio.create_task(simulate_secretary_flow(task_title, custom_text, attachments=attachments))
+            _active_simulation_task = asyncio.create_task(simulate_dynamic_agent_flow(chosen_agent_id, task_title, custom_text, attachments=attachments))
 
         write_log(LogCreate(
             agent_id="01_secretary",

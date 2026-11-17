@@ -804,8 +804,49 @@ def generate_multi_format_deliverables(
     except Exception as e:
         print(f"Error generating DOCX: {e}")
 
+    # 5. ตรวจสอบว่ามีบล็อกโค้ดซอฟต์แวร์ (Python, JS, TS, SQL, HTML, YAML) ใน Markdown หรือไม่ เพื่อสกัดเป็นไฟล์จริง
+    code_matches = re.findall(r"```(python|py|javascript|js|typescript|ts|jsx|tsx|html|css|sql|yaml|yml|json|sh|bash)\r?\n(.*?)```", markdown_content, re.DOTALL)
+    if code_matches:
+        ext_map = {
+            "python": ".py", "py": ".py",
+            "javascript": ".js", "js": ".js",
+            "typescript": ".ts", "ts": ".ts",
+            "jsx": ".jsx", "tsx": ".tsx",
+            "html": ".html", "css": ".css",
+            "sql": ".sql", "yaml": ".yaml", "yml": ".yml",
+            "json": ".json", "sh": ".sh", "bash": ".sh"
+        }
+        for idx, (lang, code_snippet) in enumerate(code_matches[:3]):
+            code_text = code_snippet.strip()
+            if len(code_text) > 80:
+                ext = ext_map.get(lang.lower(), ".txt")
+                suffix = f"_code_{idx + 1}" if idx > 0 else "_code"
+                code_filename = f"{dept_id}_{task_id}{suffix}{ext}"
+                code_path = REPORTS_DIR / code_filename
+                try:
+                    code_path.write_text(code_text, encoding="utf-8")
+                    c_size = code_path.stat().st_size
+                    files_created.append({
+                        "name": f"reports/{code_filename}",
+                        "filename": code_filename,
+                        "file_type": "code",
+                        "format_label": f"Source Code ({lang.upper()})",
+                        "icon": "💻",
+                        "language": lang.lower(),
+                        "content": code_text,
+                        "url": f"/reports/{code_filename}",
+                        "download_url": f"/api/simulation/deliverables/download/{code_filename}",
+                        "size_bytes": c_size,
+                        "size_str": f"{c_size / 1024:.1f} KB",
+                        "description": f"ไฟล์ซอร์สโค้ดพร้อมรัน ({lang.upper()}) ถอดจากเอกสารข้อกำหนดเพื่อนำไปใช้งานได้ทันที",
+                    })
+                except Exception as err:
+                    print(f"Error saving code file: {err}")
+
     # สร้างสรุปผลงานที่ระบุรูปแบบไฟล์ที่สร้างขึ้นจริง
     format_badges = []
+    if any(f["file_type"] == "code" for f in files_created):
+        format_badges.append("💻 Source Code")
     if any(f["file_type"] == "pptx" for f in files_created):
         format_badges.append("📽️ PowerPoint (.pptx)")
     if any(f["file_type"] == "xlsx" for f in files_created):
@@ -820,3 +861,4 @@ def generate_multi_format_deliverables(
     )
 
     return files_created, summary_deliverable
+
