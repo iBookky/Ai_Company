@@ -106,6 +106,11 @@ async def health():
     }
 
 
+# Serve reports and generated deliverables (.pptx, .xlsx, .docx, .md)
+REPORTS_DIR = (BASE_DIR / "reports").resolve()
+REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/reports", StaticFiles(directory=str(REPORTS_DIR)), name="reports")
+
 # Serve frontend static files
 FRONTEND_DIR = (BASE_DIR / "frontend").resolve()
 if FRONTEND_DIR.exists():

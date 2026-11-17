@@ -438,6 +438,20 @@ function renderCockpitTaskCard(task, emp) {
         <span style="font-size:0.75rem; color:var(--text-dim); font-family:var(--font-mono);">Task ID: ${escapeHtml(task.id)}</span>
       </div>
       <div class="current-task-title">${escapeHtml(task.title)}</div>
+      ${(() => {
+        const delFiles = (task.deliverable && task.deliverable.files_created) || [];
+        const hasPptx = delFiles.some(f => (f.name && f.name.endsWith('.pptx')) || f.format === 'powerpoint');
+        const hasXlsx = delFiles.some(f => (f.name && f.name.endsWith('.xlsx')) || f.format === 'excel');
+        const hasDocx = delFiles.some(f => (f.name && f.name.endsWith('.docx')) || f.format === 'word');
+        if (!hasPptx && !hasXlsx && !hasDocx) return '';
+        return `
+          <div style="display:flex; gap:4px; margin: 4px 0; flex-wrap:wrap;">
+            ${hasPptx ? `<span class="format-chip pptx">📽️ PPTX</span>` : ''}
+            ${hasXlsx ? `<span class="format-chip xlsx">📊 XLSX</span>` : ''}
+            ${hasDocx ? `<span class="format-chip docx">📑 DOCX</span>` : ''}
+          </div>
+        `;
+      })()}
       ${(task.attachments && task.attachments.length > 0) ? `
         <div style="margin: 4px 0;">
           <span class="task-card-attachment-badge"><span class="badge-icon">🖼️</span> มีภาพประกอบ (${task.attachments.length} รูป)</span>
@@ -509,6 +523,10 @@ function renderHistoryTaskList(tasks, filter) {
     const summaryText = del ? del.summary : (t.prompt || 'ไม่มีรายละเอียดสรุป');
     const qaReport = del?.qa_report || '✅ ผ่านการประเมินมาตรฐานองค์กร 100%';
     const createdTime = formatIsoDateTime(t.created_at);
+    const files = del?.files_created || [];
+    const hasPptx = files.some(f => (f.name && f.name.endsWith('.pptx')) || f.format === 'powerpoint');
+    const hasXlsx = files.some(f => (f.name && f.name.endsWith('.xlsx')) || f.format === 'excel');
+    const hasDocx = files.some(f => (f.name && f.name.endsWith('.docx')) || f.format === 'word');
 
     return `
       <div class="history-task-item">
@@ -518,6 +536,9 @@ function renderHistoryTaskList(tasks, filter) {
             <div class="history-item-meta">
               <span>📅 ${createdTime}</span>
               <span>🏷️ ${escapeHtml(t.category || 'General')}</span>
+              ${hasPptx ? `<span class="format-chip pptx">📽️ PPTX</span>` : ''}
+              ${hasXlsx ? `<span class="format-chip xlsx">📊 XLSX</span>` : ''}
+              ${hasDocx ? `<span class="format-chip docx">📑 DOCX</span>` : ''}
             </div>
           </div>
           ${statusBadge}

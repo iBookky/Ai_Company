@@ -24,6 +24,7 @@ from backend.models.schemas import LogCreate, LogLevel
 from backend.services.log_service import write_log
 from backend.services import agent_service
 from backend.services.deliverable_engine import generate_comprehensive_deliverable
+from backend.services.artifact_generator import generate_multi_format_deliverables
 
 logger = logging.getLogger("simulation_service")
 
@@ -52,7 +53,7 @@ class TaskDeliverable(BaseModel):
     summary: str
     type: str  # systems_dev, social_content, hybrid
     details: str
-    files_created: List[Dict[str, str]] = []  # [{name, language, content}]
+    files_created: List[Dict[str, Any]] = []  # [{name, filename, file_type, format_label, icon, download_url, size_str, content}]
     social_posts: List[Dict[str, Any]] = []  # [{platform, hook, content, hashtags, image_prompt}]
     checklist: List[str] = []
     attachments: List[Dict[str, Any]] = []  # [{id, filename, url, content_type, size, uploaded_at}]
@@ -781,27 +782,29 @@ async def simulate_task_revision_flow(task_id: str, feedback: str):
         research_sources=research_sources,
     )
 
-    # 5. บันทึกไฟล์ผลงานลงใน reports/
-    reports_dir = BASE_DIR / "reports"
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    report_file_name = f"reports/{dept_id}_{task.id}.md"
-    try:
-        (BASE_DIR / report_file_name).write_text(report_content, encoding="utf-8")
-    except Exception as e:
-        logger.warning(f"Failed to write revised deliverable file: {e}")
+    # 5. สร้างผลงานระดับมืออาชีพหลากหลายฟอร์แมต (.pptx, .xlsx, .docx, .md) โดยอัตโนมัติตามข้อเสนอแนะรอบปรับปรุง
+    created_files, multi_summary = generate_multi_format_deliverables(
+        task_id=task.id,
+        dept_id=dept_id,
+        task_title=task.title,
+        prompt_text=f"{task.prompt} (ข้อเสนอแนะรอบปรับปรุง: {feedback})",
+        author_name=agent_name,
+        department_name=dept_name,
+        markdown_content=report_content,
+        research_sources=research_sources,
+        attachments=task.attachments,
+    )
 
     # 6. อัปเดต Task Deliverable
     task.deliverable = TaskDeliverable(
-        summary=deliverable_summary,
+        summary=multi_summary or deliverable_summary,
         type="execution",
         details=f"ผลงานได้รับการปรับปรุงแก้ไขตามข้อเสนอแนะของพี่บุ๊คเรียบร้อย พร้อมแหล่งอ้างอิง {len(research_sources)} แหล่ง",
-        files_created=[
-            {"name": report_file_name, "language": "markdown", "content": report_content}
-        ],
+        files_created=created_files,
         checklist=[
             f"ทบทวนและแก้ไขตามข้อเสนอแนะ: '{feedback[:40]}' ครบถ้วน",
             f"สืบค้นข้อมูลและระบุแหล่งอ้างอิงที่ได้รับการรับรอง ({len(research_sources)} แหล่ง) สมบูรณ์",
-            "จัดทำโครงสร้าง SWOT และพิมพ์เขียวสไลด์นำเสนอตามมาตรฐานสากล",
+            "อัปเดตไฟล์สไลด์นำเสนอ PowerPoint (.pptx) และโมเดลการเงิน Excel (.xlsx) ฉบับปรับปรุง",
             "🚨 ผ่านการตรวจสอบ QA รอบปรับปรุง รอพี่บุ๊ค ตรวจสอบและยืนยันปิดงาน",
         ],
         qa_report="✅ ผ่านการปรับปรุงและตรวจสอบคุณภาพ Zero-Defect รอบใหม่เรียบร้อย",
@@ -1027,28 +1030,30 @@ async def run_reprocess_live_flow(task_id: str):
 """
     final_report_content = reprocess_header + report_content
 
-    # 5. บันทึกลง reports/
-    reports_dir = BASE_DIR / "reports"
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    report_file_name = f"reports/{dept_id}_{task.id}.md"
-    try:
-        (BASE_DIR / report_file_name).write_text(final_report_content, encoding="utf-8")
-    except Exception as e:
-        logger.warning(f"Failed to write reprocessed file: {e}")
+    # 5. สร้างผลงานระดับมืออาชีพหลากหลายฟอร์แมต (.pptx, .xlsx, .docx, .md) โดยอัตโนมัติตามโจทย์จริง
+    created_files, multi_summary = generate_multi_format_deliverables(
+        task_id=task.id,
+        dept_id=dept_id,
+        task_title=task.title,
+        prompt_text=task.prompt,
+        author_name=agent_name,
+        department_name=dept_name,
+        markdown_content=final_report_content,
+        research_sources=research_sources,
+        attachments=task.attachments,
+    )
 
     # 6. อัปเดต Deliverable
     task.deliverable = TaskDeliverable(
-        summary=f"พิมพ์เขียวกลยุทธ์ธุรกิจและวิเคราะห์ระบบ ERP + Digital Marketing (อัปเดตด้วยข้อมูลจริงจากเว็บ {len(research_sources)} แหล่ง) เสร็จสมบูรณ์ 100%",
+        summary=multi_summary or f"พิมพ์เขียวกลยุทธ์ธุรกิจและวิเคราะห์ระบบ (อัปเดตด้วยข้อมูลจริงจากเว็บ {len(research_sources)} แหล่ง) เสร็จสมบูรณ์ 100%",
         type="execution",
-        details=f"ผลงานประมวลผลใหม่ด้วยข้อมูลจริงจากอินเทอร์เน็ต {len(research_sources)} แหล่ง เข้าสู่สถานะ Human-in-the-Loop (HITL) รอพี่บุ๊ค ตรวจสอบและกดยืนยัน",
-        files_created=[
-            {"name": report_file_name, "language": "markdown", "content": final_report_content}
-        ],
+        details=f"ผลงานประมวลผลใหม่มัลติฟอร์แมตด้วยข้อมูลจริงจากอินเทอร์เน็ต {len(research_sources)} แหล่ง เข้าสู่สถานะ Human-in-the-Loop (HITL) รอพี่บุ๊ค ตรวจสอบและกดยืนยัน",
+        files_created=created_files,
         checklist=[
             f"สืบค้นข้อมูลจริงจากอินเทอร์เน็ต ({len(research_sources)} แหล่ง) สำเร็จ 100%",
-            "วิเคราะห์ SWOT Matrix 4 ด้าน ผสานเทรนด์ตลาด SME ไทย 2026",
-            "จัดทำโครงร่างสไลด์ PowerPoint ครบ 10 สไลด์ พร้อมบทพูดผู้นำเสนอ (Speaker Notes)",
-            "จัดทำโมเดลราคาและประมาณการผลตอบแทนทางการเงิน 3 ปี",
+            "วิเคราะห์ SWOT Matrix 4 ด้าน ผสานเทรนด์ตลาดและข้อมูลจริง",
+            "สร้างไฟล์นำเสนอ PowerPoint (.pptx) และโมเดลการเงินใน Excel (.xlsx) ครบถ้วน",
+            "จัดทำรายงานทางการ Word (.docx) และ Markdown (.md)",
             "🚨 ผ่านการตรวจสอบคุณภาพ Zero-Defect รอพี่บุ๊ค ตรวจรับและยืนยันปิดงาน",
         ],
         qa_report="✅ ผ่านการตรวจสอบความถูกต้องด้วยข้อมูลจริงจากอินเทอร์เน็ต 100%",
@@ -1352,13 +1357,18 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = "", atta
         attachments=attachments,
     )
 
-    reports_dir = BASE_DIR / "reports"
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    report_file_name = f"reports/01_secretary_{task.id}.md"
-    try:
-        (BASE_DIR / report_file_name).write_text(report_content, encoding="utf-8")
-    except Exception as e:
-        logger.warning(f"Failed to write secretary deliverable file: {e}")
+    # สร้างผลงานระดับมืออาชีพหลากหลายฟอร์แมต (.pptx, .xlsx, .docx, .md) โดยอัตโนมัติตามโจทย์จริง
+    created_files, multi_summary = generate_multi_format_deliverables(
+        task_id=task.id,
+        dept_id="01_secretary",
+        task_title=task_title,
+        prompt_text=prompt_text,
+        author_name="อิงฟ้า (เลขา AI & CKO)",
+        department_name="สำนักเลขานุการ & CKO",
+        markdown_content=report_content,
+        research_sources=sec_sources,
+        attachments=attachments,
+    )
 
     citations_tg = ""
     if sec_sources:
@@ -1366,16 +1376,15 @@ async def simulate_secretary_flow(task_title: str, custom_prompt: str = "", atta
         citations_tg = format_citations_telegram(sec_sources, max_display=3)
 
     task.deliverable = TaskDeliverable(
-        summary=f"ภารกิจ '{task_title}' จัดการและประสานงานโดยเลขาอิงฟ้า เสร็จสมบูรณ์",
+        summary=multi_summary or f"ภารกิจ '{task_title}' จัดการและประสานงานโดยเลขาอิงฟ้า เสร็จสมบูรณ์",
         type="hybrid",
         details="บริหารจัดการภารกิจตามคำสั่ง วางแผนยุทธศาสตร์ และบันทึกข้อสรุปลงใน company_memory.md เรียบร้อย",
-        files_created=[
-            {"name": report_file_name, "language": "markdown", "content": report_content}
-        ],
+        files_created=created_files,
         attachments=attachments or [],
         checklist=[
             f"ดำเนินการตามคำสั่ง '{prompt_text[:40]}' ครบถ้วน",
             "จัดทำแผนปฏิบัติการและการประสานงานข้ามสายงานชัดเจน",
+            "จัดทำชุดเอกสารนำเสนอและโมเดลการทำงานครบทุกฟอร์แมต",
             "อัปเดตบันทึกคลังความรู้ company_memory.md เรียบร้อย",
             "🚨 รอการยืนยันและอนุมัติปิดงานจากพี่บุ๊ค",
         ],
@@ -1531,28 +1540,30 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         attachments=attachments,
     )
 
-    # บันทึกไฟล์ผลงานจริงลงในโฟลเดอร์ reports
-    reports_dir = BASE_DIR / "reports"
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    report_file_name = f"reports/{dept_id}_{task_id}.md"
-    try:
-        (BASE_DIR / report_file_name).write_text(report_content, encoding="utf-8")
-    except Exception as e:
-        logger.warning(f"Failed to write deliverable file: {e}")
+    # สร้างผลงานระดับมืออาชีพหลากหลายฟอร์แมต (.pptx, .xlsx, .docx, .md) โดยอัตโนมัติตามโจทย์จริง
+    created_files, multi_summary = generate_multi_format_deliverables(
+        task_id=task_id,
+        dept_id=dept_id,
+        task_title=task_title,
+        prompt_text=prompt_text,
+        author_name=agent_name,
+        department_name=dept_name,
+        markdown_content=report_content,
+        research_sources=research_sources,
+        attachments=attachments,
+    )
 
     ref_count_str = f"พร้อมแหล่งข้อมูลอ้างอิง {len(research_sources)} แหล่ง" if research_sources else "ผ่านการวิเคราะห์เชิงลึก"
     task.deliverable = TaskDeliverable(
-        summary=deliverable_summary,
+        summary=multi_summary or deliverable_summary,
         type="execution",
-        details=f"ผลงานพร้อมส่งมอบ ({ref_count_str}) เข้าสู่สถานะ Human-in-the-Loop (HITL) รอพี่บุ๊ค ตรวจสอบและกดยืนยัน",
-        files_created=[
-            {"name": report_file_name, "language": "markdown", "content": report_content}
-        ],
+        details=f"ผลงานพร้อมส่งมอบมัลติฟอร์แมต ({ref_count_str}) เข้าสู่สถานะ Human-in-the-Loop (HITL) รอพี่บุ๊ค ตรวจสอบและกดยืนยัน",
+        files_created=created_files,
         attachments=attachments or [],
         checklist=[
             f"วิเคราะห์ Requirement สำหรับ '{prompt_text[:40]}' ครบถ้วน",
             f"สืบค้นข้อมูลและระบุแหล่งอ้างอิงที่ได้รับการรับรอง ({len(research_sources)} แหล่ง) สมบูรณ์" if research_sources else f"สืบค้นและวางผังกระบวนการตามมาตรฐาน {dept_name} สำเร็จ",
-            f"จัดทำพิมพ์เขียวและสเปกระบบตามมาตรฐาน {dept_name} สมบูรณ์ 100%",
+            f"สร้างชุดผลงานส่งมอบจริงครบทุกฟอร์แมต (.pptx, .xlsx, .docx, .md) 100%",
             "ผ่านการตรวจสอบคุณภาพ Zero-Defect และความปลอดภัย 100%",
             "🚨 รอการยืนยันและอนุมัติปิดงาน (HITL) จากพี่บุ๊ค",
         ],
@@ -1579,22 +1590,27 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         thought_process=f"Deliverable ID: {task.id}",
     ))
 
-    # เตรียมข้อความแหล่งอ้างอิงสำหรับ Telegram
+    # เตรียมข้อความแหล่งอ้างอิงและรายการไฟล์สำหรับ Telegram
     citations_tg = ""
     if research_sources:
         from backend.services.web_research_service import format_citations_telegram
         citations_tg = format_citations_telegram(research_sources, max_display=3)
 
+    files_summary_lines = []
+    for f in created_files:
+        files_summary_lines.append(f"• {f.get('icon', '📄')} <b>{f.get('format_label', f.get('name'))}</b> ({f.get('size_str', '')})")
+    files_str = "\n".join(files_summary_lines)
+
     # ส่ง Telegram แจ้งเตือนพี่บุ๊คขอยืนยันปิดงาน
     await dispatch_telegram_notification(
-        title="🚨 [รอยืนยันปิดงานจากพี่บุ๊ค]",
+        title="🚨 [รอยืนยันปิดงานจากพี่บุ๊ค — ผลงานระดับ Enterprise]",
         message=(
             f"<b>{dept_name} ({agent_name})</b> จัดทำผลงานเสร็จสิ้นแล้ว:\n\n"
             f"📌 <b>ชื่องาน:</b> {task_title}\n"
-            f"📑 <b>สรุป:</b> {task.deliverable.summary}\n"
-            f"{citations_tg}\n\n"
-            f"📖 <b>ผลงานส่งมอบ:</b> บันทึกลงใน <code>{report_file_name}</code> เรียบร้อยแล้วค่ะ\n"
-            f"🌐 <b>ห้องทำงานบนเว็บ:</b> ตรวจสอบเอกสารฉบับเต็มและผลการวิเคราะห์ได้ที่หน้า Workstation\n\n"
+            f"📑 <b>สรุป:</b> {multi_summary}\n\n"
+            f"📦 <b>ไฟล์ผลงานส่งมอบจริง:</b>\n{files_str}\n\n"
+            f"{citations_tg}\n"
+            f"🌐 <b>ห้องทำงานบนเว็บ:</b> ดาวน์โหลดไฟล์งานจริงและตรวจดูสไลด์ได้ที่หน้า Workstation\n\n"
             f"👉 <b>กรุณาตรวจสอบและยืนยันปิดงาน:</b>\n"
             f"• กดปุ่ม <b>'อนุมัติปิดงาน'</b> บนหน้า Dashboard หรือ\n"
             f"• พิมพ์ตอบกลับ Telegram <code>/confirm {task.id}</code> หรือพิมพ์ <b>'อนุมัติ'</b> ได้ทันทีค่ะ"
@@ -1602,6 +1618,26 @@ async def simulate_dynamic_agent_flow(dept_id: str, task_title: str, custom_prom
         type_="confirmation_request",
         task_id=task.id,
     )
+
+    # ส่งไฟล์เอกสารจริง (.pptx, .xlsx, .docx) เข้า Telegram ของพี่บุ๊คทันที
+    try:
+        from backend.services import telegram_service
+        tg_chat_id = (
+            os.getenv("TELEGRAM_OWNER_DIRECT_CHAT_ID")
+            or os.getenv("TELEGRAM_EXEC_CHAT_ID")
+            or os.getenv("TELEGRAM_ADMIN_CHAT_ID")
+            or os.getenv("TELEGRAM_OPS_CHAT_ID")
+        )
+        if tg_chat_id:
+            for f in created_files:
+                if f.get("file_type") in ["pptx", "xlsx", "docx"]:
+                    fpath = BASE_DIR / f["name"]
+                    if fpath.exists():
+                        caption = f"{f.get('icon', '📄')} {f.get('format_label', '')} สำหรับ '{task_title[:45]}'"
+                        await telegram_service.send_telegram_document(tg_chat_id, fpath, caption=caption)
+    except Exception as e_doc:
+        logger.warning(f"Failed to auto-send deliverable document to telegram: {e_doc}")
+
     await broadcast_simulation_update()
     return task
 

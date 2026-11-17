@@ -3,6 +3,8 @@ import re
 from pathlib import Path
 from datetime import datetime, timezone
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
+from urllib.parse import quote
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -306,6 +308,40 @@ async def delete_task_by_id(task_id: str):
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "ไม่สามารถลบงานได้"))
     return {"status": "success", "detail": result}
+
+
+@router.get("/deliverables/download/{file_name:path}")
+async def download_deliverable_file(file_name: str):
+    """ดาวน์โหลดไฟล์ผลงานส่งมอบจริง (.pptx, .xlsx, .docx, .md) โดยตรง"""
+    clean_name = Path(file_name).name
+    reports_dir = (BASE_DIR / "reports").resolve()
+    file_path = (reports_dir / clean_name).resolve()
+
+    if not file_path.is_relative_to(reports_dir):
+        raise HTTPException(status_code=403, detail="ไม่อนุญาตให้เข้าถึงไฟล์นอกโฟลเดอร์ reports")
+
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="ไม่พบไฟล์ผลงานที่ต้องการดาวน์โหลด")
+
+    ext = file_path.suffix.lower()
+    media_types = {
+        ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".pdf": "application/pdf",
+        ".md": "text/markdown; charset=utf-8",
+        ".json": "application/json",
+    }
+    media_type = media_types.get(ext, "application/octet-stream")
+
+    return FileResponse(
+        path=str(file_path),
+        media_type=media_type,
+        filename=clean_name,
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(clean_name)}"
+        }
+    )
 
 
 @router.post("/tasks/clear-unwanted")

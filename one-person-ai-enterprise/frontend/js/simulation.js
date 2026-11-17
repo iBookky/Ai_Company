@@ -872,7 +872,11 @@ function renderColPending(pendingTasks, pendingHires) {
   // 1. Render Deliverables awaiting Owner Confirmation
   pendingTasks.forEach(task => {
     const deliverable = task.deliverable || {};
-    const hasFiles = deliverable.files_created && deliverable.files_created.length > 0;
+    const files = deliverable.files_created || [];
+    const hasFiles = files.length > 0;
+    const hasPptx = files.some(f => (f.name && f.name.endsWith('.pptx')) || f.format === 'powerpoint');
+    const hasXlsx = files.some(f => (f.name && f.name.endsWith('.xlsx')) || f.format === 'excel');
+    const hasDocx = files.some(f => (f.name && f.name.endsWith('.docx')) || f.format === 'word');
     const hasSocial = deliverable.social_posts && deliverable.social_posts.length > 0;
 
     html += `
@@ -901,8 +905,11 @@ function renderColPending(pendingTasks, pendingHires) {
           </div>
         ` : ''}
 
-        <div style="display:flex; gap:0.35rem; flex-wrap:wrap; font-size:0.7rem;">
-          ${hasFiles ? `<span class="card-category-tag" style="background:rgba(90,110,240,0.15); color:#818cf8;">📄 Code พร้อมส่ง</span>` : ''}
+        <div style="display:flex; gap:0.35rem; flex-wrap:wrap; font-size:0.7rem; align-items:center;">
+          ${hasPptx ? `<span class="format-chip pptx">📽️ PPTX</span>` : ''}
+          ${hasXlsx ? `<span class="format-chip xlsx">📊 XLSX</span>` : ''}
+          ${hasDocx ? `<span class="format-chip docx">📑 DOCX</span>` : ''}
+          ${hasFiles && !hasPptx && !hasXlsx && !hasDocx ? `<span class="card-category-tag" style="background:rgba(90,110,240,0.15); color:#818cf8;">📄 Code พร้อมส่ง</span>` : ''}
           ${hasSocial ? `<span class="card-category-tag" style="background:rgba(244,114,182,0.15); color:#f472b6;">📱 Social Content</span>` : ''}
           <span class="card-category-tag" style="background:rgba(16,185,129,0.15); color:#34d399;">✓ QA 100% Passed</span>
         </div>
@@ -997,6 +1004,21 @@ function renderColDone(confirmedTasks) {
           ${escapeHtml(task.deliverable?.summary || task.prompt)}
         </p>
 
+        ${(() => {
+          const files = (task.deliverable && task.deliverable.files_created) || [];
+          const hasPptx = files.some(f => (f.name && f.name.endsWith('.pptx')) || f.format === 'powerpoint');
+          const hasXlsx = files.some(f => (f.name && f.name.endsWith('.xlsx')) || f.format === 'excel');
+          const hasDocx = files.some(f => (f.name && f.name.endsWith('.docx')) || f.format === 'word');
+          if (!hasPptx && !hasXlsx && !hasDocx) return '';
+          return `
+            <div style="display:flex; gap:0.3rem; margin-top:0.35rem; flex-wrap:wrap;">
+              ${hasPptx ? `<span class="format-chip pptx">📽️ PPTX</span>` : ''}
+              ${hasXlsx ? `<span class="format-chip xlsx">📊 XLSX</span>` : ''}
+              ${hasDocx ? `<span class="format-chip docx">📑 DOCX</span>` : ''}
+            </div>
+          `;
+        })()}
+
         <div style="display:flex; align-items:center; justify-content:space-between; margin-top:0.25rem;">
           <span style="font-size:0.7rem; color:#2dd4bf;">📖 บันทึกสู่ Memory แล้ว</span>
           <button class="btn-card-inspect" style="padding:0.25rem 0.6rem; font-size:0.72rem;" onclick="openDeliverableModal('${task.id}')">
@@ -1012,6 +1034,7 @@ function renderColDone(confirmedTasks) {
 let _currentSlideDeck = [];
 let _currentSlideIdx = 0;
 let _currentDeliverableMd = '';
+let _currentDeliverableFiles = [];
 
 async function openDeliverableModal(taskId) {
   let allTasks = [
@@ -1088,6 +1111,49 @@ async function openDeliverableModal(taskId) {
     <span>🏢 แผนก: <b>${escapeHtml(task.department_id || 'General')}</b></span> • 
     <span>⚡ สถานะ: <b style="color:${isPending ? '#fbbf24' : '#34d399'};">${escapeHtml(task.status)}</b></span>
   `;
+
+  // Multi-Format Production Deliverables Download Strip
+  _currentDeliverableFiles = deliverable.files_created || [];
+  const stripEl = document.getElementById('modal-del-downloads-strip');
+  if (stripEl) {
+    if (_currentDeliverableFiles.length > 0) {
+      stripEl.style.display = 'block';
+      stripEl.innerHTML = `
+        <div class="del-downloads-header">
+          <div class="del-downloads-title">
+            <span>📦 แฟ้มเอกสารส่งมอบระดับองค์กร (Production Deliverables)</span>
+            <span class="badge-auto">⚡ AI Auto-Generated Ready</span>
+          </div>
+          <span style="font-size:0.75rem; color:var(--text-dim);">${_currentDeliverableFiles.length} รูปแบบเอกสารพร้อมใช้งาน</span>
+        </div>
+        <div class="del-downloads-grid">
+          ${_currentDeliverableFiles.map(f => {
+            const fmt = f.format || (f.name.endsWith('.pptx') ? 'pptx' : (f.name.endsWith('.xlsx') ? 'xlsx' : (f.name.endsWith('.docx') ? 'docx' : 'markdown')));
+            const icon = f.icon || (fmt === 'pptx' ? '📽️' : (fmt === 'xlsx' ? '📊' : (fmt === 'docx' ? '📑' : '📄')));
+            const label = f.format_label || (fmt === 'pptx' ? 'PowerPoint (.pptx)' : (fmt === 'xlsx' ? 'Excel (.xlsx)' : (fmt === 'docx' ? 'Word (.docx)' : 'Markdown Report (.md)')));
+            const sizeStr = f.size_bytes ? ((f.size_bytes / 1024).toFixed(1) + ' KB') : (fmt === 'pptx' ? '16:9 Slide Deck' : 'Document');
+            const desc = f.description || '';
+            const dlUrl = f.download_url || `/api/simulation/deliverables/download/${encodeURIComponent(f.name)}`;
+            return `
+              <a href="${dlUrl}" download="${escapeHtml(f.name)}" target="_blank" class="del-file-card ${fmt}" title="${escapeHtml(desc || f.name)}">
+                <div class="del-file-icon">${icon}</div>
+                <div class="del-file-info">
+                  <div class="del-file-format-badge">${escapeHtml(label)}</div>
+                  <div class="del-file-name">${escapeHtml(f.name)}</div>
+                  <div class="del-file-meta">${sizeStr}${desc ? ` • ${escapeHtml(desc)}` : ''}</div>
+                </div>
+                <div class="del-file-action-btn">
+                  <span>⬇️ โหลด</span>
+                </div>
+              </a>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } else {
+      stripEl.style.display = 'none';
+    }
+  }
 
   // Extract Markdown Document Content
   let mdContent = '';
@@ -1179,23 +1245,54 @@ async function openDeliverableModal(taskId) {
   document.getElementById('modal-del-qa').textContent = deliverable.qa_report || '✅ ผ่านเกณฑ์มาตรฐานการตรวจสอบคุณภาพ Zero-Defect 100%';
   document.getElementById('modal-del-details').textContent = deliverable.details || '—';
 
-  // 5. Pane: Code Files
+  // 5. Pane: Code Files & Deliverables
   const codePane = document.getElementById('modal-del-code-container');
   const tabCodeBtn = document.getElementById('del-tab-btn-code');
   if (deliverable.files_created && deliverable.files_created.length > 0) {
-    if (tabCodeBtn) tabCodeBtn.style.display = '';
-    codePane.innerHTML = deliverable.files_created.map((f, fIdx) => `
-      <div style="margin-bottom:1.25rem; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:1rem;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
-          <span style="font-size:0.85rem; font-weight:700; color:var(--brand-400);">📄 ${escapeHtml(f.name)} (${f.language || 'text'})</span>
-          <button class="btn btn-sm" onclick="copyFileContentAtIndex(${fIdx})">📋 คัดลอกเนื้อหาไฟล์</button>
+    if (tabCodeBtn) {
+      tabCodeBtn.style.display = '';
+      tabCodeBtn.innerHTML = `💻 ไฟล์ระบบ & เอกสาร (${deliverable.files_created.length})`;
+    }
+    codePane.innerHTML = deliverable.files_created.map((f, fIdx) => {
+      const isBinary = f.name.endsWith('.pptx') || f.name.endsWith('.xlsx') || f.name.endsWith('.docx') || f.format === 'powerpoint' || f.format === 'excel' || f.format === 'word';
+      const dlUrl = f.download_url || `/api/simulation/deliverables/download/${encodeURIComponent(f.name)}`;
+      const fmt = f.format || (f.name.endsWith('.pptx') ? 'pptx' : (f.name.endsWith('.xlsx') ? 'xlsx' : (f.name.endsWith('.docx') ? 'docx' : 'code')));
+      const icon = f.icon || (fmt === 'pptx' ? '📽️' : (fmt === 'xlsx' ? '📊' : (fmt === 'docx' ? '📑' : '💻')));
+
+      if (isBinary) {
+        return `
+          <div style="margin-bottom:1.25rem; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:1.2rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:1rem;">
+              <span style="font-size:2.2rem;">${icon}</span>
+              <div>
+                <div style="font-size:0.95rem; font-weight:700; color:#f8fafc; margin-bottom:3px;">${escapeHtml(f.name)}</div>
+                <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:4px;">${escapeHtml(f.format_label || f.name)} • ${f.size_bytes ? ((f.size_bytes / 1024).toFixed(1) + ' KB') : 'Binary Office Document'}</div>
+                <div style="font-size:0.75rem; color:#cbd5e1;">${escapeHtml(f.description || 'ไฟล์เอกสารพร้อมเปิดใช้งานด้วยซอฟต์แวร์ออฟฟิศ')}</div>
+              </div>
+            </div>
+            <a href="${dlUrl}" download="${escapeHtml(f.name)}" target="_blank" class="btn btn-primary" style="white-space:nowrap; padding:0.55rem 1.1rem; font-weight:700;">
+              ⬇️ ดาวน์โหลดไฟล์
+            </a>
+          </div>
+        `;
+      }
+
+      return `
+        <div style="margin-bottom:1.25rem; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+            <span style="font-size:0.85rem; font-weight:700; color:var(--brand-400);">${icon} ${escapeHtml(f.name)} (${f.language || 'text'})</span>
+            <div style="display:flex; gap:0.4rem;">
+              <button class="btn btn-sm" onclick="copyFileContentAtIndex(${fIdx})">📋 คัดลอกเนื้อหาไฟล์</button>
+              ${f.download_url ? `<a href="${f.download_url}" download="${escapeHtml(f.name)}" target="_blank" class="btn btn-sm btn-primary">⬇️ ดาวน์โหลด</a>` : ''}
+            </div>
+          </div>
+          <pre class="code-preview-block"><code>${escapeHtml(f.content || '')}</code></pre>
         </div>
-        <pre class="code-preview-block"><code>${escapeHtml(f.content)}</code></pre>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   } else {
     if (tabCodeBtn) tabCodeBtn.style.display = 'none';
-    codePane.innerHTML = `<div style="text-align:center; padding:2rem; opacity:0.5;">ไม่มีไฟล์ซอร์สโค้ดในงานชิ้นนี้</div>`;
+    codePane.innerHTML = `<div style="text-align:center; padding:2rem; opacity:0.5;">ไม่มีไฟล์เอกสารในงานชิ้นนี้</div>`;
   }
 
   // 6. Pane: Social Media Posts
@@ -1362,6 +1459,7 @@ function renderSlideDeck(slides, index = 0) {
   const total = slides.length;
   const isFirst = _currentSlideIdx === 0;
   const isLast = _currentSlideIdx === total - 1;
+  const pptxFile = (_currentDeliverableFiles || []).find(f => (f.name && f.name.endsWith('.pptx')) || f.format === 'powerpoint');
 
   const dotsHtml = slides.map((item, idx) => `
     <button class="deck-dot-btn ${idx === _currentSlideIdx ? 'active' : ''}" 
@@ -1409,10 +1507,16 @@ function renderSlideDeck(slides, index = 0) {
           ${dotsHtml}
         </div>
 
-        <div style="display:flex; align-items:center; gap:0.5rem; margin-left:auto;">
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-left:auto; flex-wrap:wrap;">
           <span style="font-size:0.75rem; color:var(--text-dim);">⌨️ กด ◀ ▶ บนคีย์บอร์ดได้</span>
+          ${pptxFile ? `
+            <a href="${pptxFile.download_url || `/api/simulation/deliverables/download/${encodeURIComponent(pptxFile.name)}`}" download="${escapeHtml(pptxFile.name)}" target="_blank" class="btn btn-sm" style="background:linear-gradient(135deg, #d97706, #b45309); color:#fff; font-weight:700; border:1px solid #f59e0b; display:inline-flex; align-items:center; gap:4px;">
+              📽️ ดาวน์โหลด PowerPoint (.pptx)
+            </a>
+          ` : `
+            <button class="btn btn-sm" onclick="downloadCurrentPresentationFile()">📥 ดาวน์โหลดสไลด์</button>
+          `}
           <button class="btn btn-sm" onclick="copyCurrentPresentationText()">📋 คัดลอกบทสไลด์</button>
-          <button class="btn btn-sm" onclick="downloadCurrentPresentationFile()">📥 ดาวน์โหลด</button>
         </div>
       </div>
 
@@ -1540,6 +1644,12 @@ ${s.bullets.map(b => '• ' + b).join('\n')}
 }
 
 function downloadCurrentPresentationFile() {
+  const pptxFile = (_currentDeliverableFiles || []).find(f => (f.name && f.name.endsWith('.pptx')) || f.format === 'powerpoint');
+  if (pptxFile && pptxFile.download_url) {
+    window.open(pptxFile.download_url, '_blank');
+    simToast('📥 กำลังดาวน์โหลดไฟล์ PowerPoint (.pptx)...', 'success');
+    return;
+  }
   if (!_currentDeliverableMd) return;
   const blob = new Blob([_currentDeliverableMd], { type: 'text/markdown;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -1658,15 +1768,33 @@ function renderRichMarkdownDocument(mdContent, containerId, docTitle) {
   if (!container) return;
 
   const htmlContent = formatMarkdownToRichHtml(mdContent);
+  const docxFile = (_currentDeliverableFiles || []).find(f => (f.name && f.name.endsWith('.docx')) || f.format === 'word');
+  const xlsxFile = (_currentDeliverableFiles || []).find(f => (f.name && f.name.endsWith('.xlsx')) || f.format === 'excel');
+  const pptxFile = (_currentDeliverableFiles || []).find(f => (f.name && f.name.endsWith('.pptx')) || f.format === 'powerpoint');
 
   container.innerHTML = `
-    <div style="margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:0.75rem 1rem;">
+    <div style="margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:0.75rem 1rem; flex-wrap:wrap; gap:0.6rem;">
       <div style="font-size:0.85rem; color:#93c5fd; font-weight:600;">
-        📑 เอกสารฉบับสมบูรณ์ (${mdContent.length.toLocaleString()} ตัวอักษร)
+        📑 เอกสารพิมพ์เขียวฉบับสมบูรณ์ (${mdContent.length.toLocaleString()} ตัวอักษร)
       </div>
-      <div style="display:flex; gap:0.5rem;">
+      <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+        ${docxFile ? `
+          <a href="${docxFile.download_url || `/api/simulation/deliverables/download/${encodeURIComponent(docxFile.name)}`}" download="${escapeHtml(docxFile.name)}" target="_blank" class="btn btn-sm" style="background:#2563eb; color:#fff; border-color:#3b82f6; font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+            📑 ดาวน์โหลด Word (.docx)
+          </a>
+        ` : ''}
+        ${xlsxFile ? `
+          <a href="${xlsxFile.download_url || `/api/simulation/deliverables/download/${encodeURIComponent(xlsxFile.name)}`}" download="${escapeHtml(xlsxFile.name)}" target="_blank" class="btn btn-sm" style="background:#059669; color:#fff; border-color:#10b981; font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+            📊 ดาวน์โหลด Excel (.xlsx)
+          </a>
+        ` : ''}
+        ${pptxFile ? `
+          <a href="${pptxFile.download_url || `/api/simulation/deliverables/download/${encodeURIComponent(pptxFile.name)}`}" download="${escapeHtml(pptxFile.name)}" target="_blank" class="btn btn-sm" style="background:#d97706; color:#fff; border-color:#f59e0b; font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+            📽️ PowerPoint (.pptx)
+          </a>
+        ` : ''}
         <button class="btn btn-sm" onclick="copyCurrentDeliverableDoc()">📋 คัดลอกเอกสารทั้งหมด</button>
-        <button class="btn btn-sm" onclick="downloadCurrentDeliverableDoc('${escapeHtml(docTitle || 'Deliverable')}')">💾 ดาวน์โหลดเอกสาร (.md)</button>
+        <button class="btn btn-sm" onclick="downloadCurrentDeliverableDoc('${escapeHtml(docTitle || 'Deliverable')}')">💾 ดาวน์โหลด (.md)</button>
       </div>
     </div>
     <div class="rich-doc-container">

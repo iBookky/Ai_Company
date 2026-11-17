@@ -5,6 +5,7 @@ Deliverable Engine (Professional Executive Specification & Blueprint Generator)
 """
 
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from pathlib import Path

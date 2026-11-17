@@ -838,6 +838,213 @@
   margin-bottom: 1rem;
 }
 
+/* ─── Production Deliverables Multi-Format Download Strip ────── */
+.deliverable-downloads-strip {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(11, 15, 25, 0.95));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.9rem 1.5rem;
+}
+
+.del-downloads-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.65rem;
+}
+
+.del-downloads-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.del-downloads-title .badge-auto {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(14, 165, 233, 0.25));
+  border: 1px solid rgba(6, 182, 212, 0.5);
+  color: #38bdf8;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.del-downloads-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.65rem;
+}
+
+.del-file-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  color: inherit;
+  position: relative;
+  overflow: hidden;
+}
+
+.del-file-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(56, 189, 248, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.del-file-card.pptx {
+  border-left: 3px solid #f59e0b;
+}
+.del-file-card.pptx:hover {
+  border-color: #f59e0b;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.2);
+}
+
+.del-file-card.xlsx {
+  border-left: 3px solid #10b981;
+}
+.del-file-card.xlsx:hover {
+  border-color: #10b981;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.2);
+}
+
+.del-file-card.docx {
+  border-left: 3px solid #3b82f6;
+}
+.del-file-card.docx:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2);
+}
+
+.del-file-card.markdown {
+  border-left: 3px solid #a855f7;
+}
+
+.del-file-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.del-file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.del-file-format-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+
+.del-file-card.pptx .del-file-format-badge { color: #fbbf24; }
+.del-file-card.xlsx .del-file-format-badge { color: #34d399; }
+.del-file-card.docx .del-file-format-badge { color: #60a5fa; }
+.del-file-card.markdown .del-file-format-badge { color: #c084fc; }
+
+.del-file-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.del-file-meta {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.del-file-action-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.del-file-card:hover .del-file-action-btn {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #fff;
+}
+
+.del-file-card.pptx:hover .del-file-action-btn {
+  background: #d97706;
+  border-color: #fbbf24;
+}
+
+.del-file-card.xlsx:hover .del-file-action-btn {
+  background: #059669;
+  border-color: #34d399;
+}
+
+.del-file-card.docx:hover .del-file-action-btn {
+  background: #2563eb;
+  border-color: #60a5fa;
+}
+
+/* Format chips on Kanban & Task cards */
+.format-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.format-chip.pptx {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+.format-chip.xlsx {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+
+.format-chip.docx {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #60a5fa;
+}
+
+.format-chip.md {
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #c084fc;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    GUIDE BANNER & DEPARTMENT COMMAND HUB (1-CLICK DISPATCH)
    ═══════════════════════════════════════════════════════════════ */

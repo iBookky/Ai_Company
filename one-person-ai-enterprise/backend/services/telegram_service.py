@@ -16,7 +16,7 @@ import asyncio
 import re
 from pathlib import Path
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from datetime import datetime, timezone
 import httpx
 
@@ -241,6 +241,43 @@ async def send_telegram_message(chat_id: str, text: str, bot_token: Optional[str
                 return False
     except Exception as e:
         logger.error(f"ส่งข้อความ Telegram ไม่สำเร็จ: {e}")
+        return False
+
+
+async def send_telegram_document(
+    chat_id: str,
+    file_path: Union[str, Path],
+    caption: str = "",
+    bot_token: Optional[str] = None
+) -> bool:
+    """ส่งไฟล์เอกสารจริง (เช่น .pptx, .xlsx, .docx, .pdf) ไปยัง Telegram Chat"""
+    token = bot_token or get_bot_token()
+    if not token or not chat_id:
+        logger.warning(f"Telegram Bot Token หรือ Chat ID ({chat_id}) ไม่ถูกตั้งค่าสำหรับส่งเอกสาร")
+        return False
+
+    path = Path(file_path)
+    if not path.is_absolute():
+        path = BASE_DIR / path
+    if not path.exists() or not path.is_file():
+        logger.warning(f"ไม่พบไฟล์สำหรับส่งไปยัง Telegram: {path}")
+        return False
+
+    url = f"https://api.telegram.org/bot{token}/sendDocument"
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            with open(path, "rb") as f:
+                files = {"document": (path.name, f)}
+                data = {"chat_id": chat_id, "caption": caption[:1024]}
+                resp = await client.post(url, data=data, files=files)
+                if resp.status_code == 200:
+                    logger.info(f"ส่งเอกสาร Telegram สำเร็จ: {path.name} ไปยัง {chat_id}")
+                    return True
+                else:
+                    logger.error(f"Telegram sendDocument Error: {resp.status_code} - {resp.text}")
+                    return False
+    except Exception as e:
+        logger.error(f"เกิดข้อผิดพลาดในการส่งเอกสาร Telegram: {e}")
         return False
 
 
