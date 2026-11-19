@@ -568,9 +568,15 @@ def build_agent_aliases(agent: dict) -> list[str]:
         if pm.startswith("น้อง"):
             aliases.add(pm[4:].strip())
         if "บิ๊นท์" in pm:
-            aliases.update(["bint", "bin", "บิ้นท์", "บิ้น"])
+            aliases.update(["bint", "bin", "บิ้นท์", "บิ้น", "นักวิเคราะห์ธุรกิจ"])
         elif "อิงฟ้า" in pm:
-            aliases.update(["ingfah", "ing", "ฟ้า", "เลขา"])
+            aliases.update(["ingfah", "ing", "ฟ้า", "เลขา", "เลขาส่วนตัว"])
+        elif "ก้อง" in pm:
+            aliases.update(["ก้อง", "kong", "เซลส์", "ฝ่ายขาย", "sales"])
+        elif "มินท์" in pm:
+            aliases.update(["มินท์", "mint", "การตลาด", "คอนเทนต์", "marketing"])
+        elif "นนท์" in pm:
+            aliases.update(["นนท์", "nont", "การเงิน", "การลงทุน", "finance", "advisor"])
 
     if name:
         aliases.add(name)

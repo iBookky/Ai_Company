@@ -18,5 +18,15 @@
     "total_tokens": 34,
     "cost": 8.7e-06,
     "requests": 1
+  },
+  {
+    "date": "2026-11-17",
+    "month": "2026-11",
+    "model": "gemini-3.8-flash-high",
+    "input_tokens": 3950,
+    "output_tokens": 7670,
+    "total_tokens": 11620,
+    "cost": 0.0051945,
+    "requests": 4
   }
 ]

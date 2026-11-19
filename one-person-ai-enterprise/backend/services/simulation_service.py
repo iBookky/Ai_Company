@@ -204,6 +204,9 @@ def load_tasks_from_disk():
 DEFAULT_AVATARS_MAP = {
     "01_secretary": "/static/img/avatars/01_secretary.jpg",
     "07_business_analyst": "/static/img/avatars/07_business_analyst.jpg",
+    "03_sales": "/static/img/avatars/03_sales.jpg",
+    "04_marketing": "/static/img/avatars/04_marketing.jpg",
+    "05_finance": "/static/img/avatars/05_finance.jpg",
 }
 
 EMPLOYEE_AVATARS_MAP = dict(DEFAULT_AVATARS_MAP)
@@ -266,7 +269,7 @@ def init_agent_states():
     KNOWN_META = {
         "01_secretary": {
             "name": "อิงฟ้า",
-            "role_title": "เลขา AI & Orchestrator",
+            "role_title": "Executive Assistant & CKO",
             "department_id": "01_secretary",
             "department_name": "สำนักเลขานุการ & CKO",
             "avatar": "🗂️",
@@ -277,6 +280,27 @@ def init_agent_states():
             "department_id": "07_business_analyst",
             "department_name": "ฝ่ายวิเคราะห์ธุรกิจ (BA & Strategy)",
             "avatar": "📊",
+        },
+        "03_sales": {
+            "name": "ก้อง",
+            "role_title": "Lead Sales Consultant",
+            "department_id": "03_sales",
+            "department_name": "ฝ่ายขายและที่ปรึกษาการปิดการขาย",
+            "avatar": "💼",
+        },
+        "04_marketing": {
+            "name": "มินท์",
+            "role_title": "Marketing Strategist",
+            "department_id": "04_marketing",
+            "department_name": "ฝ่ายการตลาดและคอนเทนต์",
+            "avatar": "📢",
+        },
+        "05_finance": {
+            "name": "นนท์",
+            "role_title": "Lead Financial Advisor",
+            "department_id": "05_finance",
+            "department_name": "ฝ่ายการเงินและการลงทุน",
+            "avatar": "💰",
         },
     }
 
@@ -446,18 +470,18 @@ EMPLOYEE_PROFILES = {
     "01_secretary": {
         "id": "01_secretary",
         "name": "อิงฟ้า (Ingfah)",
-        "role_title": "Chief Knowledge Officer & Executive Secretary",
+        "role_title": "Executive Personal Assistant & CKO",
         "department_id": "01_secretary",
         "department_name": "สำนักเลขาธิการ & CKO",
         "avatar": "🗂️",
         "photo": "/static/img/avatars/01_secretary.jpg",
         "accent_color": "#38bdf8",
         "glow": "rgba(56, 189, 248, 0.3)",
-        "motto": "ประสานงานทุกฝ่ายให้เป็นหนึ่งเดียว รวดเร็ว แม่นยำ และรักษาความลับองค์กรระดับสูงสุดค่ะ",
-        "voice_quote": "สวัสดีค่ะท่านผู้บริหาร อิงฟ้าตรวจสอบสถานะทุกแผนกแล้ว พร้อมรับคำสั่งใหม่และอัปเดตงานทันทีค่ะ",
-        "bio": "หัวหน้าสำนักเลขาธิการ AI เชี่ยวชาญการถอดรหัสวิสัยทัศน์ผู้บริหาร แปลงเป้าหมายเป็น Action Plan กระจายงานสู่หัวหน้าทีมทุกฝ่าย และบันทึกคลังความรู้บริษัท (Company Memory) แบบเรียลไทม์",
-        "tech_stack": ["Company Memory", "Telegram Bot API", "Executive Meeting Sync", "Action Matrix", "Cross-Department Routing", "Notion/Markdown"],
-        "system_status": "SECURE & OPERATIONAL",
+        "motto": "จัดตารางงาน เตือนงานสำคัญ วางแผนทั้งวัน และบริหารคลังความรู้องค์กร 100%",
+        "voice_quote": "สวัสดีค่ะพี่บุ๊ค! อิงฟ้าพร้อมจัดตารางงาน วางแผนรายวัน และประสานงานทีม AI ให้ราบรื่นที่สุดค่ะ",
+        "bio": "Executive Assistant ส่วนตัวของพี่บุ๊ค เชี่ยวชาญการจัดตารางงาน จัดลำดับความสำคัญ (Eisenhower Matrix) วางแผนงานรายวัน และประสานงานส่งมอบงานระดับ Zero-Defect",
+        "tech_stack": ["Daily Planning", "Schedule Management", "Priority Alerts", "Telegram Bot API", "Company Memory"],
+        "system_status": "EXECUTIVE READY",
         "health_score": 100,
         "compliance_score": 100,
         "risk_level": "LOW RISK",
@@ -472,11 +496,68 @@ EMPLOYEE_PROFILES = {
         "photo": "/static/img/avatars/07_business_analyst.jpg",
         "accent_color": "#06b6d4",
         "glow": "rgba(6, 182, 212, 0.3)",
-        "motto": "วิเคราะห์ Requirement เจาะลึกความต้องการทางธุรกิจ วางกระบวนการ SOP และ PRD อย่างแม่นยำ 100%",
-        "voice_quote": "สวัสดีค่ะพี่บุ๊ค! น้องบิ๊นท์พร้อมวิเคราะห์ความต้องการ ออกแบบระบบ และจัดทำเอกสารส่งมอบงานค่ะ",
-        "bio": "หัวหน้าฝ่ายวิเคราะห์ธุรกิจและกลยุทธ์ระบบ AI เชี่ยวชาญการวิเคราะห์ Business Requirements, การทำ Gap Analysis, การออกแบบ Process Workflow และประเมินจุดคุ้มทุน ROI",
-        "tech_stack": ["Business Analysis", "PRD / BRD", "Process Flowchart", "Gap Analysis", "ROI Calculation", "Data Modeling"],
+        "motto": "วิเคราะห์ธุรกิจ หาโอกาสเติบโต จัดทำ SWOT และแผนพัฒนาแม่นยำ 100%",
+        "voice_quote": "สวัสดีค่ะพี่บุ๊ค! น้องบิ๊นท์พร้อมวิเคราะห์โมเดลธุรกิจ ทำ SWOT และวางสเปกระบบส่งมอบงานค่ะ",
+        "bio": "หัวหน้าฝ่ายวิเคราะห์ธุรกิจและกลยุทธ์ระบบ AI เชี่ยวชาญการวิเคราะห์ SWOT Matrix, วิเคราะห์คู่แข่ง, ค้นหาโอกาส Blue Ocean และออกแบบ PRD/BRD",
+        "tech_stack": ["Business Analysis", "SWOT Analysis", "Competitor Benchmarking", "PRD / BRD", "ROI Calculation"],
         "system_status": "ANALYSIS READY",
+        "health_score": 100,
+        "compliance_score": 100,
+        "risk_level": "LOW RISK",
+    },
+    "03_sales": {
+        "id": "03_sales",
+        "name": "ก้อง (Sales Consultant)",
+        "role_title": "Lead Sales Consultant & Closing Specialist",
+        "department_id": "03_sales",
+        "department_name": "ฝ่ายขายและที่ปรึกษาการปิดการขาย",
+        "avatar": "💼",
+        "photo": "/static/img/avatars/03_sales.jpg",
+        "accent_color": "#10b981",
+        "glow": "rgba(16, 185, 129, 0.3)",
+        "motto": "ตอบลูกค้าตรงจุด ขจัดทุกข้อโต้แย้ง สร้างสคริปต์ปิดการขาย และเพิ่มยอดขายให้เติบโต",
+        "voice_quote": "สวัสดีครับพี่บุ๊ค! ก้องพร้อมวางสคริปต์ปิดการขาย ตอบลูกค้า และดันยอดขายให้ทะลุเป้าครับ",
+        "bio": "ผู้เชี่ยวชาญด้านกลยุทธ์การขายและที่ปรึกษาการปิดการขาย เชี่ยวชาญการร่างสคริปต์ขาย (Sales Scripts), เทคนิค Objection Handling ทั้ง 4 มิติ และการทำ Value Stacking ดันยอดขายต่อบิล",
+        "tech_stack": ["Sales Scripting", "Objection Handling", "Closing Techniques", "Lead Scoring", "Upsell / Cross-sell"],
+        "system_status": "SALES READY",
+        "health_score": 100,
+        "compliance_score": 100,
+        "risk_level": "LOW RISK",
+    },
+    "04_marketing": {
+        "id": "04_marketing",
+        "name": "มินท์ (Marketing Strategist)",
+        "role_title": "Marketing Strategist & Growth Architect",
+        "department_id": "04_marketing",
+        "department_name": "ฝ่ายการตลาดและคอนเทนต์",
+        "avatar": "📢",
+        "photo": "/static/img/avatars/04_marketing.jpg",
+        "accent_color": "#8b5cf6",
+        "glow": "rgba(139, 92, 246, 0.3)",
+        "motto": "Content Plan ไวรัล แคมเปญยิงแอดแม่นยำ และกลยุทธ์การตลาดเติบโตก้าวกระโดด",
+        "voice_quote": "สวัสดีค่ะพี่บุ๊ค! มินท์พร้อมวางแผนคอนเทนต์ ออกแบบแคมเปญ และดันการเติบโตของแบรนด์ค่ะ",
+        "bio": "นักยุทธศาสตร์การตลาดดิจิทัลและคอนเทนต์ เชี่ยวชาญการวางปฏิทินคอนเทนต์ (Content Calendar), การออกแบบแคมเปญโฆษณา (Paid Ads Funnel), การเขียน Ad Copy และ Growth Strategy",
+        "tech_stack": ["Content Calendar", "Viral Hook Writing", "Campaign Funnel", "Ad Copywriting", "Growth Strategy"],
+        "system_status": "GROWTH READY",
+        "health_score": 100,
+        "compliance_score": 100,
+        "risk_level": "LOW RISK",
+    },
+    "05_finance": {
+        "id": "05_finance",
+        "name": "นนท์ (Financial Advisor)",
+        "role_title": "Lead Financial Advisor & Wealth Planner",
+        "department_id": "05_finance",
+        "department_name": "ฝ่ายการเงินและการลงทุน",
+        "avatar": "💰",
+        "photo": "/static/img/avatars/05_finance.jpg",
+        "accent_color": "#f59e0b",
+        "glow": "rgba(245, 158, 11, 0.3)",
+        "motto": "วิเคราะห์รายรับรายจ่าย วางแผนงบประมาณ Budget บริหารเงินออม และเป้าหมายการเงินระยะยาว",
+        "voice_quote": "สวัสดีครับพี่บุ๊ค! นนท์พร้อมวิเคราะห์งบการเงิน บริหารกระแสเงินสด และวางแผนการเงินระยะยาวครับ",
+        "bio": "ที่ปรึกษาทางการเงินและการจัดสรรเงินทุน เชี่ยวชาญการวิเคราะห์งบรายรับรายจ่าย (Income & Expense Analysis), การวางงบประมาณ (Budgeting), การสร้างแบบจำลองการเงินใน Excel และแผนความมั่งคั่งระยะยาว",
+        "tech_stack": ["Financial Modeling", "Cashflow Forecasting", "Budget Planning", "Break-Even Analysis", "Excel / Spreadsheet"],
+        "system_status": "FINANCE READY",
         "health_score": 100,
         "compliance_score": 100,
         "risk_level": "LOW RISK",
@@ -1695,7 +1776,13 @@ async def run_simulation_preset(preset_key: str, custom_text: str = "", attachme
 
             if detected_intent == "operations_secretary":
                 target_agent = next((a for a in active_agents if a.id == "01_secretary"), None)
-            elif detected_intent in ("business_strategy", "marketing_growth"):
+            elif detected_intent == "sales_consultant":
+                target_agent = next((a for a in active_agents if "sales" in a.id or a.id == "03_sales"), None)
+            elif detected_intent == "financial_advisor":
+                target_agent = next((a for a in active_agents if "finance" in a.id or a.id == "05_finance" or "account" in a.id), None)
+            elif detected_intent in ("marketing_growth", "content_creative"):
+                target_agent = next((a for a in active_agents if "marketing" in a.id or a.id == "04_marketing"), None)
+            elif detected_intent == "business_strategy":
                 target_agent = next((a for a in active_agents if "analyst" in a.id or "strategy" in a.id or a.id == "07_business_analyst"), None)
             else:
                 # ค้นหา agent ที่มีทักษะตรงกับ intent
@@ -1748,16 +1835,25 @@ def reset_simulation():
 EMPLOYEE_NICKNAMES_MAP = {
     "01_secretary": "อิงฟ้า (ฟ้า)",
     "07_business_analyst": "น้องบิ๊นท์ (BA)",
+    "03_sales": "ก้อง (Sales)",
+    "04_marketing": "มินท์ (Marketing)",
+    "05_finance": "นนท์ (Finance)",
 }
 
 EMPLOYEE_MOTTOS_MAP = {
-    "01_secretary": "ศูนย์กลางประสานงาน AI ทั้งบริษัท ควบคุมขั้นตอน และจัดการคลังความรู้ 100%",
-    "07_business_analyst": "วิเคราะห์ Requirement เจาะลึกความต้องการทางธุรกิจ วางกระบวนการ SOP และ PRD อย่างแม่นยำ 100%",
+    "01_secretary": "จัดตารางงาน เตือนงานสำคัญ วางแผนทั้งวัน และบริหารคลังความรู้องค์กร 100%",
+    "07_business_analyst": "วิเคราะห์ธุรกิจ หาโอกาสเติบโต จัดทำ SWOT และแผนพัฒนาแม่นยำ 100%",
+    "03_sales": "ตอบลูกค้าตรงจุด ขจัดทุกข้อโต้แย้ง สร้างสคริปต์ปิดการขาย และเพิ่มยอดขายให้เติบโต",
+    "04_marketing": "Content Plan ไวรัล แคมเปญยิงแอดแม่นยำ และกลยุทธ์การตลาดเติบโตก้าวกระโดด",
+    "05_finance": "วิเคราะห์รายรับรายจ่าย วางแผนงบประมาณ Budget บริหารเงินออม และเป้าหมายการเงินระยะยาว",
 }
 
 EMPLOYEE_TECH_STACK_MAP = {
-    "01_secretary": ["Orchestration", "Daily Sync", "Knowledge Management", "Telegram API", "Decision Matrix"],
-    "07_business_analyst": ["Business Analysis", "PRD / BRD", "Process Flowchart", "Gap Analysis", "ROI Calculation", "Data Modeling"],
+    "01_secretary": ["Daily Planning", "Schedule Management", "Priority Alerts", "Telegram Bot API", "Company Memory"],
+    "07_business_analyst": ["Business Analysis", "SWOT Analysis", "Competitor Benchmarking", "PRD / BRD", "ROI Calculation"],
+    "03_sales": ["Sales Scripting", "Objection Handling", "Closing Techniques", "Lead Scoring", "Upsell / Cross-sell"],
+    "04_marketing": ["Content Calendar", "Viral Hook Writing", "Campaign Funnel", "Ad Copywriting", "Growth Strategy"],
+    "05_finance": ["Financial Modeling", "Cashflow Forecasting", "Budget Planning", "Break-Even Analysis", "Excel / Spreadsheet"],
 }
 
 

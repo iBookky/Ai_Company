@@ -60,6 +60,9 @@ def _read_agent_dir(dept_dir: Path) -> Optional[AgentRead]:
         default_avatars = {
             "01_secretary": "/static/img/avatars/01_secretary.jpg",
             "07_business_analyst": "/static/img/avatars/07_business_analyst.jpg",
+            "03_sales": "/static/img/avatars/03_sales.jpg",
+            "04_marketing": "/static/img/avatars/04_marketing.jpg",
+            "05_finance": "/static/img/avatars/05_finance.jpg",
         }
         avatar_url = default_avatars.get(dept_dir.name, f"/static/img/avatars/{dept_dir.name}.jpg")
 

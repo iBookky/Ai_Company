@@ -1,0 +1,12 @@
+{
+  "name": "ฝ่ายการเงินและการลงทุน (Financial Advisor)",
+  "role": "pm_05_finance",
+  "pm_name": "นนท์",
+  "model": "gemini-3.8-flash-high",
+  "temperature": 0.3,
+  "department": "05_finance",
+  "bot_token": "",
+  "ops_chat_id": "",
+  "created_at": "2026-11-19T00:00:00",
+  "avatar_url": "/static/img/avatars/05_finance.jpg"
+}

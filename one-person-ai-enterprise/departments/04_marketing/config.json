@@ -1,0 +1,12 @@
+{
+  "name": "ฝ่ายการตลาดและคอนเทนต์ (Marketing Strategist)",
+  "role": "pm_04_marketing",
+  "pm_name": "มินท์",
+  "model": "gemini-3.8-flash-high",
+  "temperature": 0.5,
+  "department": "04_marketing",
+  "bot_token": "",
+  "ops_chat_id": "",
+  "created_at": "2026-11-19T00:00:00",
+  "avatar_url": "/static/img/avatars/04_marketing.jpg"
+}

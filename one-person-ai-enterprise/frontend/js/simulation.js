@@ -18,28 +18,28 @@ let currentSimState = {
 
 let activeDeliverableTaskId = null;
 
-// ─── 6 Departments Configuration & Capabilities ─────────────────
+// ─── 5 Enterprise Departments Configuration & Capabilities ─────────────────
 const ENTERPRISE_DEPARTMENTS = {
   '01_secretary': {
     id: '01_secretary',
-    name: 'สำนักเลขาธิการ & CKO',
-    pm: 'อิงฟ้า (เลขา AI)',
+    name: 'สำนักเลขานุการส่วนตัว & CKO',
+    pm: 'อิงฟ้า (Executive Assistant)',
     avatar: '🗂️',
-    role: 'Executive Secretary & CKO',
+    role: 'Executive Personal Assistant & CKO',
     color: '#38bdf8',
     glow: 'rgba(56, 189, 248, 0.25)',
     btnBorder: 'rgba(56, 189, 248, 0.4)',
     btnBg: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(14, 165, 233, 0.35))',
     btnHover: 'linear-gradient(135deg, rgba(56, 189, 248, 0.4), rgba(14, 165, 233, 0.6))',
     btnColor: '#bae6fd',
-    skills: 'วางแผนกลยุทธ์องค์กร, ประสานงานข้ามทีม, สรุปการประชุม, จัดการคลังความรู้',
-    preset: 'secretary',
-    quickAction: '🌅 สรุปงานวันนี้',
-    quickPrompt: 'จัดทำรายงานสรุปความคืบหน้าของทุกแผนก และอัปเดตลง company_memory.md',
+    skills: 'จัดตารางงาน, เตือนงานสำคัญ, วางแผนทั้งวัน, จัดการคลังความรู้',
+    preset: '01_secretary',
+    quickAction: '🌅 วางแผนงานวันนี้',
+    quickPrompt: 'ทำตัวเป็น Executive Assistant ส่วนตัวของฉัน ช่วยจัดตารางงาน จัดลำดับความสำคัญ และวางแผนงานรายวันให้เหมาะสมที่สุด',
     templates: [
-      'จัดทำรายงานสรุปความคืบหน้าของทุกแผนก และอัปเดตลง company_memory.md',
-      'เปิดวาระประชุมติดตามความคืบหน้าระบบและแผนการตลาดประจำสัปดาห์',
-      'วิเคราะห์และวางโครงสร้างการแบ่งงานระหว่างทีม Dev และ Marketing สำหรับโปรเจกต์ใหม่'
+      'ทำตัวเป็น Executive Assistant ส่วนตัวของฉัน ช่วยจัดตารางงาน จัดลำดับความสำคัญ และวางแผนงานรายวันให้เหมาะสมที่สุด',
+      'ช่วยสรุปและแจ้งเตือนงานสำคัญ วาระเร่งด่วนที่ต้องตัดสินใจในวันนี้',
+      'จัดทำรายงานสรุปภาพรวมองค์กร และอัปเดตลง company_memory.md'
     ]
   },
   '07_business_analyst': {
@@ -54,14 +54,80 @@ const ENTERPRISE_DEPARTMENTS = {
     btnBg: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(8, 145, 178, 0.35))',
     btnHover: 'linear-gradient(135deg, rgba(6, 182, 212, 0.4), rgba(8, 145, 178, 0.6))',
     btnColor: '#cffafe',
-    skills: 'วิเคราะห์ Requirement ธุรกิจ, ออกแบบ Workflows & SOP, จัดทำ BRD/PRD, ประเมินความคุ้มค่า ROI',
-    preset: 'custom',
-    quickAction: '📋 วิเคราะห์ Requirement',
-    quickPrompt: 'วิเคราะห์ Requirement ธุรกิจ และจัดทำเอกสารความต้องการระบบ (PRD/BRD) ฉบับสมบูรณ์',
+    skills: 'SWOT Analysis, วิเคราะห์คู่แข่ง, หาโอกาสใหม่, PRD / BRD',
+    preset: '07_business_analyst',
+    quickAction: '📋 วิเคราะห์ธุรกิจ & SWOT',
+    quickPrompt: 'ทำตัวเป็น Business Analyst ช่วยวิเคราะห์ธุรกิจของฉัน หาโอกาสเติบโต ความเสี่ยง และแนะนำแผนพัฒนา',
     templates: [
-      'วิเคราะห์ Requirement ธุรกิจ และจัดทำเอกสารความต้องการระบบ (PRD/BRD) ฉบับสมบูรณ์',
-      'ออกแบบ Process Workflow การทำงาน และประเมินจุดคุ้มทุน (ROI)',
-      'สำรวจปัญหาและทำรายงาน Gap Analysis เพื่อเพิ่มประสิทธิภาพองค์กร'
+      'ทำตัวเป็น Business Analyst ช่วยวิเคราะห์ธุรกิจของฉัน หาโอกาสเติบโต ความเสี่ยง และแนะนำแผนพัฒนา',
+      'วิเคราะห์คู่แข่งในตลาดและหาโอกาสทางธุรกิจใหม่ (Market Gap & Blue Ocean)',
+      'วิเคราะห์ Requirement ธุรกิจ และจัดทำเอกสารความต้องการระบบ (PRD/BRD) ฉบับสมบูรณ์'
+    ]
+  },
+  '03_sales': {
+    id: '03_sales',
+    name: 'ฝ่ายขายและที่ปรึกษาการปิดการขาย (Sales Consultant)',
+    pm: 'ก้อง (Sales Consultant)',
+    avatar: '💼',
+    role: 'Lead Sales Consultant',
+    color: '#10b981',
+    glow: 'rgba(16, 185, 129, 0.25)',
+    btnBorder: 'rgba(16, 185, 129, 0.4)',
+    btnBg: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.35))',
+    btnHover: 'linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(5, 150, 105, 0.6))',
+    btnColor: '#d1fae5',
+    skills: 'ตอบลูกค้า, จัดการข้อโต้แย้ง, สร้างสคริปต์ขาย, เพิ่มยอดขาย',
+    preset: '03_sales',
+    quickAction: '🎯 ร่างสคริปต์ปิดการขาย',
+    quickPrompt: 'ทำตัวเป็น Sales Consultant ช่วยตอบคำถามลูกค้า จัดการข้อโต้แย้ง และปิดการขาย',
+    templates: [
+      'ทำตัวเป็น Sales Consultant ช่วยตอบคำถามลูกค้า จัดการข้อโต้แย้ง และปิดการขาย',
+      'สร้างสคริปต์การขาย 5 ขั้นตอน พร้อมคำพูดขจัดข้อโต้แย้งเรื่องราคาแพง',
+      'วางกลยุทธ์ Upsell / Cross-sell เพื่อเพิ่มยอดขายเฉลี่ยต่อคำสั่งซื้อ'
+    ]
+  },
+  '04_marketing': {
+    id: '04_marketing',
+    name: 'ฝ่ายการตลาดและคอนเทนต์ (Marketing Strategist)',
+    pm: 'มินท์ (Marketing Strategist)',
+    avatar: '📢',
+    role: 'Marketing Strategist',
+    color: '#8b5cf6',
+    glow: 'rgba(139, 92, 246, 0.25)',
+    btnBorder: 'rgba(139, 92, 246, 0.4)',
+    btnBg: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.35))',
+    btnHover: 'linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(124, 58, 237, 0.6))',
+    btnColor: '#ede9fe',
+    skills: 'Content Plan, Campaign, Growth Strategy, TikTok / Ads',
+    preset: '04_marketing',
+    quickAction: '🚀 วางแผนคอนเทนต์ & แคมเปญ',
+    quickPrompt: 'ทำตัวเป็น Marketing Strategist ช่วยวางแผนคอนเทนต์ แคมเปญ และกลยุทธ์การตลาด',
+    templates: [
+      'ทำตัวเป็น Marketing Strategist ช่วยวางแผนคอนเทนต์ แคมเปญ และกลยุทธ์การตลาด',
+      'ออกแบบปฏิทินคอนเทนต์รายเดือน พร้อมสคริปต์คลิปไวรัล TikTok / Reels',
+      'วางโครงสร้างแคมเปญยิงแอด จัดสรรงบประมาณ และตั้งเป้า ROAS'
+    ]
+  },
+  '05_finance': {
+    id: '05_finance',
+    name: 'ฝ่ายการเงินและการลงทุน (Financial Advisor)',
+    pm: 'นนท์ (Financial Advisor)',
+    avatar: '💰',
+    role: 'Lead Financial Advisor',
+    color: '#f59e0b',
+    glow: 'rgba(245, 158, 11, 0.25)',
+    btnBorder: 'rgba(245, 158, 11, 0.4)',
+    btnBg: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.35))',
+    btnHover: 'linear-gradient(135deg, rgba(245, 158, 11, 0.4), rgba(217, 119, 6, 0.6))',
+    btnColor: '#fef3c7',
+    skills: 'Budget, เงินออม, เป้าหมายการเงิน, Cashflow Model',
+    preset: '05_finance',
+    quickAction: '💵 วิเคราะห์งบ & แผนการเงิน',
+    quickPrompt: 'ทำตัวเป็น Financial Advisor ช่วยวิเคราะห์รายรับรายจ่าย และวางแผนการเงินระยะยาว',
+    templates: [
+      'ทำตัวเป็น Financial Advisor ช่วยวิเคราะห์รายรับรายจ่าย และวางแผนการเงินระยะยาว',
+      'จัดทำงบประมาณ Budget คาดการณ์กระแสเงินสด 12 เดือน และกองทุนเงินออมฉุกเฉิน',
+      'สร้างแบบจำลองการเงิน 3-5 ปี วิเคราะห์จุดคุ้มทุน (Break-even) และผลตอบแทน ROI'
     ]
   }
 };
