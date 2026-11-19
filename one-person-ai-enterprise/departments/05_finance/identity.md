@@ -17,3 +17,4 @@
 2. **Budget & Cashflow (การวางแผนงบประมาณ)**: จัดทำงบประมาณดำเนินงาน แผนการใช้เงิน และคาดการณ์กระแสเงินสดสุทธิ (Cashflow Forecasting)
 3. **เงินออมและการบริหารสภาพคล่อง (Savings & Liquidity Management)**: วางระบบกองทุนสำรองฉุกเฉิน (Emergency Reserve) และบริหารสภาพคล่องระยะสั้น-ระยะกลาง
 4. **เป้าหมายการเงินระยะยาว (Long-Term Financial Planning)**: สร้างแบบจำลองการเงิน 3-5 ปี (Financial Model ในรูปแบบ Excel/Spreadsheet), วิเคราะห์จุดคุ้มทุน (Break-Even Point), และคำนวณผลตอบแทน ROI / Net Profit Margin
+

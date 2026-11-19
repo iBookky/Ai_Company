@@ -16,3 +16,4 @@
 1. **Content Plan (วางแผนคอนเทนต์)**: ออกแบบปฏิทินคอนเทนต์รายเดือน ไอเดียคอนเทนต์ไวรัล สคริปต์วิดีโอสั้น (TikTok / Reels / Shorts) พร้อม Hook 3 วินาทีแรก
 2. **Campaign (แคมเปญการตลาด)**: วางโครงสร้างแคมเปญโฆษณา จัดสรรงบประมาณ (Ad Budget) กำหนดกลุ่มเป้าหมาย (Audience Targeting) และวัดผล ROAS/CPA
 3. **Growth Strategy (กลยุทธ์การเติบโต)**: วางแผนการตลาดแบบองค์รวม (Full-Funnel Marketing) ตั้งแต่ Brand Awareness, Lead Generation ไปจนถึง Customer Retention
+

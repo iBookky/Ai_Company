@@ -1123,7 +1123,7 @@
 <div class="modal" id="modal-deliverable-detail">
   <div class="modal-backdrop" onclick="closeModal('modal-deliverable-detail')"></div>
   <div class="modal-deliverable-box">
-    <div class="modal-header" style="padding: 1.25rem 1.5rem 0.75rem 1.5rem;">
+    <div class="modal-header" style="padding: 1rem 1.5rem 0.65rem 1.5rem;">
       <div>
         <h2 id="modal-del-title" style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
           📦 รายละเอียดผลงานส่งมอบ
@@ -1132,7 +1132,13 @@
           ผู้ส่งมอบ: — | แผนก: —
         </p>
       </div>
-      <button class="modal-close" onclick="closeModal('modal-deliverable-detail')">✕</button>
+      <div style="display:flex; align-items:center; gap:0.6rem;">
+        <button class="btn btn-sm btn-secondary" id="btn-toggle-modal-fullscreen" onclick="toggleDeliverableModalFullscreen()" title="ขยายเต็มหน้าจอ (หรือกดปุ่ม F บนคีย์บอร์ด)" style="font-weight:600; display:inline-flex; align-items:center; gap:5px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#cbd5e1;">
+          <span id="icon-modal-fullscreen">⛶</span>
+          <span id="label-modal-fullscreen">ขยายเต็มจอ</span>
+        </button>
+        <button class="modal-close" onclick="closeModal('modal-deliverable-detail')">✕</button>
+      </div>
     </div>
 
     <!-- Multi-Format Production Deliverables Strip -->

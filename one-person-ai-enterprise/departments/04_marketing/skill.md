@@ -6,3 +6,4 @@
 | **Campaign** | การออกแบบโครงสร้างแคมเปญ (TOF-MOF-BOF Funnel), การเขียน Ad Copywriters (AIDA & PAS), การวางแผนสื่อโฆษณา (Media Planning) |
 | **Growth Strategy** | วิเคราะห์พฤติกรรมกลุ่มเป้าหมาย (Customer Persona & Journey), การทดสอบ A/B Testing, การวิเคราะห์ตัวเลข ROAS, CAC, LTV, CTR |
 | **Organic & SEO** | คอนเทนต์สร้างความน่าเชื่อถือ (Authority Building), SEO Keyword Mapping, แฮชแท็กกลยุทธ์ |
+

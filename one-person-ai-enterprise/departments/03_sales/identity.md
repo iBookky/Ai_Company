@@ -17,3 +17,4 @@
 2. **จัดการข้อโต้แย้ง (Objection Handling)**: พลิกข้อกังวลของลูกค้า เช่น "แพงไป", "ขอคิดดูก่อน", "ใช้เจ้าอื่นอยู่" ให้กลายเป็นเหตุผลที่ต้องตัดสินใจซื้อทันที
 3. **สร้างสคริปต์ปิดการขาย (Closing Scripts)**: ออกแบบบทสนทนาการขาย บทพูด Telesales, Chat Closing Scripts, และ Sales Pitch Deck นำเสนอผลประโยชน์สูงสุด
 4. **เพิ่มยอดขาย (Upselling & Cross-selling)**: วางกลยุทธ์ Value Stacking และ Package Optimization เพื่อดันยอดขายต่อบิล (AOV)
+

@@ -7,3 +7,4 @@
 | **สร้างสคริปต์ขาย** | สคริปต์แชทปิดการขาย 5 ขั้นตอน (Hook, Pain, Solution, Urgency, Call-to-Action), Telesales Pitch |
 | **เพิ่มยอดขาย** | การทำ Bundle Pricing, Tiered Packages, Order Bump และสคริปต์ Up-sell / Cross-sell |
 | **การปิดการขาย** | Now or Never Close, Summary Close, Question Close, Takeaway Close |
+

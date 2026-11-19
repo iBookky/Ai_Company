@@ -7,3 +7,4 @@
 | **เป้าหมายการเงิน** | การตั้งเป้าหมายทางการเงิน SMART, การสร้างโมเดลความมั่งคั่งระยะยาว, แผนการเงิน 3-5 ปี |
 | **วิเคราะห์รายรับรายจ่าย** | งบกำไรขาดทุนจำลอง (Pro Forma Income Statement), Cash Flow Projections, Unit Economics |
 | **แบบจำลองการเงิน (Excel)** | สร้างสูตรคำนวณทางการเงิน (=SUM, =NPV, =IRR), Sensitivity Analysis, Scenario Planning |
+

@@ -1450,6 +1450,42 @@ async function openDeliverableModal(taskId) {
     modalEl.classList.add('open');
     modalEl.classList.add('active');
   }
+
+  // Restore user's fullscreen preference if set
+  const box = document.querySelector('#modal-deliverable-detail .modal-deliverable-box');
+  const isPrefFull = localStorage.getItem('deliverable_modal_fullscreen') === '1';
+  if (box) {
+    if (isPrefFull) {
+      box.classList.add('fullscreen');
+      updateFullscreenButtonUI(true);
+    } else {
+      box.classList.remove('fullscreen');
+      updateFullscreenButtonUI(false);
+    }
+  }
+}
+
+// ─── Modal Fullscreen Toggle ──────────────────────────────────
+function toggleDeliverableModalFullscreen() {
+  const box = document.querySelector('#modal-deliverable-detail .modal-deliverable-box');
+  if (!box) return;
+  const isFull = box.classList.toggle('fullscreen');
+  localStorage.setItem('deliverable_modal_fullscreen', isFull ? '1' : '0');
+  updateFullscreenButtonUI(isFull);
+}
+
+function updateFullscreenButtonUI(isFull) {
+  const icon = document.getElementById('icon-modal-fullscreen');
+  const label = document.getElementById('label-modal-fullscreen');
+  if (icon) icon.textContent = isFull ? '🗗' : '⛶';
+  if (label) label.textContent = isFull ? 'ย่อขนาด' : 'ขยายเต็มจอ';
+}
+
+function formatSlideBulletText(txt) {
+  if (!txt) return '';
+  return escapeHtml(txt)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong style="color:#f8fafc; font-weight:700;">$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
 }
 
 // ─── PowerPoint Slide Deck Parser & Renderer ──────────────────
@@ -1485,7 +1521,7 @@ function parseSlidesFromMarkdown(mdContent) {
     for (const line of lines) {
       if (line.includes('Key Points:')) { inKeyPoints = true; continue; }
       if (inKeyPoints) {
-        if (line.trim().startsWith('- **ภาพประกอบ') || line.trim().startsWith('- 🎙️') || line.trim().startsWith('###')) {
+        if (line.trim().startsWith('- **ภาพประกอบ') || line.trim().startsWith('- 🎙️') || line.trim().toLowerCase().includes('speaker notes') || line.trim().toLowerCase().includes('คำพูดผู้นำเสนอ') || line.trim().startsWith('###')) {
           inKeyPoints = false;
           continue;
         }
@@ -1496,7 +1532,7 @@ function parseSlidesFromMarkdown(mdContent) {
     if (bullets.length === 0) {
       if (subtitle) bullets.push(subtitle);
       for (const line of lines) {
-        if (line.trim().startsWith('- **ภาพประกอบ') || line.trim().startsWith('- 🎙️') || line.trim().startsWith('- **หัวข้อ') || line.trim().startsWith('###')) continue;
+        if (line.trim().startsWith('- **ภาพประกอบ') || line.trim().startsWith('- 🎙️') || line.trim().startsWith('- **หัวข้อ') || line.trim().toLowerCase().includes('speaker notes') || line.trim().toLowerCase().includes('คำพูดผู้นำเสนอ') || line.trim().startsWith('###')) continue;
         const bMatch = line.match(/^\s*[-•]\s*(?:[•\-0-9\.]*\s*)?(.*)$/);
         if (bMatch && bMatch[1].trim()) bullets.push(bMatch[1].trim());
       }
@@ -1538,10 +1574,10 @@ function renderSlideDeck(slides, index = 0) {
     ? s.bullets.map(b => `
         <div class="slide-bullet-row">
           <div class="slide-bullet-dot"></div>
-          <div>${escapeHtml(b)}</div>
+          <div>${formatSlideBulletText(b)}</div>
         </div>
       `).join('')
-    : `<div style="font-size:0.95rem; color:#cbd5e1; line-height:1.6;">${escapeHtml(s.headline)}</div>`;
+    : `<div style="font-size:1.05rem; color:#cbd5e1; line-height:1.65;">${formatSlideBulletText(s.headline)}</div>`;
 
   container.innerHTML = `
     <div class="presentation-deck-wrap">
@@ -2272,12 +2308,20 @@ window.downloadCurrentPresentationFile = downloadCurrentPresentationFile;
 window.copyCurrentDeliverableDoc = copyCurrentDeliverableDoc;
 window.downloadCurrentDeliverableDoc = downloadCurrentDeliverableDoc;
 
-// ─── Global Keyboard Shortcuts for Slide Deck (Left / Right Arrow) ───
+// ─── Global Keyboard Shortcuts for Slide Deck & Fullscreen (F, Arrows) ───
 if (typeof window !== 'undefined' && !window._slideKeyboardListenerAttached) {
   window._slideKeyboardListenerAttached = true;
   window.addEventListener('keydown', (e) => {
     const modal = document.getElementById('modal-deliverable-detail');
     if (!modal || (!modal.classList.contains('open') && !modal.classList.contains('active'))) return;
+
+    // Toggle fullscreen on 'F' key if not typing in inputs
+    if ((e.key === 'f' || e.key === 'F') && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+      e.preventDefault();
+      toggleDeliverableModalFullscreen();
+      return;
+    }
+
     const presPane = document.getElementById('del-pane-presentation');
     if (!presPane || !presPane.classList.contains('active')) return;
 
@@ -2290,6 +2334,7 @@ if (typeof window !== 'undefined' && !window._slideKeyboardListenerAttached) {
     }
   });
 }
+window.toggleDeliverableModalFullscreen = toggleDeliverableModalFullscreen;
 window.copyFileContentAtIndex = copyFileContentAtIndex;
 window.handleAttachmentFileInput = handleAttachmentFileInput;
 window.removeAttachment = removeAttachment;
